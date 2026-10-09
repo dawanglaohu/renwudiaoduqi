@@ -1,0 +1,2617 @@
+{
+  "schema": 1,
+  "batch": 17,
+  "round": 2,
+  "date": "2026-10-09",
+  "verdict": "open",
+  "tests": "pass",
+  "baselineMain": "c82c923bcf65db20affdd8cba147d597aa142e10",
+  "taskIds": [
+    "M9-T23",
+    "M9-T29"
+  ],
+  "newRepair": "R17-T78766144",
+  "stableKey": "batch17-native-effort-contract-sync",
+  "checks": [
+    {
+      "seconds": 328.45,
+      "skipped": 3,
+      "exit": 0,
+      "files": 249,
+      "passed": 3198,
+      "skippedReasons": [
+        "agents-service Windows symlink case",
+        "staging smoke Linux-only case on Windows",
+        "staging smoke symlink case on Windows"
+      ],
+      "command": "pnpm -w check --maxWorkers=2 --minWorkers=1"
+    },
+    {
+      "seconds": 144.452,
+      "skippedReasons": [
+        "project _run has no SKILL.md; existing distribution-conditional case"
+      ],
+      "exit": 0,
+      "passed": 212,
+      "skipped": 1,
+      "command": "python -B -m unittest discover -s docs/Agent任务调度器-开发文档/_run/tests -p test_*.py",
+      "total": 213
+    },
+    {
+      "seconds": 267.31,
+      "exit": 0,
+      "files": 4,
+      "passed": 41,
+      "mode": "production bootstrap + browser; protocol fixture agents",
+      "command": "pnpm -w e2e"
+    },
+    {
+      "seconds": 16.36,
+      "exit": 0,
+      "files": 1,
+      "passed": 7,
+      "mode": "public production pairing",
+      "command": "pnpm -w smoke:pair"
+    },
+    {
+      "seconds": 284.06,
+      "exit": 0,
+      "files": 1,
+      "passed": 2,
+      "mode": "normal configured native Codex CLI 0.157.1; actual provider rounds, no fake transport",
+      "command": "R17_REAL_PROVIDER=1 pnpm exec vitest run --config vitest.e2e.config.ts"
+    }
+  ],
+  "regressions": [
+    {
+      "test": "packages/daemon/test/arch/provider-evidence-root.test.ts",
+      "green": "2 passed",
+      "id": "B1",
+      "task": "M9-T23",
+      "red": "1 failed, 1 passed",
+      "fix": "c1e3244a89e4629bcbccc8f2a08597324f6ac998",
+      "severity": "S3"
+    },
+    {
+      "test": "packages/web/test/use-minute-tick.test.tsx",
+      "green": "39 adjacent tests passed",
+      "id": "B2",
+      "task": "M9-T23",
+      "red": "3 added real badge DOM cases failed",
+      "fix": "1b0c75d932fbb38ff3f3696a90df0ae9a547f815",
+      "severity": "S3"
+    },
+    {
+      "crossBatch": [
+        "M4-T7",
+        "M8-T9",
+        "M8-T6"
+      ],
+      "stableKey": "batch17-native-effort-contract-sync",
+      "id": "B3",
+      "task": "M9-T23",
+      "status": "NOT_FIXED doc-issue",
+      "repair": "R17-T78766144",
+      "severity": "S3"
+    },
+    {
+      "red": "3 added mounted DOM cases failed; original native suite line 779 expected freshly checked badge but received em dash",
+      "green": "5 new tests, 25 adjacent passed; original native failure assertion now passes",
+      "negativeControls": [
+        "only GET /gates for login_changed; no global snapshot or probe requests",
+        "discard stale gate result and stale full-deck result",
+        "invalidated failed read retried",
+        "unmounted container neither republishes nor rereads"
+      ],
+      "severity": "S2",
+      "id": "B4",
+      "crossBatch": [
+        "M9-T20",
+        "M9-T21"
+      ],
+      "task": "M9-T23",
+      "test": "packages/web/test/gate-login-refresh.test.tsx",
+      "fix": "376508b395b3bdd761c13226fc6c0036ad3b2de1"
+    }
+  ],
+  "native": {
+    "head": "148192d2d49450a42e9e9b0c38af584f4c7edf81",
+    "headAtEnd": "148192d2d49450a42e9e9b0c38af584f4c7edf81",
+    "tree": "/mnt/d/xiangmu/agent-scheduler-batch-17",
+    "origin": "http://127.0.0.1:34375",
+    "cleanAtStart": true,
+    "mode": "production bootstrap; ordinary registry; real native transport; fresh touch-capable Chromium context; account rate-limit and credential-bearing log rows masked in screenshots",
+    "validModel": "gpt-6.1-sol",
+    "invalidModel": "r17-model-that-does-not-exist",
+    "reply": "R17-CONTROL",
+    "browserExceptions": [
+      "two deliberate offline PATCH failures, then normal network restored",
+      "CDP 300ms latency captures real pipeline pending, then removed",
+      "fresh touch-capable Chromium; UI pairing, no credential or storage injection"
+    ],
+    "coldStart": {
+      "descheduledMs": 16000,
+      "startupBudgetMs": 60000,
+      "chunks": [
+        "R",
+        "17",
+        "-C",
+        "ONT",
+        "ROL"
+      ],
+      "exit": {
+        "runId": "r17-cold-start",
+        "pid": 11490,
+        "exitCode": 0,
+        "signal": null,
+        "reason": "exited"
+      }
+    },
+    "bootstrap": {
+      "pid": 11778,
+      "readinessMs": 7876.521800000002,
+      "node": "22.17.0",
+      "platform": "linux"
+    },
+    "pairingMode": "0600 and consumed-file deletion asserted",
+    "refreshes": 2,
+    "eventCounts": {
+      "agent_message_chunk": 6,
+      "agent.availability_changed": 9,
+      "batch.advanced": 1,
+      "lane.assigned": 2,
+      "lane.released": 2,
+      "run.exited": 4,
+      "run.started": 9,
+      "run.state_changed": 19,
+      "run.stderr_line": 10,
+      "settings.pipeline_changed": 2,
+      "system.docs_changed": 1,
+      "task.gate_waiting": 1
+    },
+    "pageErrors": [],
+    "initialGateLogin": {
+      "state": "unknown",
+      "reason": "unparsable",
+      "checkedAt": "2026-10-09T01:57:58.659Z",
+      "loginCommand": "codex login",
+      "warningCode": "E_AGENT_LOGIN_PROBE_FAILED"
+    },
+    "gateLoginUiTitle": "刚刚 (original assertion passed)",
+    "reassign": {
+      "rerunId": "req_262ba485beab",
+      "reassignedId": "req_4728d709f9b0",
+      "retainedAgent": "codex",
+      "contract": "E-359 permits dispatch without changing agent"
+    },
+    "reassignFocusMatches": true,
+    "failedDetailState": "failed",
+    "finalConvergence": {
+      "runId": "req_4728d709f9b0",
+      "apiState": "failed",
+      "deckTaskState": "failed",
+      "remainingZeroOutputCards": 0
+    },
+    "connectionFailure": {
+      "apiAddress": "127.0.0.1:40495",
+      "method": "public pairing UI saves unused port; normal authenticated first-screen read fails"
+    },
+    "recordingNote": "Functional and density source proof. CJK host font prerequisite was then corrected for final GIF; the final PR-head recording and remote media checksum are published in the linked PR body."
+  },
+  "densities": [
+    {
+      "page": "pair",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/pair",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.233,
+        "leftGap": 736,
+        "rightGap": 736,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [
+          {
+            "path": "div.flex.min-h-screen.flex-col > main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)]",
+            "maxWidth": "480px",
+            "width": 480
+          }
+        ],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 1
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "pair",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/pair",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.311,
+        "leftGap": 496,
+        "rightGap": 496,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [
+          {
+            "path": "div.flex.min-h-screen.flex-col > main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)]",
+            "maxWidth": "480px",
+            "width": 480
+          }
+        ],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 1
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "pair",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/pair",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.918,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 3,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [
+          {
+            "path": "main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)] > div.min-w-0.w-full.bg-bg",
+            "gap": 32,
+            "limit": 18
+          },
+          {
+            "path": "section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)] > div.min-w-0.w-full.bg-bg > form.flex.flex-col.gap-5",
+            "gap": 20,
+            "limit": 18
+          }
+        ],
+        "padOffenders": [
+          {
+            "path": "main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)] > div.min-w-0.w-full.bg-bg",
+            "pad": 24,
+            "limit": 18
+          }
+        ],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 2,
+          "padOffenders": 1,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "agents",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/settings/agents",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 18
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.983,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 18,
+          "ratio": 0.009
+        },
+        "overflowX": 0,
+        "bars": 7,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "agents",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/settings/agents",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 18
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.978,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 5,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "agents",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/settings/agents",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 18
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.938,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 232,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "pipeline",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/settings/pipeline",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 18
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.983,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.006
+        },
+        "overflowX": 0,
+        "bars": 5,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "pipeline",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/settings/pipeline",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 18
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.978,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.008
+        },
+        "overflowX": 0,
+        "bars": 5,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "pipeline",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/settings/pipeline",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 18
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.938,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 5,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "deck",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": {
+          "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.deck-desktop-layout.flex.flex-row > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+          "width": 272
+        },
+        "avail": {
+          "left": 272,
+          "right": 1920,
+          "width": 1648
+        },
+        "contentFound": true,
+        "fill": 0.981,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.007
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "deck",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": {
+          "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.deck-desktop-layout.flex.flex-row > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+          "width": 272
+        },
+        "avail": {
+          "left": 272,
+          "right": 1440,
+          "width": 1168
+        },
+        "contentFound": true,
+        "fill": 0.973,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.01
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "deck",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.938,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 6,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [
+          {
+            "path": "div.flex.min-h-0.flex-col > div.flex.flex-col.h-full > section.flex.flex-col.h-full > div.relative.flex-1.flex",
+            "pad": 72,
+            "text": "泳道 1空闲排队停止AG—·—·—·来源：—空闲 · 本批已全部派出耗时: —T"
+          }
+        ],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 1,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "devices",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/settings/devices",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 18
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.983,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.006
+        },
+        "overflowX": 0,
+        "bars": 6,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "devices",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/settings/devices",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 18
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.978,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.008
+        },
+        "overflowX": 0,
+        "bars": 6,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "devices",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/settings/devices",
+        "type": "form",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 18
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.918,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 8,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [
+          {
+            "path": "section > div.flex.flex-col.gap-[var(--sp-3)] > div.grid.w-full.min-w-0 > div.flex.flex-col.min-w-0",
+            "gap": 24,
+            "limit": 18
+          }
+        ],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 1,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "landing",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/landing/req_03fd92989a3a",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.992,
+        "leftGap": 16,
+        "rightGap": 0,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 9,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "landing",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/landing/req_03fd92989a3a",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.978,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 10,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "landing",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/landing/req_03fd92989a3a",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.918,
+        "leftGap": 16,
+        "rightGap": 16,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 6,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [
+          {
+            "path": "main.flex-1 > div.flex.min-h-screen.flex-col > main.flex-1.min-w-0.p-[var(--sp-4)] > div.min-w-0.flex.flex-col",
+            "gap": 24,
+            "limit": 18
+          }
+        ],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 1,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "run-detail",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/run/req_879444423629",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.988,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 7,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "run-detail",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/run/req_879444423629",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.983,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 115,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "run-detail",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/run/req_879444423629",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.944,
+        "leftGap": 12,
+        "rightGap": 10,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 6,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "run-missing",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/run/r17-missing-run",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.988,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "run-missing",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/run/r17-missing-run",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.983,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "run-missing",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/run/r17-missing-run",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.938,
+        "leftGap": 12,
+        "rightGap": 12,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "connect-failed",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex.flex-1.items-center",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.271,
+        "leftGap": 700,
+        "rightGap": 700,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 0,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "connect-failed",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex.flex-1.items-center",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.361,
+        "leftGap": 460,
+        "rightGap": 460,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 0,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "page": "connect-failed",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34375/#/",
+        "type": "card",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "mobile": true,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex.flex-1.items-center",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "contentFound": true,
+        "fill": 0.877,
+        "leftGap": 24,
+        "rightGap": 24,
+        "interiorBand": {
+          "px": 0,
+          "ratio": 0
+        },
+        "overflowX": 0,
+        "bars": 0,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [
+          {
+            "path": "div#root > div.flex.min-h-screen.flex-col > main.flex.flex-1.items-center > div.min-w-0.w-full.max-w-[520px]",
+            "pad": 24,
+            "limit": 18
+          }
+        ],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 1,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "n/a",
+          "D2": "n/a",
+          "D3": "pass",
+          "D4": "n/a",
+          "D5": "n/a",
+          "D6": "n/a",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "state": {
+        "requirement": "Perform the second Batch 17 closeout unattended on current main. Verify M9-T23 login/catalog/effort/settings/gates and M9-T29 density through the real production daemon and browser. Preserve earlier failure evidence and standards. Use only the dedicated batch-17 worktree and its external batch-17 planning directory. Do not create a clone or additional task directories.",
+        "task": {
+          "title": "Batch 17 second closeout: production provider and UI evidence",
+          "accept": "Run all declared checks and production E2E, prove a valid native provider round and an invalid-model zero-output recovery, record three viewport density and a provenance-backed GIF, then commit and review/merge the closeout record or keep unresolved issues open."
+        },
+        "conflict": "The landed e2e/batch-17-real-provider.test.ts hardcodes its evidence root to ../.codex-plans/agent-scheduler-r17-t73118308, which conflicts with this closeout's two-directory rule. CI already sets R17_EVIDENCE_ROOT to that same default path but the test does not read it. The local native budget case explicitly requires Linux, available through WSL. No product behavior change is required to collect current-head evidence.",
+        "options": {
+          "A": "Let the existing provider E2E accept R17_EVIDENCE_ROOT as an optional output-root override while preserving its current default and every assertion. Add a focused red/green regression for output routing, run the same production suite with the batch-17 planning root under WSL, and keep the small test-support change in this closeout PR.",
+          "B": "Keep the landed E2E unchanged, run its exact assertions in the explicit real-provider CI lane on the final head, and implement equivalent local production UI/browser evidence capture within the allowed batch-17 planning root. Record that local evidence is independently captured and CI supplies the existing suite.",
+          "C": "Keep the landed test unchanged and avoid its local execution. Preserve the existing CI/provider evidence as historical only, run declared non-provider local suites and manual production checks in the batch-17 roots, and leave the current-head provider proof as an open repair task until the allowed output routing is addressed separately."
+        }
+      },
+      "status": "ok",
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(low 0.33) spec_change=no(0.16) outside_stack=no(0.27) needs_owner=no(0.07) reversible=yes(0.82) adopt=take(A)",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.33,
+          "band": "low",
+          "probabilities": {
+            "A": 0.55,
+            "B": 0.42,
+            "C": 0.03
+          }
+        },
+        "spec_change": {
+          "p": 0.16,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.27,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.07,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.82,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "low",
+          "why": "Jev 选 A（low）"
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "Audit only landed Batch 17 tasks M9-T23 and M9-T29 plus their immediate interfaces, unattended. Every acceptance criterion must have file/line evidence. If this older closeout prompt and current repository disagree, enumerate feasible choices and obtain Jev's ruling. Do not weaken acceptance to suit code. A demonstrated documentation-root issue must be recorded as NOT_FIXED doc-issue with a complete stable repair task; do not rewrite development source documents during this bug hunt.",
+        "task": {
+          "title": "Batch 17 second closeout: resolve current contract discrepancies",
+          "accept": "Prove the current login/catalog/effort/settings/gate flow and desktop/mobile density; retain unresolved work visibly open and create a complete repair task for each demonstrated unresolved issue."
+        },
+        "conflict": "PR #206 is merged and explicitly adds native effort values to agent settings, task assignments, review overrides and wrapup assignments. Current shared api/settings.ts declares effortVendor; the production domain/schema/UI support it. M9-T23 implementation notes document the new behavior. However canonical section 10 line 195 and section 19 M9-T23 acceptance still restrict review effort to three tiers and require effort-picker allowVendor=false; E-356 also still forbids vendor. Separately PR #203 updated section 11: Agent settings is now a work surface with 18px outer group gaps and 12px internal field gaps, whereas the pasted historical density instruction calls it form with default gap 12. These are independently verifiable source discrepancies, not evidence that the newly requested functionality should be removed.",
+        "options": {
+          "A": "Preserve the already landed native-effort functionality and its tests; record the unsynchronized section 10/19/E-356 clauses as a documentation-root issue and create one bounded stable repair task to reconcile them through begin/sync/verify without lowering behavior. Keep this closeout open. Measure Agent settings as work using section 11's declared 18px outer-group contract and separately check internal field gaps against 12px; also retain the historical default-probe result.",
+          "B": "Treat the older canonical section 10/19/E-356 restriction as controlling this batch. Restore allowVendor=false and reject effortVendor for pipeline review and wrapup, add red/green regressions, retain the approved PR #203 work/18px layout, and record removal of the newly landed pipeline effort feature as a scope conflict requiring follow-up rather than reporting clean.",
+          "C": "Preserve all current behavior and execute both old and new density/effort expectations. Defer interpreting the native-effort mismatch until a later documentation review, create a stable investigation task with the exact contradictory sources, and leave the batch open while reporting only measured product results."
+        }
+      },
+      "status": "ok",
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(medium 0.53) spec_change=yes(0.71) outside_stack=no(0.09) needs_owner=unsure(0.40) reversible=unsure(0.60) adopt=red_line",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.53,
+          "band": "medium",
+          "probabilities": {
+            "A": 0.69,
+            "B": 0.3,
+            "C": 0.01
+          }
+        },
+        "spec_change": {
+          "p": 0.71,
+          "verdict": "yes"
+        },
+        "outside_stack": {
+          "p": 0.09,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.4,
+          "verdict": "unsure"
+        },
+        "reversible": {
+          "p": 0.6,
+          "verdict": "unsure"
+        },
+        "adopt": {
+          "action": "red_line",
+          "option": null,
+          "confidence": "n/a",
+          "why": "needs_owner 不是明确 no：花钱 / 不可逆删除 / 改范围 / 对外承诺的授权边界须由用户确认"
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "The user explicitly authorizes this unattended closeout to record each demonstrated documentation-root mismatch as NOT_FIXED doc-issue and generate a complete stable repair task. The user also explicitly forbids editing canonical development source documents in this bug-hunt round. Ordinary technical choices are delegated to Jev; only spending, irreversible deletion, changing settled scope, or external commitments require the human. No such action is proposed here.",
+        "task": {
+          "title": "Record the proven native-effort documentation discrepancy without changing product scope",
+          "accept": "Preserve current deployed/native-effort behavior, old failure evidence and all tests. Do not claim clean/fixed while the mismatch is unresolved. Include an actionable, stable repair task in the closeout record and generated handoff."
+        },
+        "conflict": "A prior combined ruling preferred recording a documentation issue but returned needs_owner=unsure and adopt=red_line. This clarified fork concerns only how to record already authorized unresolved documentation work; it neither adopts a new feature contract nor edits canonical source docs. Verified facts: merged PR #206 deliberately enables pipeline native effortVendor; current shared schema, domain and UI implement it. Canonical section 10 line 195, section 19 M9-T23 AC8 and E-356 still restrict those values to three tiers. This is an observable contradiction regardless of which contract a future repair ratifies.",
+        "options": {
+          "A": "Record one stable NOT_FIXED doc-issue repair task scoped to tracing PR #206 authority, reconciling the exact section 10/19/E-356 contradictions through the established begin/sync/verify workflow, preserving all current native-effort acceptance, and providing schema/DOM evidence and affected-task revalidation before any future clean/fixed closeout. Make no canonical or product changes now.",
+          "B": "Record one stable NOT_FIXED doc-issue repair task scoped first to producing an authoritative old/new contract comparison with public API and UI evidence, then requiring Jev to select the exact documentation reconciliation before begin/sync/verify. Keep the mismatch and the batch open; make no canonical or product changes now."
+        }
+      },
+      "status": "ok",
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(low 0.42) spec_change=unsure(0.54) outside_stack=no(0.12) needs_owner=no(0.19) reversible=yes(0.81) adopt=take(A)",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.42,
+          "band": "low",
+          "probabilities": {
+            "A": 0.71,
+            "B": 0.29
+          }
+        },
+        "spec_change": {
+          "p": 0.54,
+          "verdict": "unsure"
+        },
+        "outside_stack": {
+          "p": 0.12,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.19,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.81,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "low",
+          "why": "Jev 选 A（low）"
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "Perform unattended Batch 17 round 2 closeout for M9-T23 and M9-T29. First reproduce every bug, fix only its root cause, retain red/green regression evidence, and use Jev for ordinary technical forks. M9-T23 AC5 forbids reading /snapshot or starting another login probe when agent.availability_changed reason=login_changed arrives. AC6 requires the zero-output approval card to show authoritative current login context and preserve rerun, reassign, and reject behavior. The frontend is a presentation and API mapping layer, not a policy authority.",
+        "task": {
+          "title": "Refresh a waiting zero-output approval card after the daemon login probe completes",
+          "accept": "The mounted approval card must update from unchecked login to the newly probed timestamp without user navigation, a global snapshot read, another login/model probe, or changing gate/run state. Old cards with null context remain compatible. Late overlapping reads or an unmounted container must not restore obsolete gate context."
+        },
+        "conflict": "The original real native provider suite at clean head 1b0c75d932fbb38ff3f3696a90df0ae9a547f815 passed valid-model R17-CONTROL content and the 16-second SIGSTOP startup-budget control. A nonexistent model then exited before output. GET /gates showed a newly checked login timestamp after refreshLogin, while the browser gate login badge title stayed em dash; original e2e line 779 failed without any assertion changes. run.ts commits and publishes gate/run exit before awaiting refreshLogin. agents.ts clears the login cache at probe start and publishes login_changed only after storing the result. gates.ts resolves current login dynamically at GET time. RunDeckContainer loads gates on run/lane/task milestones but ignores agent.availability_changed. Its gates live in private React state; cache-invalidation has no gates resource. Calling the existing full load() on login_changed would violate AC5 by rereading /snapshot. This is an authorized local seam fix across M9-T23 and its M9-T20/M9-T21 container predecessors, not a feature or canonical contract change.",
+        "options": {
+          "A": "Add a focused ordinary GET /gates refresh in the existing RunDeckContainer subscription, only for login_changed. Share in-flight gate reads, refresh a read invalidated after it starts, retain the latest authoritative gate result across overlapping full deck loads, and clean up on unmount. Update only gate presentation state. Keep cache-invalidation mappings, global snapshots, probe calls, gate creation, and action rules unchanged. Add mounted DOM regressions for probe completion and overlapping stale reads, with negative assertions on snapshot/probe requests, then rerun the unchanged real provider suite.",
+          "B": "Use the authoritative login field already carried by login_changed to update context.login only on currently loaded gates whose referenced RunDto.agentId matches that event. Track later login events while full deck loads are pending so old results cannot overwrite them. Never create a missing legacy context or infer a login policy. This avoids an extra GET /gates but adds a frontend projection joining event payloads, run identity, and gate context. Add mounted DOM and race regressions with negative request assertions, then rerun the unchanged real provider suite.",
+          "C": "Preserve product code, retain the native suite failure as an open S2 repair task with this production reproduction, and complete the closeout record and other evidence without claiming AC6/provider recovery passed. This is safe but leaves the known local seam unresolved even though the user authorized root-cause fixes."
+        }
+      },
+      "status": "ok",
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(low 0.28) spec_change=no(0.09) outside_stack=no(0.10) needs_owner=no(0.06) reversible=yes(0.84) adopt=take(A)",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.28,
+          "band": "low",
+          "probabilities": {
+            "A": 0.52,
+            "B": 0.47,
+            "C": 0.01
+          }
+        },
+        "spec_change": {
+          "p": 0.09,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.1,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.06,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.84,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "low",
+          "why": "Jev 选 A（low）"
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "The unattended Batch 17 round 2 closeout explicitly requires current production-browser density evidence for settings agents, devices, pipeline, landing and run detail (including missing run) at 1920x1080 and 1440x900, plus 390x844 overflow. Pairing and genuinely unreachable API connection failure require card checks. Preserve all current provider assertions, real normal CLI/provider rounds, native zero-output recovery and a truthful GIF from one fresh server/context at the exact PR head. No product layout or canonical contract change is proposed.",
+        "task": {
+          "title": "Complete the current native production suite's Batch 17 density evidence",
+          "accept": "Every required route and viewport has the unchanged density probe result using the current section 11 page type and padding contract. Pairing is probed before entering its code, normal authenticated routes are reached through UI pairing, and connection failure is caused by a real unused API port selected through the existing UI address control. No mock routes, injected token/storage state, synthetic event, or reduced probe threshold is used."
+        },
+        "conflict": "The existing native provider suite already measures agents (work, pad18), pipeline (form, pad18) and deck (work) at all three viewports. Its maintained density helper currently accepts only work/form. The round's requested devices, landing, run detail, missing-run, pair and connection-failed results are not produced by that suite. Prior historical density evidence cannot establish the current whole batch. The user permits only the batch worktree and planning directory and requires the native GIF to come from one fresh run. Environment failures are kept separately, including a recent global GIT_INDEX_FILE leaking to nested acceptance Git projects; that run is not acceptance evidence and the environment is being corrected without changing product code.",
+        "options": {
+          "A": "Extend only the maintained native E2E evidence helper to accept the existing card type and add state-waited probes for missing required routes within the same fresh provider flow. Pair before typing the code; reach devices/landing/run through normal authenticated navigation; measure connection failure last using the existing pairing-page Save Manual Address control to persist a real unused port followed by normal reload. Keep all original assertions and limits, reset viewport before each published frame, and rerun from a clean exact head. This adds persistent acceptance coverage and may expose real layout failures, which must be reported or fixed with red/green evidence rather than relaxed.",
+          "B": "Keep the native suite unchanged and run a separate planning-only production density harness that boots the same exact head with normal registry inputs and pairs another isolated browser through the public flow. Measure all missing routes and real unreachable-address failure there; publish the original native-flow GIF and explicitly separate the two run provenances. Preserve all original provider assertions. This avoids changes to maintained tests but duplicates setup and leaves future CI without full Batch 17 density coverage."
+        }
+      },
+      "status": "ok",
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(low 0.36) spec_change=no(0.11) outside_stack=no(0.17) needs_owner=no(0.09) reversible=yes(0.80) adopt=take(A)",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.36,
+          "band": "low",
+          "probabilities": {
+            "A": 0.68,
+            "B": 0.32
+          }
+        },
+        "spec_change": {
+          "p": 0.11,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.17,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.09,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.8,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "low",
+          "why": "Jev 选 A（low）"
+        }
+      }
+    }
+  ],
+  "logFingerprints": [
+    {
+      "name": "final-check-3.log",
+      "sha256": "9b489099295a2495cbe0702f4a9ac621fd6099f35cb90a3afd2f2ea301007bff",
+      "bytes": 660533
+    },
+    {
+      "name": "generator-tests.log",
+      "sha256": "4574dd27d0dc1a2e6f11ff5963cb0612aaecb48928f5a0e7224f165784ae6b5c",
+      "bytes": 332
+    },
+    {
+      "name": "linux-e2e-4.log",
+      "sha256": "b4cb3e40b18d24822d58e38e101280957968bd43a29b5b39942eed0bed0d2283",
+      "bytes": 27045
+    },
+    {
+      "name": "linux-pair-2.log",
+      "sha256": "a77df7af11a8c0d1b291803b3ba38b6179112c9173192164bdbd758c5a9e5c96",
+      "bytes": 7502
+    },
+    {
+      "name": "linux-provider-4.log",
+      "sha256": "ab920058e81db6e38281f32466cf3f1273258e56858ba6c78b9d9e26a10287cf",
+      "bytes": 899
+    },
+    {
+      "name": "provider-evidence\\provider-luo1rz\\evidence.json",
+      "sha256": "1b5b88a53cd26e74ac6c3a5ea60553836b3e29c89774c15fa5d83e1ac2aaf246",
+      "bytes": 75813
+    },
+    {
+      "name": "provider-evidence\\provider-mZxLnH\\evidence.json",
+      "sha256": "324e8539c0667a448ac163c5f45cc1bc25185121decda2aaf4181d320f7c0850",
+      "bytes": 157662
+    },
+    {
+      "name": "provider-evidence\\provider-mZxLnH\\cold-start.json",
+      "sha256": "a424d277d1373865c056215afdbd0c050113bf51f640e28b27643cc27fe1f1ac",
+      "bytes": 175
+    },
+    {
+      "name": "evidence-root-red.log",
+      "sha256": "450379a07a1266206b3376731217e29fa1e1c73c63cd0caeede113a64ddab326",
+      "bytes": 1742
+    },
+    {
+      "name": "evidence-root-green.log",
+      "sha256": "b6976e7841b3aa1972e58a196f90ee8e4e73bd2a041508be29a6df1e151e3e9b",
+      "bytes": 462
+    },
+    {
+      "name": "minute-idle-red.log",
+      "sha256": "f8eddf1fa1a8c18c8e1e617884d1e075931ec79c569dd8b74b7353ec4a2e8d5a",
+      "bytes": 2943
+    },
+    {
+      "name": "minute-idle-green.log",
+      "sha256": "78acf7cb4334c7e23fb2aee20838d41a687a8841ad26d4f23c8af6d52b8f5d95",
+      "bytes": 648
+    },
+    {
+      "name": "gate-login-red.log",
+      "sha256": "a301fc489b2f83035afea7b2a5c59102b56f981c5eb6ed655fbbcb1d51173057",
+      "bytes": 3171
+    },
+    {
+      "name": "gate-login-race-red.log",
+      "sha256": "042d4e7754a462b9d81be539f053902d1fd258238126c1873121983b0718c9b2",
+      "bytes": 1382
+    },
+    {
+      "name": "gate-login-green.log",
+      "sha256": "c94da1d6193cdec719dae6a13eaea1280f9b9e99fc7f82fb082dc987e0bee5a2",
+      "bytes": 725
+    }
+  ],
+  "regressionOutput": [
+    {
+      "name": "evidence-root-red.log",
+      "tail": [
+        "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.",
+        "",
+        " RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17",
+        "",
+        " ❯ packages/daemon/test/arch/provider-evidence-root.test.ts (2 tests | 1 failed) 19ms",
+        "   × production provider E2E evidence routing > uses the caller evidence root for a batch closeout 16ms",
+        "     → expected 'D:\\xiangmu\\.codex-plans\\agent-schedul…' to be 'D:\\xiangmu\\.codex-plans\\agent-schedul…' // Object.is equality",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "",
+        " FAIL  packages/daemon/test/arch/provider-evidence-root.test.ts > production provider E2E evidence routing > uses the caller evidence root for a batch closeout",
+        "AssertionError: expected 'D:\\xiangmu\\.codex-plans\\agent-schedul…' to be 'D:\\xiangmu\\.codex-plans\\agent-schedul…' // Object.is equality",
+        "",
+        "Expected: \"D:\\xiangmu\\.codex-plans\\agent-scheduler-batch-17\"",
+        "Received: \"D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t73118308\"",
+        "",
+        " ❯ packages/daemon/test/arch/provider-evidence-root.test.ts:34:35",
+        "     32|  it('uses the caller evidence root for a batch closeout', () => {",
+        "     33|   const batchRoot = resolve(root, '../.codex-plans/agent-scheduler-bat…",
+        "     34|   expect(evidenceRoot(batchRoot)).toBe(batchRoot);",
+        "       |                                   ^",
+        "     35|  });",
+        "     36|  it('preserves the original task root when no override is supplied', (…",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯",
+        "",
+        " Test Files  1 failed (1)",
+        "      Tests  1 failed | 1 passed (2)",
+        "   Start at  08:36:48",
+        "   Duration  1.64s (transform 70ms, setup 0ms, collect 861ms, tests 19ms, environment 0ms, prepare 217ms)",
+        ""
+      ]
+    },
+    {
+      "name": "evidence-root-green.log",
+      "tail": [
+        "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.",
+        "",
+        " RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17",
+        "",
+        " ✓ packages/daemon/test/arch/provider-evidence-root.test.ts (2 tests) 7ms",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  2 passed (2)",
+        "   Start at  08:37:05",
+        "   Duration  1.62s (transform 73ms, setup 0ms, collect 868ms, tests 7ms, environment 0ms, prepare 206ms)",
+        ""
+      ]
+    },
+    {
+      "name": "minute-idle-red.log",
+      "tail": [
+        "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.",
+        "",
+        " RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17",
+        "",
+        " ❯ packages/web/test/use-minute-tick.test.tsx (6 tests | 3 failed) 77ms",
+        "   × use-minute-tick (AC 5, E-335, E-357) > first subscription shows an expired probe immediately after idle time 26ms",
+        "     → expected '已登录' to be '已登录 · 已过期' // Object.is equality",
+        "   × use-minute-tick (AC 5, E-335, E-357) > resubscription shows an expired probe immediately after idle time 6ms",
+        "     → expected '已登录' to be '已登录 · 已过期' // Object.is equality",
+        "   × use-minute-tick (AC 5, E-335, E-357) > uses the current clock immediately when an idle clock moves backwards 4ms",
+        "     → expected '20 分钟前探测' to be '10 分钟前探测' // Object.is equality",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯",
+        "",
+        " FAIL  packages/web/test/use-minute-tick.test.tsx > use-minute-tick (AC 5, E-335, E-357) > first subscription shows an expired probe immediately after idle time",
+        " FAIL  packages/web/test/use-minute-tick.test.tsx > use-minute-tick (AC 5, E-335, E-357) > resubscription shows an expired probe immediately after idle time",
+        "AssertionError: expected '已登录' to be '已登录 · 已过期' // Object.is equality",
+        "",
+        "Expected: \"已登录 · 已过期\"",
+        "Received: \"已登录\"",
+        "",
+        " ❯ packages/web/test/use-minute-tick.test.tsx:114:32",
+        "    112|     act(() => root.render(createElement(LoginBadge, { login })));",
+        "    113|     const badge = container.querySelector('[data-testid=\"login-badge\"]…",
+        "    114|     expect(badge?.textContent).toBe('已登录 · 已过期');",
+        "       |                                ^",
+        "    115|     expect(badge?.getAttribute('data-login-variant')).toBe('expired');",
+        "    116|     expect(badge?.getAttribute('title')).toBe('1500 分钟前探测');",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯",
+        "",
+        " FAIL  packages/web/test/use-minute-tick.test.tsx > use-minute-tick (AC 5, E-335, E-357) > uses the current clock immediately when an idle clock moves backwards",
+        "AssertionError: expected '20 分钟前探测' to be '10 分钟前探测' // Object.is equality",
+        "",
+        "Expected: \"10 分钟前探测\"",
+        "Received: \"20 分钟前探测\"",
+        "",
+        " ❯ packages/web/test/use-minute-tick.test.tsx:143:90",
+        "    141|     ),",
+        "    142|    );",
+        "    143|    expect(container.querySelector('[data-testid=\"login-badge\"]')?.getA…",
+        "       |                                                                                          ^",
+        "    144|     '10 分钟前探测',",
+        "    145|    );",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯",
+        "",
+        " Test Files  1 failed (1)",
+        "      Tests  3 failed | 3 passed (6)",
+        "   Start at  08:47:29",
+        "   Duration  2.07s (transform 134ms, setup 0ms, collect 200ms, tests 77ms, environment 1.10s, prepare 188ms)",
+        ""
+      ]
+    },
+    {
+      "name": "minute-idle-green.log",
+      "tail": [
+        "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.",
+        "",
+        " RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17",
+        "",
+        " ✓ packages/web/src/lib/login-freshness.test.ts (9 tests) 16ms",
+        " ✓ packages/web/test/stream-head-meta.test.tsx (19 tests) 42ms",
+        " ✓ packages/web/test/login-badge.test.tsx (5 tests) 58ms",
+        " ✓ packages/web/test/use-minute-tick.test.tsx (6 tests) 71ms",
+        "",
+        " Test Files  4 passed (4)",
+        "      Tests  39 passed (39)",
+        "   Start at  08:48:00",
+        "   Duration  2.31s (transform 370ms, setup 0ms, collect 815ms, tests 186ms, environment 2.54s, prepare 929ms)",
+        ""
+      ]
+    },
+    {
+      "name": "gate-login-red.log",
+      "tail": [
+        "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.",
+        "",
+        " RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17",
+        "",
+        " ❯ packages/web/test/gate-login-refresh.test.tsx (3 tests | 3 failed) 203ms",
+        "   × updates the mounted zero-output card after login probing without snapshot reads or probe requests 136ms",
+        "     → expected '—' to be '刚刚' // Object.is equality",
+        "   × discards a gate read overtaken by a later completed login probe 37ms",
+        "     → expected +0 to be 1 // Object.is equality",
+        "   × keeps the refreshed context when an earlier full deck read finishes later 29ms",
+        "     → expected '—' to be '刚刚' // Object.is equality",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯",
+        "",
+        " FAIL  packages/web/test/gate-login-refresh.test.tsx > updates the mounted zero-output card after login probing without snapshot reads or probe requests",
+        "AssertionError: expected '—' to be '刚刚' // Object.is equality",
+        "",
+        "Expected: \"刚刚\"",
+        "Received: \"—\"",
+        "",
+        " ❯ packages/web/test/gate-login-refresh.test.tsx:123:29",
+        "    121|   expect(deck.calls.mock.calls).toHaveLength(before);",
+        "    122|   await act(async () => loginChanged());",
+        "    123|   expect(deck.badgeTitle()).toBe('刚刚');",
+        "       |                             ^",
+        "    124|   expect(deck.calls.mock.calls.slice(before).map(([route, options]) =>…",
+        "    125|    .toEqual([['GET', '/api/v1/gates', undefined]]);",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯",
+        "",
+        " FAIL  packages/web/test/gate-login-refresh.test.tsx > discards a gate read overtaken by a later completed login probe",
+        "AssertionError: expected +0 to be 1 // Object.is equality",
+        "",
+        "- Expected",
+        "+ Received",
+        "",
+        "- 1",
+        "+ 0",
+        "",
+        " ❯ packages/web/test/gate-login-refresh.test.tsx:141:17",
+        "    139|   const before = deck.calls.mock.calls.length;",
+        "    140|   await act(async () => { loginChanged(); loginChanged(); });",
+        "    141|   expect(reads).toBe(1);",
+        "       |                 ^",
+        "    142|   await act(async () => loginChanged());",
+        "    143|   await act(async () => stale.resolve({ gates: [gate({ ...unchecked, c…",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯",
+        "",
+        " FAIL  packages/web/test/gate-login-refresh.test.tsx > keeps the refreshed context when an earlier full deck read finishes later",
+        "AssertionError: expected '—' to be '刚刚' // Object.is equality",
+        "",
+        "Expected: \"刚刚\"",
+        "Received: \"—\"",
+        "",
+        " ❯ packages/web/test/gate-login-refresh.test.tsx:166:29",
+        "    164|   deck.setLogin({ ...unchecked, checkedAt: new Date().toISOString() });",
+        "    165|   await act(async () => loginChanged());",
+        "    166|   expect(deck.badgeTitle()).toBe('刚刚');",
+        "       |                             ^",
+        "    167|   await act(async () => delayedRuns.resolve({ runs: [] }));",
+        "    168|   expect(deck.badgeTitle()).toBe('刚刚');",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯",
+        "",
+        " Test Files  1 failed (1)",
+        "      Tests  3 failed (3)",
+        "   Start at  09:37:44",
+        "   Duration  3.74s (transform 1.03s, setup 0ms, collect 1.86s, tests 203ms, environment 1.10s, prepare 159ms)",
+        ""
+      ]
+    },
+    {
+      "name": "gate-login-race-red.log",
+      "tail": [
+        "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.",
+        "",
+        " RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17",
+        "",
+        " ❯ packages/web/test/gate-login-refresh.test.tsx (5 tests | 1 failed) 279ms",
+        "   × replaces an invalidated failed gate read with the latest probe context 45ms",
+        "     → expected 1 to be 2 // Object.is equality",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "",
+        " FAIL  packages/web/test/gate-login-refresh.test.tsx > replaces an invalidated failed gate read with the latest probe context",
+        "AssertionError: expected 1 to be 2 // Object.is equality",
+        "",
+        "- Expected",
+        "+ Received",
+        "",
+        "- 2",
+        "+ 1",
+        "",
+        " ❯ packages/web/test/gate-login-refresh.test.tsx:252:17",
+        "    250|   await act(async () => loginChanged());",
+        "    251|   await act(async () => stale.reject(new Error('outdated gate read fai…",
+        "    252|   expect(reads).toBe(2);",
+        "       |                 ^",
+        "    253|   expect(deck.badgeTitle()).toBe('刚刚');",
+        "    254|   expect(deck.container.textContent).not.toContain('outdated gate read…",
+        "",
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯",
+        "",
+        " Test Files  1 failed (1)",
+        "      Tests  1 failed | 4 passed (5)",
+        "   Start at  09:39:41",
+        "   Duration  3.62s (transform 938ms, setup 0ms, collect 1.68s, tests 279ms, environment 1.10s, prepare 160ms)",
+        ""
+      ]
+    },
+    {
+      "name": "gate-login-green.log",
+      "tail": [
+        "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.",
+        "",
+        " RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17",
+        "",
+        " ✓ packages/web/test/run-deck-recovery.test.tsx (2 tests) 230ms",
+        " ✓ packages/web/test/gate-login-refresh.test.tsx (5 tests) 292ms",
+        " ✓ packages/web/test/use-minute-tick.test.tsx (6 tests) 77ms",
+        " ✓ packages/web/test/run-deck-container.test.tsx (4 tests) 107ms",
+        " ✓ packages/web/test/cache-invalidation.test.ts (8 tests) 10ms",
+        "",
+        " Test Files  5 passed (5)",
+        "      Tests  25 passed (25)",
+        "   Start at  09:40:01",
+        "   Duration  6.09s (transform 1.02s, setup 0ms, collect 4.03s, tests 716ms, environment 4.30s, prepare 729ms)",
+        ""
+      ]
+    }
+  ],
+  "preservation": "Historical 2026-10-02 open record, existing done tasks and pending revalidation remain intact. Main preexisting paths were snapshotted separately before work and will be compared after fast-forward sync."
+}

@@ -778,6 +778,8 @@ describe('R17-T73118308 real native provider', () => {
 		);
 		await expect.poll(() => gateCard.innerText()).not.toContain('事件缺失');
 		await expect.poll(() => gateCard.getByTestId('login-badge').getAttribute('title')).toBe('刚刚');
+		observations.gateLoginUiTitle = await gateCard.getByTestId('login-badge').getAttribute('title');
+		observations.refreshedGateContext = (await latestGate(failed.taskId)).context;
 		await density('deck', 'work');
 		await shot('invalid-model-gate');
 		await page.goto(`${origin}/#/run/${failed.id}`, { waitUntil: 'domcontentloaded' });
