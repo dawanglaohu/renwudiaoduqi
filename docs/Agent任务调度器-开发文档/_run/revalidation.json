@@ -1784,33 +1784,6 @@
     ],
     "previousStatus": "done"
   },
-  "M7-T6": {
-    "contractHash": "0df41e6dd9cac5f5829d3d74a50f89126fa980d4f24ff0eba25da6af53ee801b",
-    "patches": [
-      {
-        "changedFields": [
-          "providers"
-        ],
-        "patch": "r17-native-effort-contract-20261009",
-        "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
-      },
-      {
-        "changedFields": [
-          "providers"
-        ],
-        "patch": "r17-native-effort-contract-20261009",
-        "sourceVersion": "cb53f264a09301ac73bb0a0fa90a853cac47a086935d53f8214e0cddc528048b"
-      },
-      {
-        "changedFields": [
-          "providers"
-        ],
-        "patch": "r17-native-effort-contract-20261009",
-        "sourceVersion": "1834e6cbb11c83c298d6d7ae13ff610dda780f7e29b3b591d05c2d026f2f3ee6"
-      }
-    ],
-    "previousStatus": "done"
-  },
   "M7-T7": {
     "contractHash": "9ab07f3c8772b37d57a7f996b275685b53163f057209aad0d8a742f7d5dc5514",
     "patches": [

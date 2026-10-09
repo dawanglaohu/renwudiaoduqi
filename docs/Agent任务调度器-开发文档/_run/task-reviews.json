@@ -703,13 +703,31 @@
     "verdict": "pass"
   },
   "M7-T6": {
-    "compiler": "65eae292d7b917ccf496f7eab4966d43b9541977eb72afba5272b0c17306a442",
-    "contractHash": "ad8a3dc28586c2c3450a91aa525ed2886f02491cb2b34532f419aa3582124674",
-    "evidence": [
-      "M7-T6: its own contract context is byte-for-byte unchanged in the patch before/after; only an inherited provider hash propagated. The corrected GET example at 10-接口约定.md:273 agrees with shared settings.ts:62-93; no M7-T6 behavioral change. Workspace check covers current merged main."
+    "changedFields": [
+      "providers"
     ],
-    "reviewed": "2026-09-27T14:54:57.293416+00:00",
+    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
+    "contractHash": "0df41e6dd9cac5f5829d3d74a50f89126fa980d4f24ff0eba25da6af53ee801b",
+    "evidence": [
+      "补丁 changes.M7-T6 的 before.context 与 after.context 逐字段相等；任务定义、路径、边界、共享章节均未变。changedFields 仅 providers，由 handoff_contract.py:329 的祖先上下文指纹传播引起。",
+      "M7-T6 只拥有收口报告解析原语，任务本身不选择 Agent、不读手动收口 effort、不派发进程；本轮 E-254 手动 DSH 能力遗漏发生在 WrapupService 的指派入口，不能归为解析原语的变更条款。",
+      "已核 packages/daemon/src/domain/wrapup-report.ts 与 packages/daemon/test/unit/wrapup-report.test.ts 对 main 184af0249f5347bfa74ea0dac7c5942e786ddd4e 字节等价（统一 Git 换行）；源文件摘要附 sourceDigests。",
+      "全仓 pnpm -w check 的现有 wrapup-report.test.ts 34 用例通过，原断言、30 秒配置及原测试文件未改。证据行：✓ packages/daemon/test/unit/wrapup-report.test.ts (34 tests) 175ms。全仓的两个其他失败未被隐藏；本项判定只覆盖 providers 的传播及原语契约。",
+      "E-274 缺段拒绝、E-286 内容推导 open 而不信 RECORD、自报相异和 E-290 无主 TESTS 保留原文均由既有 34 用例验证；没有把本原语通过当成原生派发或整项任务通过。",
+      "按 Jev 低置信 option B 只清除有独立通过证据的无关项；R17-T78766144、共享接口受影响任务与 Batch17 继续待验/开放。"
+    ],
+    "reviewed": "2026-10-09T08:31:03.612644+00:00",
     "scope": "task-contract",
+    "sourceDigests": {
+      "packages/daemon/src/domain/wrapup-report.ts": "f47869117f13e2c733602124f7093436bae36eeb8cf43c2e10c040bbcb2eec4c",
+      "packages/daemon/test/unit/wrapup-report.test.ts": "fc431a5e56f7ceb7bb21faaa7dc561e8624a3ee91299e22d10dcfb85740ad6eb"
+    },
+    "testReceipt": {
+      "command": "pnpm -w check --maxWorkers=2 --minWorkers=1",
+      "fullWorkspaceVerdict": "not_passed",
+      "runtimeSourcesUnchanged": true,
+      "suite": "✓ packages/daemon/test/unit/wrapup-report.test.ts (34 tests) 175ms"
+    },
     "verdict": "pass"
   },
   "M7-T7": {
