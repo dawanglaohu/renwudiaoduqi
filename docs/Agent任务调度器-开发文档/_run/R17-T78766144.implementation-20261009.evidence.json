@@ -3,7 +3,7 @@
   "task": "R17-T78766144",
   "verdict": "pending",
   "sourceVersion": "1834e6cbb11c83c298d6d7ae13ff610dda780f7e29b3b591d05c2d026f2f3ee6",
-  "implementationHead": "5447c4c427b83dbad99d37e58852077227e1c000",
+  "implementationHead": "ed91f05",
   "approvedChange": {
     "pr": "https://github.com/dawanglaohu/renwudiaoduqi/pull/206",
     "head": "39be766",
@@ -250,6 +250,24 @@
         "why": "Jev 选 B（low）"
       },
       "state": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t78766144\\blocker-adjudication.state.json"
+    },
+    {
+      "name": "pending-match",
+      "conflict": "Custom review mode omits effortVendor. Server fallback to the saved default model with effortOptions [] stores effortVendor null. Strict JSON equality leaves data-pending true and disables later controls.",
+      "options": {
+        "A": "Record the failure, name the three repair paths, keep revalidation markers, do not edit runtime or open a pull request.",
+        "B": "Edit the three out-of-scope files and rerun the DOM proof, leaving the DSH tier bug untouched.",
+        "C": "Edit both the pending-match files and wrapup.ts, then open a pull request only if the red proofs pass."
+      },
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(high 0.97) spec_change=no(0.18) outside_stack=no(0.08) needs_owner=no(0.19) reversible=unsure(0.57) adopt=take(A)",
+      "adopt": {
+        "action": "take",
+        "option": "A",
+        "confidence": "high",
+        "why": "Jev 选 A（high）"
+      },
+      "state": "D:\\xiangmu\\.codex-plans\\agent-scheduler-r17-t78766144\\pending-match-adjudication.state.json"
     }
   ],
   "tasks": {
@@ -257,8 +275,43 @@
       "contractHash": "19179e19c92f18e899793022ee077467cf619f7d294f09b81f51800ae4b7fe41",
       "verdict": "pending",
       "evidence": [
-        "源契约已定点同步；必须边界 E-254 的真实 HTTP/SQLite 回归失败，因此不登记 pass、不清除补丁 pending、不 --landed。"
+        "源契约已定点同步；必须边界 E-254 的真实 HTTP/SQLite 回归失败，因此不登记 pass、不清除补丁 pending、不 --landed。",
+        "真实 DOM 将审查覆盖切到自定义后，回显键集与请求不一致，data-pending 保持 true；不登记 pass。"
       ]
     }
+  },
+  "blockingDomRegression": {
+    "id": "pipeline-custom-pending-keyset",
+    "verdict": "fail",
+    "summary": "审查覆盖切到自定义后 HTTP 200 且 SQLite 已写入 effortVendor null，但 data-pending 保持 true，后续模型与强度控件保持禁用。",
+    "head": "ed91f05",
+    "requestShape": {
+      "agentId": "codex",
+      "modelName": null,
+      "effortTier": null
+    },
+    "persistedReviewOverride": {
+      "agentId": "codex",
+      "modelName": null,
+      "effortTier": null,
+      "effortVendor": null
+    },
+    "ui": {
+      "data-pending": "true",
+      "timeoutMs": 30000
+    },
+    "evidenceDir": "unsupported-model-0YEnFk",
+    "rootCause": [
+      "packages/web/src/components/pipeline-assignment.tsx:68 自定义模式首次写入省略 effortVendor",
+      "packages/daemon/src/service/agents.ts:1391 模型名为空时回落到生效默认模型",
+      "packages/daemon/src/service/settings.ts:266 生效模型 effortOptions 为 [] 时补 effortVendor null",
+      "packages/web/src/features/run-deck/use-pipeline-settings.ts:74 JSON.stringify 比较请求与回显"
+    ],
+    "requiredRepairPaths": [
+      "packages/web/src/components/pipeline-assignment.tsx",
+      "packages/web/src/features/run-deck/use-pipeline-settings.ts",
+      "packages/daemon/src/service/settings.ts"
+    ],
+    "scopeAction": "未修改这些运行文件。200 与 SQLite 行不能代替 pending 结束后的真实 DOM 保存。"
   }
 }
