@@ -228,7 +228,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			const effort: EffortValue =
 				override.effort ?? (override.effortTier ? { tier: override.effortTier } : null);
 			const effortVendor = effort && 'vendor' in effort ? effort.vendor : null;
-			if (effortVendor !== null) {
+			if (effort !== null) {
 				const agent = deps.agentRegistry?.getSnapshot().agents[agentId];
 				if (agent?.effortVendorMap === null) {
 					throw new AppError(
@@ -239,10 +239,12 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						},
 					);
 				}
-				const allowed =
-					deps.agentService?.getVendorEffortDomain(agentId) ??
-					vendorEffortDomain(agentId, agent ?? {});
-				assertVendorEffortInDomain(effortVendor, allowed);
+				if (effortVendor !== null) {
+					const allowed =
+						deps.agentService?.getVendorEffortDomain(agentId) ??
+						vendorEffortDomain(agentId, agent ?? {});
+					assertVendorEffortInDomain(effortVendor, allowed);
+				}
 			}
 			const resolved = resolveAssignment({
 				stage: 'wrapup',

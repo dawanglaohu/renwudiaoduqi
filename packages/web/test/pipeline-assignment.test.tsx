@@ -6,14 +6,39 @@
  */
 
 import type { AgentEntryDto, ListAgentModelsResponse } from '@agent-scheduler/shared/api/agents';
+import type {
+	PipelineSettings,
+	UpdatePipelineSettingsBody,
+} from '@agent-scheduler/shared/api/settings';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { CACHE_KEYS } from '../src/api/cache-keys.ts';
+import { eventBus } from '../src/api/event-bus.ts';
+import { clearResourceCache, read } from '../src/api/resource-cache.ts';
 import { PipelineAssignment } from '../src/components/pipeline-assignment.tsx';
+import { PipelineTogglesContainer } from '../src/features/run-deck/pipeline-toggles-container.tsx';
+import { createPipelineSettingsSource } from '../src/features/run-deck/use-pipeline-settings.ts';
 import { UI_STRINGS } from '../src/i18n/ui-strings.ts';
+import { readCurrentDeviceId } from '../src/shell/shell-bridge.ts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** 空能力模型在服务端归零后的回显：请求里没有的 effortVendor 会被补上。 */
+function echoEmptyCapability(body: UpdatePipelineSettingsBody): PipelineSettings {
+	return {
+		bughunt: body.bughunt,
+		wrapupMode: body.wrapupMode,
+		reviewOverride: body.reviewOverride
+			? { ...body.reviewOverride, effortTier: null, effortVendor: null }
+			: null,
+		wrapupAssignment:
+			body.wrapupAssignment.mode === 'fixed'
+				? { ...body.wrapupAssignment, effortTier: null, effortVendor: null }
+				: body.wrapupAssignment,
+	};
+}
 
 it.each([{ effortOptions: [] }, { effortOptions: ['high'] }])(
 	'checks the configured model capability $effortOptions for null pipeline models',
@@ -198,6 +223,7 @@ it('waits for the agent registry before allowing a custom pipeline assignment', 
 			agentId: mockAgents[0]?.id,
 			modelName: null,
 			effortTier: null,
+			effortVendor: null,
 		});
 	} finally {
 		await act(async () => root.unmount());
@@ -405,6 +431,122 @@ describe('PipelineAssignment Component (AC 8, E-356)', () => {
 		expect(html).toContain('data-testid="error-wrapupAssignment-agentId"');
 		expect(html).toContain('指定的收口 agent 不存在于注册表');
 		expect(html).toContain('aria-invalid="true"');
+	});
+
+	it('ends pending after the first custom review and wrapup save matches the empty-capability echo', async () => {
+		window.matchMedia = vi.fn().mockImplementation((media) => ({
+			matches: false,
+			media,
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+		}));
+		const emptyCatalog: ListAgentModelsResponse = {
+			models: [{ name: 'configured-model', source: 'live', isCurrentConfig: true, effortOptions: [] }],
+			isComplete: true,
+			isRefreshing: false,
+			refreshedAt: '2026-10-11T00:00:00.000Z',
+			liveFailure: null,
+			currentConfig: {
+				model: 'configured-model',
+				effort: null,
+				effortRecognized: true,
+				configPath: '',
+			},
+		};
+		for (const agent of mockAgents) {
+			await read(CACHE_KEYS.agentModels(agent.id), async () => emptyCatalog);
+		}
+		const initialPipeline: PipelineSettings = {
+			bughunt: 0,
+			wrapupMode: 'auto',
+			reviewOverride: null,
+			wrapupAssignment: { mode: 'follow' },
+		};
+		let echoed = initialPipeline;
+		let resolvePatch: (() => void) | undefined;
+		const patcher = vi.fn(
+			(body: UpdatePipelineSettingsBody) =>
+				new Promise<{ pipeline: PipelineSettings }>((resolve) => {
+					echoed = echoEmptyCapability(body);
+					resolvePatch = () => resolve({ pipeline: echoed });
+				}),
+		);
+		const source = createPipelineSettingsSource({
+			initialPipeline,
+			patcher,
+			fetcher: async () => ({ pipeline: echoed }),
+		});
+		const host = document.createElement('div');
+		document.body.append(host);
+		const root = createRoot(host);
+		let eventId = 787661440;
+		const confirm = () => {
+			eventBus.push({
+				id: eventId,
+				ts: '2026-10-11T00:00:00.000Z',
+				runId: null,
+				taskId: null,
+				scope: 'settings',
+				kind: 'settings.pipeline_changed',
+				seq: eventId,
+				actorDeviceId: readCurrentDeviceId(),
+				payload: { pipeline: echoed },
+			});
+			eventId += 1;
+		};
+		const pending = () =>
+			host.querySelector('[data-component="pipeline-toggles"]')?.getAttribute('data-pending');
+		try {
+			await act(async () => {
+				root.render(
+					createElement(PipelineTogglesContainer, {
+						layout: 'settings',
+						source,
+						agents: mockAgents,
+					}),
+				);
+			});
+			expect(pending()).toBe('false');
+
+			await act(async () => {
+				host.querySelector<HTMLButtonElement>('[data-testid="review-override-custom-btn"]')?.click();
+			});
+			expect(pending()).toBe('true');
+			expect(patcher.mock.calls[0]?.[0]?.reviewOverride).toEqual({
+				agentId: mockAgents[0]?.id,
+				modelName: null,
+				effortTier: null,
+				effortVendor: null,
+			});
+			await act(async () => {
+				resolvePatch?.();
+				confirm();
+			});
+			expect(pending()).not.toBe('true');
+
+			await act(async () => {
+				host
+					.querySelector<HTMLButtonElement>('[data-testid="wrapup-assignment-custom-btn"]')
+					?.click();
+			});
+			expect(pending()).toBe('true');
+			expect(patcher.mock.calls[1]?.[0]?.wrapupAssignment).toEqual({
+				mode: 'fixed',
+				agentId: mockAgents[0]?.id,
+				modelName: null,
+				effortTier: null,
+				effortVendor: null,
+			});
+			await act(async () => {
+				resolvePatch?.();
+				confirm();
+			});
+			expect(pending()).not.toBe('true');
+		} finally {
+			await act(async () => root.unmount());
+			host.remove();
+			clearResourceCache();
+		}
 	});
 
 	it('disables all buttons and controls when disabled is true (AC 8)', () => {

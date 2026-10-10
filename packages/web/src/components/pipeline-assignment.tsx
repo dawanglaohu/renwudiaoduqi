@@ -69,6 +69,7 @@ export function PipelineAssignment({
 				agentId: fallbackAgentId,
 				modelName: null,
 				effortTier: null,
+				effortVendor: null,
 			});
 		}
 	};
@@ -86,6 +87,7 @@ export function PipelineAssignment({
 				agentId: fallbackAgentId,
 				modelName: null,
 				effortTier: null,
+				effortVendor: null,
 			});
 		}
 	};
