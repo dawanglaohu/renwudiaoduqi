@@ -965,6 +965,42 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 		},
 	);
 
+	it.each([
+		{
+			label: 'structured tier',
+			fields: { agentId: 'dsh', effort: { tier: 'high' as const } },
+		},
+		{
+			label: 'legacy effortTier',
+			fields: { agentId: 'dsh', effortTier: 'high' as const },
+		},
+	])(
+		'manual wrapup rejects non-empty dsh effort ($label) before a run or snapshot',
+		async ({ label, fields }) => {
+			landManualWrapupTasks();
+			const runsBefore = countRows('SELECT COUNT(*) AS count FROM runs');
+			const snapshotsBefore = countRows('SELECT COUNT(*) AS count FROM dispatch_snapshots');
+			const res = await app.inject({
+				method: 'POST',
+				url: '/api/v1/batches/batch-1/wrapup',
+				payload: { idempotencyKey: `dsh-unsupported-${label.replace(' ', '-')}`, ...fields },
+			});
+			expect(res.statusCode, res.body).toBe(400);
+			expect(res.json().error).toMatchObject({
+				code: 'E_VALIDATION',
+				details: { field: 'effort', reason: 'effort_unsupported' },
+			});
+			expect(countRows('SELECT COUNT(*) AS count FROM runs')).toBe(runsBefore);
+			expect(countRows('SELECT COUNT(*) AS count FROM dispatch_snapshots')).toBe(snapshotsBefore);
+			expect(runsRepo.findByIdempotencyKey(`dsh-unsupported-${label.replace(' ', '-')}`)).toBeNull();
+		},
+	);
+
+	function countRows(sql: string): number {
+		const row = db.prepare(sql).get() as { count: number } | undefined;
+		return Number(row?.count ?? 0);
+	}
+
 	it('manual legacy effortTier remains supported', async () => {
 		landManualWrapupTasks();
 		const res = await app.inject({

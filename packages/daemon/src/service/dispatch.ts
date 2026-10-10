@@ -645,7 +645,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			});
 		}
 
-		if (input.effort && 'vendor' in input.effort && input.effort.vendor) {
+		if (input.effort) {
 			const regSnap = deps.agentRegistry?.getSnapshot();
 			const agentEntry = regSnap?.agents[agentId];
 			if (agentEntry?.effortVendorMap === null) {
@@ -657,10 +657,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					},
 				);
 			}
-			const allowed = deps.listVendorEffortDomain
-				? await deps.listVendorEffortDomain(agentId)
-				: vendorEffortDomain(agentId, agentEntry ?? {});
-			assertVendorEffortInDomain(input.effort.vendor, allowed, 'effort');
+			if ('vendor' in input.effort && input.effort.vendor) {
+				const allowed = deps.listVendorEffortDomain
+					? await deps.listVendorEffortDomain(agentId)
+					: vendorEffortDomain(agentId, agentEntry ?? {});
+				assertVendorEffortInDomain(input.effort.vendor, allowed, 'effort');
+			}
 		}
 
 		const activeRun = runsRepo.findActiveByTaskId(taskId);

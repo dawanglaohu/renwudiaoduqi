@@ -215,6 +215,11 @@ function createFakeProcess(
 	};
 }
 
+function countRows(db: DatabaseConnection, sql: string): number {
+	const row = db.prepare(sql).get() as { count: number } | undefined;
+	return Number(row?.count ?? 0);
+}
+
 async function getAuthToken(container: ReturnType<typeof createContainer>): Promise<string> {
 	const activeCode =
 		container.services.pairing.getActivePairingCode()?.code ??
@@ -1022,6 +1027,48 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 				).toBe('HelloWorld');
 		},
 	);
+	it.each([
+		{ label: 'structured tier', effort: { tier: 'high' as const } },
+		{ label: 'vendor', effort: { vendor: 'max' } },
+	])(
+		'POST /runs rejects non-empty dsh effort ($label) before a run or snapshot',
+		async ({ label, effort }) => {
+			const { container, db, getLatestProc } = setupTestEnvironment({
+				availableAgentIds: ['dsh'],
+			});
+			const server = createHttpServer({ container });
+			await server.instance.ready();
+			try {
+				const token = await getAuthToken(container);
+				const runsBefore = countRows(db, 'SELECT COUNT(*) AS count FROM runs');
+				const snapshotsBefore = countRows(db, 'SELECT COUNT(*) AS count FROM dispatch_snapshots');
+				const postRes = await server.instance.inject({
+					method: 'POST',
+					url: '/api/v1/runs',
+					headers: { authorization: token },
+					payload: {
+						taskId: 'task-1',
+						agentId: 'dsh',
+						effort,
+						idempotencyKey: `dsh-unsupported-${label.replace(' ', '-')}`,
+					},
+				});
+				expect(postRes.statusCode, postRes.body).toBe(400);
+				expect(JSON.parse(postRes.body).error).toMatchObject({
+					code: 'E_VALIDATION',
+					details: { field: 'effort', reason: 'effort_unsupported' },
+				});
+				expect(countRows(db, 'SELECT COUNT(*) AS count FROM runs')).toBe(runsBefore);
+				expect(countRows(db, 'SELECT COUNT(*) AS count FROM dispatch_snapshots')).toBe(
+					snapshotsBefore,
+				);
+				expect(getLatestProc()).toBeNull();
+			} finally {
+				await server.instance.close();
+			}
+		},
+	);
+
 	it('AC 1 & E-42 & E-70: POST /api/v1/runs spawns managed process, validates LaunchSpec, sets pid, emits run.state_changed', async () => {
 		const { container, getLatestProc } = setupTestEnvironment();
 		const server = createHttpServer({ container });
