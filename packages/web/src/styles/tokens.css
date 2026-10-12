@@ -90,7 +90,7 @@
 
 	--needs: #ffd36e;
 	--needs-ink: #ffd36e;
-	--needs-soft: #5a4410;
+	--needs-soft: #4a380b;
 	--on-needs: #1a1625;
 	--auto: #2ee6b4;
 	--auto-ink: #2ee6b4;
@@ -115,6 +115,14 @@
 	--shadow: 5px 5px 0 #fef9ef;
 	--shadow-lg: 8px 8px 0 #fef9ef;
 	--glow: 5px 5px 0 #ffd36e;
+
+	/* ink used on bright accent fills in dark Memphis */
+	--cream-1: #fef9ef;
+	--cream-2: #e4dccb;
+	--cream-3: #b9b0c9;
+	--on-fill-1: #1a1625;
+	--on-fill-2: #2a2338;
+	--on-fill-3: #3a3148;
 }
 
 [data-theme="light"] {
@@ -163,6 +171,14 @@
 	--shadow: 5px 5px 0 #1c1408;
 	--shadow-lg: 8px 8px 0 #1c1408;
 	--glow: 5px 5px 0 #1c1408;
+
+	/* parity with dark Memphis fill-ink tokens (unused by light rules) */
+	--cream-1: #1c1408;
+	--cream-2: #3c332c;
+	--cream-3: #4a433c;
+	--on-fill-1: #1c1408;
+	--on-fill-2: #3c332c;
+	--on-fill-3: #4a433c;
 }
 
 @media (prefers-reduced-motion: reduce) {
