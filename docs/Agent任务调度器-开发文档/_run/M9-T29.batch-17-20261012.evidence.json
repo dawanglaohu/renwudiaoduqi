@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T29": {
+      "contractHash": "ad06d89470355ab2a094eeb2915c6cde5890fb2cd4703ff764ae2dba6bc48163",
+      "evidence": [
+        "_run/batches/batch-17-20261012.md 的逐任务复核和边界表逐条指到实际文件行号；仅 protected 实施记录回填，无 canonical 验收降低。",
+        "最终完整 check：249 文件、3213 passed、3 既有 skipped；Biome/TypeScript/错误码/对比度/架构禁令通过。",
+        "_run/batch-17-20261012.evidence.json：2 项原生生产测试及 27 组页面尺寸；标准主目录与正常配置、注册表、公开 UI 配对，未注入数据库或 sessionStorage。",
+        "正式协议 E2E 41 passed、配对 7 passed；fixture 协议与真实 native 证据明确区分。",
+        "上轮 R17-T78766144 已由 PR #213 合并，tier/vendor/null 合同保留；DSH 不支持强度的结构及旧 payload 手动收口 HTTP/SQLite 回归通过。",
+        "当前 density_probe.js 的 D1-D6/type/pad 与 overflow 原始结果 27/27；旧文件保留、单卡白名单不扩大。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}
