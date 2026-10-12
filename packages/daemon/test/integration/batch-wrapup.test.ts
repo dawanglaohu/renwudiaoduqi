@@ -992,7 +992,9 @@ describe('M8-T6 Integration: Batch Wrap-up Trigger, Rounds & Gates (AC 1-7, E-27
 			});
 			expect(countRows('SELECT COUNT(*) AS count FROM runs')).toBe(runsBefore);
 			expect(countRows('SELECT COUNT(*) AS count FROM dispatch_snapshots')).toBe(snapshotsBefore);
-			expect(runsRepo.findByIdempotencyKey(`dsh-unsupported-${label.replace(' ', '-')}`)).toBeNull();
+			expect(
+				runsRepo.findByIdempotencyKey(`dsh-unsupported-${label.replace(' ', '-')}`),
+			).toBeNull();
 		},
 	);
 

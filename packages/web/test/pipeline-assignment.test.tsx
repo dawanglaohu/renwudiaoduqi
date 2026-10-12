@@ -441,7 +441,9 @@ describe('PipelineAssignment Component (AC 8, E-356)', () => {
 			removeEventListener: vi.fn(),
 		}));
 		const emptyCatalog: ListAgentModelsResponse = {
-			models: [{ name: 'configured-model', source: 'live', isCurrentConfig: true, effortOptions: [] }],
+			models: [
+				{ name: 'configured-model', source: 'live', isCurrentConfig: true, effortOptions: [] },
+			],
 			isComplete: true,
 			isRefreshing: false,
 			refreshedAt: '2026-10-11T00:00:00.000Z',
@@ -509,7 +511,9 @@ describe('PipelineAssignment Component (AC 8, E-356)', () => {
 			expect(pending()).toBe('false');
 
 			await act(async () => {
-				host.querySelector<HTMLButtonElement>('[data-testid="review-override-custom-btn"]')?.click();
+				host
+					.querySelector<HTMLButtonElement>('[data-testid="review-override-custom-btn"]')
+					?.click();
 			});
 			expect(pending()).toBe('true');
 			expect(patcher.mock.calls[0]?.[0]?.reviewOverride).toEqual({
