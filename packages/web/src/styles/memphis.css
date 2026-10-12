@@ -4845,3 +4845,703 @@
 		height: 28px;
 	}
 }
+
+/* 07-settingsPipeline. Header card, toggle cards, review and wrap-up assignment. */
+
+[data-theme="light"]:has([data-testid="settings-pipeline-page"]) .min-h-screen.bg-page {
+	background-color: var(--page);
+	background-image: radial-gradient(circle, var(--spine-pending) 0.9px, transparent 1.05px);
+	background-size: 18px 18px;
+	background-repeat: repeat;
+	background-position: 0 0;
+}
+
+[data-theme="light"]:has([data-testid="settings-pipeline-page"]) .min-h-screen.bg-page::before,
+[data-theme="light"]:has([data-testid="settings-pipeline-page"]) .min-h-screen.bg-page::after {
+	display: none;
+}
+
+[data-theme="light"]:has([data-testid="settings-pipeline-page"])
+	[data-testid="topbar-pipeline-notes"] {
+	display: none;
+}
+
+[data-theme="light"]:has([data-testid="settings-pipeline-page"]) .settings-navigation {
+	justify-content: flex-start;
+	gap: 12px;
+	padding: 20px max(20px, calc((100% - 1200px) / 2)) 12px;
+	border-bottom: 0;
+	background: transparent;
+}
+
+[data-theme="light"]:has([data-testid="settings-pipeline-page"]) .settings-navigation button {
+	border-width: 4px;
+	background: var(--page);
+	color: var(--ink-1);
+	box-shadow: var(--shadow);
+	font-weight: 900;
+}
+
+[data-theme="light"]:has([data-testid="settings-pipeline-page"])
+	.settings-navigation
+	[aria-current="page"] {
+	background: var(--spine-live);
+	color: var(--ink-1);
+}
+
+[data-theme="light"]:has([data-testid="settings-pipeline-page"])
+	.settings-navigation
+	[data-testid="settings-back"] {
+	background: var(--page);
+	color: var(--ink-1);
+	border-right-width: 4px;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] {
+	position: relative;
+	z-index: 1;
+	width: min(1200px, 100%);
+	margin-inline: auto;
+	gap: 24px;
+	padding: 28px 36px 64px;
+	background: var(--page);
+	color: var(--ink-1);
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"]::before,
+[data-theme="light"] [data-testid="settings-pipeline-page"]::after,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="review-override-section"]::before,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"]::after {
+	content: "";
+	position: absolute;
+	z-index: 2;
+	display: none;
+	pointer-events: none;
+	border: 4px solid var(--ink-1);
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-page-header {
+	position: relative;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0;
+	padding: 28px;
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-page-header::after {
+	content: "";
+	position: absolute;
+	top: 16px;
+	right: -18px;
+	z-index: 2;
+	width: 36px;
+	height: 36px;
+	pointer-events: none;
+	border: 4px solid var(--ink-1);
+	background: var(--accent);
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-page-header .min-w-0 > span {
+	display: inline-block;
+	margin: 0 0 10px;
+	padding: 3px 8px;
+	border: 4px solid var(--ink-1);
+	background: var(--accent-soft);
+	color: var(--ink-1);
+	box-shadow: var(--shadow);
+	font-size: var(--fs-dense);
+	font-weight: 900;
+	letter-spacing: 0.08em;
+	line-height: 1.3;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-page-header h1 {
+	display: block;
+	margin: 0;
+	color: var(--ink-1);
+	font-size: 2.25rem;
+	font-weight: 900;
+	letter-spacing: -0.04em;
+	line-height: 1.05;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-page-header p {
+	margin-top: 8px;
+	color: var(--ink-1);
+	font-size: var(--fs-body);
+	font-weight: 800;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-save-hint {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	align-self: flex-start;
+	margin-top: 12px;
+	padding: 4px 12px;
+	border: 4px solid var(--ink-1);
+	background: var(--auto-soft);
+	color: var(--ink-1);
+	box-shadow: var(--shadow);
+	font-size: var(--fs-meta);
+	font-weight: 900;
+	line-height: 1.3;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-save-hint::before {
+	content: "";
+	width: 8px;
+	height: 8px;
+	flex: 0 0 auto;
+	background: var(--ink-1);
+	pointer-events: none;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-component="pipeline-toggles-container"][data-layout="settings"],
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-component="pipeline-toggles-container"][data-layout="settings"]
+	> div {
+	gap: 24px;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] .pipeline-settings-controls {
+	align-self: stretch;
+	width: 100%;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-component="pipeline-toggles"][data-layout="settings"]
+	> div {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 24px;
+	width: 100%;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-pipeline-toggle] {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	width: 100%;
+	min-width: 0;
+	padding: 24px;
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-pipeline-toggle] > span {
+	color: var(--ink-1);
+	font-size: 18px;
+	font-weight: 900;
+	letter-spacing: -0.04em;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-pipeline-toggle] > div {
+	border-width: 4px;
+	background: var(--page);
+	box-shadow: var(--shadow);
+	height: 36px;
+	min-height: 36px;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-pipeline-toggle] button {
+	padding-inline: 16px;
+	min-width: 52px;
+	color: var(--ink-1);
+	font-size: var(--fs-body);
+	font-weight: 800;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-pipeline-toggle] button + button {
+	border-left-width: 4px;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-pipeline-toggle="bughunt"]
+	button[aria-pressed="true"] {
+	background: var(--needs);
+	color: var(--on-needs);
+	font-weight: 900;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-pipeline-toggle="wrapupMode"]
+	button[aria-pressed="true"] {
+	background: var(--spine-live);
+	color: var(--ink-1);
+	font-weight: 900;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="pipeline-assignment-container"] {
+	grid-template-columns: minmax(0, 1fr);
+	gap: 24px;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-testid="review-override-section"],
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"] {
+	position: relative;
+	gap: 16px;
+	padding: 28px;
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="review-override-section"]
+	> div:first-child,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"]
+	> div:first-child {
+	align-items: flex-start;
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="review-override-section"]
+	> div:first-child
+	> div:first-child,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"]
+	> div:first-child
+	> div:first-child {
+	max-width: 700px;
+	min-width: 0;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="review-override-section"]
+	h3,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"]
+	h3 {
+	margin: 0;
+	color: var(--ink-1);
+	font-size: 22px;
+	font-weight: 900;
+	letter-spacing: -0.04em;
+	line-height: 1.2;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="review-override-section"]
+	h3::before,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"]
+	h3::before {
+	content: "";
+	display: inline-block;
+	width: 18px;
+	height: 18px;
+	margin-right: 10px;
+	border: 4px solid var(--ink-1);
+	vertical-align: -3px;
+	pointer-events: none;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="review-override-section"]
+	h3::before {
+	background: var(--accent);
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"]
+	h3::before {
+	background: var(--auto-soft);
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="review-override-section"]
+	p,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"]
+	p {
+	margin-top: 6px;
+	color: var(--ink-1);
+	font-size: var(--fs-body);
+	font-weight: 800;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="review-override-section"]
+	> div:first-child
+	> div:has(> button),
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"]
+	> div:first-child
+	> div:has(> button) {
+	flex: 0 0 auto;
+	align-items: stretch;
+	height: auto;
+	min-height: 40px;
+	padding: 0;
+	overflow: visible;
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] button[data-testid$="-follow-btn"],
+[data-theme="light"] [data-testid="settings-pipeline-page"] button[data-testid$="-custom-btn"] {
+	height: auto;
+	min-height: 40px;
+	padding-inline: 20px;
+	border: 0;
+	border-radius: 0;
+	background: var(--page);
+	color: var(--ink-1);
+	box-shadow: none;
+	font-size: var(--fs-body);
+	font-weight: 800;
+	transform: none;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] button[data-testid$="-follow-btn"] {
+	border-right: 4px solid var(--ink-1);
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	button[data-testid^="review-override-"][class*="shadow-sm"] {
+	background: var(--needs);
+	color: var(--on-needs);
+	font-weight: 900;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	button[data-testid^="wrapup-assignment-"][class*="shadow-sm"] {
+	background: var(--auto-soft);
+	color: var(--ink-1);
+	font-weight: 900;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	button[data-testid$="-follow-btn"]:not([aria-pressed]):not([role="combobox"]):hover,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	button[data-testid$="-custom-btn"]:not([aria-pressed]):not([role="combobox"]):hover,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	button[data-testid$="-follow-btn"]:not([aria-pressed]):not([role="combobox"]):active,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	button[data-testid$="-custom-btn"]:not([aria-pressed]):not([role="combobox"]):active {
+	transform: none;
+	box-shadow: none;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	button[data-testid^="review-override-"]:not([class*="shadow-sm"]):hover {
+	background: var(--accent-soft);
+	color: var(--ink-1);
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	button[data-testid^="wrapup-assignment-"]:not([class*="shadow-sm"]):hover {
+	background: var(--spine-live);
+	color: var(--ink-1);
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="review-override-section"]
+	> .grid,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-assignment-section"]
+	> .grid {
+	margin-top: 4px;
+	padding-top: 16px;
+	border-top: 4px solid var(--ink-1);
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-testid$="-section"] label,
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-testid$="-section"] .text-meta {
+	color: var(--ink-1);
+	font-weight: 900;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-testid$="-section"] select,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="model-picker"]
+	[role="combobox"],
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="effort-picker"]
+	[role="combobox"] {
+	min-height: 44px;
+	font-family: var(--font-mono);
+	font-weight: 800;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-testid^="error-"] {
+	color: var(--down);
+	font-weight: 800;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-testid="pipeline-toggles-error"] {
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--down-soft);
+	color: var(--ink-1);
+	box-shadow: var(--shadow);
+	font-weight: 800;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-component="pipeline-toggles-container"]
+	> aside {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-testid="daemon-managed-notice"] {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 14px;
+	border: 4px solid var(--ink-1);
+	background: var(--page);
+	color: var(--ink-1);
+	box-shadow: var(--shadow);
+	font-size: var(--fs-meta);
+	font-weight: 900;
+	line-height: 1.3;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="daemon-managed-notice"]::before {
+	content: "";
+	width: 16px;
+	height: 16px;
+	flex: 0 0 auto;
+	border: 4px solid var(--ink-1);
+	background: var(--accent);
+	pointer-events: none;
+}
+
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-testid="bughunt-auto-note"],
+[data-theme="light"] [data-testid="settings-pipeline-page"] [data-testid="wrapup-manual-note"] {
+	max-width: 72ch;
+	color: var(--ink-1);
+	font-weight: 800;
+	line-height: 1.45;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="bughunt-auto-note"]::before,
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-manual-note"]::before {
+	content: "";
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-right: 8px;
+	border: 3px solid var(--ink-1);
+	vertical-align: -1px;
+	pointer-events: none;
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="bughunt-auto-note"]::before {
+	background: var(--needs);
+}
+
+[data-theme="light"]
+	[data-testid="settings-pipeline-page"]
+	[data-testid="wrapup-manual-note"]::before {
+	background: var(--spine-live);
+}
+
+@media (min-width: 768px) {
+	[data-theme="light"]:has([data-testid="settings-pipeline-page"])
+		.settings-navigation
+		[data-testid="settings-back"] {
+		margin-right: auto;
+	}
+}
+
+@media (min-width: 1280px) {
+	[data-theme="light"]:has([data-testid="settings-pipeline-page"]) .min-h-screen.bg-page::before,
+	[data-theme="light"]:has([data-testid="settings-pipeline-page"]) .min-h-screen.bg-page::after {
+		display: block;
+		z-index: 0;
+		pointer-events: none;
+		border: 4px solid var(--ink-1);
+		box-shadow: var(--shadow);
+	}
+
+	[data-theme="light"]:has([data-testid="settings-pipeline-page"]) .min-h-screen.bg-page::before {
+		top: 240px;
+		right: auto;
+		bottom: auto;
+		left: 22px;
+		width: 48px;
+		height: 48px;
+		background: var(--accent);
+		transform: rotate(12deg);
+	}
+
+	[data-theme="light"]:has([data-testid="settings-pipeline-page"]) .min-h-screen.bg-page::after {
+		top: 560px;
+		right: 26px;
+		bottom: auto;
+		left: auto;
+		width: 56px;
+		height: 56px;
+		background: var(--accent-soft);
+		transform: rotate(-15deg);
+	}
+
+	[data-theme="light"] [data-testid="settings-pipeline-page"]::before {
+		display: block;
+		bottom: 28px;
+		left: -78px;
+		width: 36px;
+		height: 36px;
+		background: var(--needs);
+		transform: rotate(45deg);
+	}
+
+	[data-theme="light"] [data-testid="settings-pipeline-page"]::after {
+		display: block;
+		top: 36px;
+		right: -86px;
+		width: 72px;
+		height: 28px;
+		background: var(--auto-soft);
+		transform: rotate(-8deg);
+	}
+
+	[data-theme="light"]
+		[data-testid="settings-pipeline-page"]
+		[data-testid="review-override-section"]::before {
+		display: block;
+		top: 36px;
+		left: -132px;
+		width: 90px;
+		height: 22px;
+		background: repeating-linear-gradient(45deg, var(--ink-1) 0 6px, var(--spine-live) 6px 12px);
+		transform: rotate(5deg);
+	}
+
+	[data-theme="light"]
+		[data-testid="settings-pipeline-page"]
+		[data-testid="wrapup-assignment-section"]::after {
+		display: block;
+		right: -64px;
+		bottom: 18px;
+		width: 36px;
+		height: 36px;
+		background: var(--needs);
+		transform: rotate(45deg);
+	}
+}
+
+@media (max-width: 767px) {
+	[data-theme="light"] [data-testid="settings-pipeline-page"] {
+		gap: 16px;
+		padding: 16px 14px 36px;
+	}
+
+	[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-page-header {
+		padding: 18px 14px 16px;
+	}
+
+	[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-page-header::after {
+		top: 10px;
+		right: 10px;
+		width: 22px;
+		height: 22px;
+	}
+
+	[data-theme="light"] [data-testid="settings-pipeline-page"] .settings-page-header h1 {
+		font-size: 1.6rem;
+	}
+
+	[data-theme="light"]
+		[data-testid="settings-pipeline-page"]
+		[data-component="pipeline-toggles"][data-layout="settings"]
+		> div {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	[data-theme="light"] [data-testid="settings-pipeline-page"] [data-pipeline-toggle],
+	[data-theme="light"]
+		[data-testid="settings-pipeline-page"]
+		[data-testid="review-override-section"],
+	[data-theme="light"]
+		[data-testid="settings-pipeline-page"]
+		[data-testid="wrapup-assignment-section"] {
+		padding: 16px 14px;
+	}
+
+	[data-theme="light"]
+		[data-testid="settings-pipeline-page"]
+		[data-testid="review-override-section"]
+		h3,
+	[data-theme="light"]
+		[data-testid="settings-pipeline-page"]
+		[data-testid="wrapup-assignment-section"]
+		h3 {
+		font-size: 1.15rem;
+	}
+
+	[data-theme="light"] [data-testid="settings-pipeline-page"] button[data-testid$="-follow-btn"],
+	[data-theme="light"] [data-testid="settings-pipeline-page"] button[data-testid$="-custom-btn"] {
+		min-height: var(--h-btn-lg);
+	}
+}
