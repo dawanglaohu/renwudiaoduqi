@@ -1,0 +1,19 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T23": {
+      "contractHash": "45baf7e95c00ff2d30733a5cb553abe4ba5d39d8048654d9821b30a07a9ef086",
+      "evidence": [
+        "_run/batches/batch-17-20261012.md 的逐任务复核和边界表逐条指到实际文件行号；仅 protected 实施记录回填，无 canonical 验收降低。",
+        "最终完整 check：249 文件、3213 passed、3 既有 skipped；Biome/TypeScript/错误码/对比度/架构禁令通过。",
+        "_run/batch-17-20261012.evidence.json：2 项原生生产测试及 27 组页面尺寸；标准主目录与正常配置、注册表、公开 UI 配对，未注入数据库或 sessionStorage。",
+        "正式协议 E2E 41 passed、配对 7 passed；fixture 协议与真实 native 证据明确区分。",
+        "上轮 R17-T78766144 已由 PR #213 合并，tier/vendor/null 合同保留；DSH 不支持强度的结构及旧 payload 手动收口 HTTP/SQLite 回归通过。",
+        "B1：真实 phone 旧版 24×24 失败、新版两个入口 44×44 通过；e2e/batch-17-real-provider.test.ts:156。",
+        "B2：规范化回显与本设备完整事件双确认；两种顺序先红后绿、错设备/错值负控、正式 HTTP/SQLite/事件一致。",
+        "B3：两处后台拒绝均被既有日志观察，新任务与排队收口的 SQLite/tick 回归保持 failed，无进程未处理拒绝。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

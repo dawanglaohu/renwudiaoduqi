@@ -56,8 +56,9 @@ export interface UsePipelineSettingsOptions {
 }
 
 interface PendingPipelinePatch {
-	readonly body: UpdatePipelineSettingsBody;
 	readonly deviceId: string | null;
+	readonly earlyPipelines: PipelineSettings[];
+	confirmedPipeline: PipelineSettings | null;
 	httpDone: boolean;
 	eventSeen: boolean;
 }
@@ -69,10 +70,8 @@ function matchesPendingPatch(
 ): boolean {
 	return (
 		(!pending.deviceId || actorDeviceId === pending.deviceId) &&
-		pipeline.bughunt === pending.body.bughunt &&
-		pipeline.wrapupMode === pending.body.wrapupMode &&
-		JSON.stringify(pipeline.reviewOverride) === JSON.stringify(pending.body.reviewOverride) &&
-		JSON.stringify(pipeline.wrapupAssignment) === JSON.stringify(pending.body.wrapupAssignment)
+		pending.confirmedPipeline !== null &&
+		samePipeline(pipeline, pending.confirmedPipeline)
 	);
 }
 
@@ -241,6 +240,13 @@ export function createPipelineSettingsSource(
 					sourceVersion += 1;
 					publish({ pipeline: payload.pipeline, error: null });
 					const pending = pendingPatch;
+					if (
+						pending &&
+						!pending.httpDone &&
+						(!pending.deviceId || envelope.actorDeviceId === pending.deviceId)
+					) {
+						pending.earlyPipelines.push(payload.pipeline);
+					}
 					if (pending && matchesPendingPatch(payload.pipeline, envelope.actorDeviceId, pending)) {
 						pending.eventSeen = true;
 						if (pending.httpDone) {
@@ -285,8 +291,9 @@ export function createPipelineSettingsSource(
 					: pipeline.wrapupAssignment,
 		};
 		const pending: PendingPipelinePatch = {
-			body: fullBody,
 			deviceId: readCurrentDeviceId(),
+			earlyPipelines: [],
+			confirmedPipeline: null,
 			httpDone: false,
 			eventSeen: false,
 		};
@@ -296,17 +303,24 @@ export function createPipelineSettingsSource(
 		publish({ isPending: true, error: null, fieldErrors: {} });
 		const completion = (async () => {
 			try {
+				let response: UpdatePipelineSettingsResponse;
 				if (options.patcher) {
-					await options.patcher(fullBody);
+					response = await options.patcher(fullBody);
 				} else if (patchPipelineRoute) {
-					await httpClient.callRoute<UpdatePipelineSettingsResponse, UpdatePipelineSettingsBody>(
-						patchPipelineRoute,
-						{
-							body: fullBody,
-						},
-					);
+					response = await httpClient.callRoute<
+						UpdatePipelineSettingsResponse,
+						UpdatePipelineSettingsBody
+					>(patchPipelineRoute, { body: fullBody });
+				} else {
+					throw new Error('PATCH /api/v1/settings/pipeline route missing');
 				}
 
+				// daemon 可按模型能力清空强度；确认目标是已保存值，事件仍是更新快照的来源。
+				pending.confirmedPipeline = response.pipeline;
+				pending.eventSeen = pending.earlyPipelines.some((value) =>
+					samePipeline(value, response.pipeline),
+				);
+				pending.earlyPipelines.length = 0;
 				pending.httpDone = true;
 				if (pending.eventSeen && pendingPatch === pending) {
 					pendingPatch = null;

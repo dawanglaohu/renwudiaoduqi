@@ -1419,6 +1419,96 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 	});
 
 	// =========================================================================
+	it.each(['new task', 'queued wrapup'] as const)(
+		'handles rejected background startup for %s without an unhandled promise',
+		async (kind) => {
+			const rejected: unknown[] = [];
+			const logged: unknown[] = [];
+			const observeRejection = (error: unknown) => rejected.push(error);
+			process.on('unhandledRejection', observeRejection);
+			try {
+				const launchDispatch = createDispatchService({
+					unitOfWork,
+					tasksRepo,
+					batchesRepo,
+					documentsRepo,
+					dispatchSnapshotsRepo,
+					runsRepo,
+					gatesRepo,
+					batchWrapupsRepo,
+					batchService,
+					wrapupService,
+					settingsRepo,
+					lanesService,
+					clock,
+					logFailure: (error) => logged.push(error),
+					ids: { newId: () => `rejected-start-${Math.random().toString(36).slice(2)}` },
+					bus,
+					envelopeFactory,
+					listDispatchableAgents: () => [
+						{ agentId: 'codex', canDispatch: true, concurrencyLimit: 10 },
+					],
+					agentLimits: () => 10,
+					adapters: {
+						codex: {
+							buildLaunchSpec: ({ runId, cwd }) => ({ runId, file: 'codex', args: [], cwd }),
+							mapEvents: () => [],
+						},
+					},
+					proc: {
+						spawnManaged: () => {
+							throw new Error('controlled background startup rejection');
+						},
+					},
+					workspace: {
+						prepareWorktree: async () => ({
+							worktreePath: gitRepoPath,
+							branchName: 'task/m8-t1',
+							baseRef: 'HEAD',
+							isReused: true,
+						}),
+					},
+					runService,
+				});
+				const taskId = insertTask('M8-T1');
+				let runId: string;
+				if (kind === 'new task') {
+					const result = await launchDispatch.tick();
+					expect(result.runsDispatched).toHaveLength(1);
+					const dispatched = result.runsDispatched[0];
+					if (!dispatched) throw new Error('No dispatched implementation run');
+					runId = dispatched;
+				} else {
+					await dispatchService.tick();
+					const implRun = runsRepo.listByTaskId(taskId)[0];
+					if (!implRun) throw new Error('No implementation run');
+					runsRepo.updateState({ id: implRun.id, toState: 'landed' });
+					runsRepo.updateInHead?.({
+						id: implRun.id,
+						isInHead: 1,
+						checkedAt: nowIso,
+						branchTipSha: 'sha-1',
+					});
+					tasksRepo.clearLaneNo(taskId);
+					tasksRepo.updateManualState(taskId, 'landed');
+					tickTargetHolder.current = () => {};
+					await launchDispatch.tick();
+					const wrapup = runsRepo.findActiveWrapupByBatchId?.('batch-1');
+					if (!wrapup) throw new Error('No queued wrapup');
+					runId = wrapup.id;
+					const result = await launchDispatch.tick();
+					expect(result.runsDispatched).toContain(runId);
+				}
+				await expect.poll(() => runsRepo.findById(runId)?.state).toBe('failed');
+				await new Promise<void>((resolve) => setImmediate(resolve));
+				expect(rejected).toEqual([]);
+				expect(logged).toHaveLength(1);
+			} finally {
+				process.off('unhandledRejection', observeRejection);
+			}
+		},
+	);
+
 	// Round-3 R1: 收口运行必须拿到快照里冻结的收口提示词
 	// =========================================================================
 	it('Round-3 R1: the launched wrap-up run receives the frozen eight-section prompt (AC 6, E-283)', async () => {

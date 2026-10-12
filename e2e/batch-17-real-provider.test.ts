@@ -155,6 +155,25 @@ async function manualModel(scope: Locator, value: string) {
 	await page.getByTestId('grouped-select-custom-input').press('Enter');
 }
 
+async function assertMobileRefreshTarget(row: Locator, label: string, agentId?: string) {
+	if (!page) throw new Error('Browser not ready');
+	await page.setViewportSize({ width: 390, height: 844 });
+	const tasksPane = page.locator('[data-pane-tab="tasks"]');
+	await expect.poll(() => tasksPane.count()).toBe(1);
+	await tasksPane.click();
+	if (agentId) await row.locator('select[data-testid^="select-agent-"]').selectOption(agentId);
+	const refresh = row.locator('[data-action="refresh-agent-models"]');
+	await refresh.scrollIntoViewIfNeeded();
+	expect(await refresh.isVisible()).toBe(true);
+	const bounds = await refresh.boundingBox();
+	expect(bounds).not.toBeNull();
+	observations[label] = bounds;
+	await shot(label);
+	expect(bounds?.width).toBeGreaterThanOrEqual(44);
+	expect(bounds?.height).toBeGreaterThanOrEqual(44);
+	await page.setViewportSize({ width: 1440, height: 900 });
+}
+
 async function density(label: string, type: 'work' | 'form' | 'card', pad = 14) {
 	if (!page) throw new Error('Browser not ready');
 	const source = readFileSync(
@@ -654,6 +673,11 @@ describe('R17-T73118308 real native provider', () => {
 		expect(batchId).toBeTruthy();
 		await page.locator(`[data-step-content="1"] [data-batch-id="${batchId}"]`).click();
 		await page.locator('[data-action="next-step-2"]').click();
+		await assertMobileRefreshTarget(
+			page.getByTestId('editing-row-R17-P1'),
+			'phone-refresh-editing',
+			'codex',
+		);
 		for (const n of [1, 2]) await page.getByTestId(`select-agent-R17-P${n}`).selectOption('codex');
 		const firstModel = page.getByTestId('editing-row-R17-P1').getByTestId('model-picker');
 		const secondModel = page.getByTestId('editing-row-R17-P2').getByTestId('model-picker');
@@ -696,6 +720,7 @@ describe('R17-T73118308 real native provider', () => {
 			await row.locator('[data-action="confirm-task-assign"]').click();
 			expect((await assigned).status()).toBe(200);
 		}
+		await assertMobileRefreshTarget(page.getByTestId('assigned-row-R17-P1'), 'phone-refresh-assigned');
 		await shot('assigned');
 		await page.locator('[data-action="next-step-3"]').click();
 		for (const [key, label] of [
@@ -951,5 +976,6 @@ describe('R17-T73118308 real native provider', () => {
 			method: 'public pairing UI saves unused port; normal authenticated first-screen read fails',
 		};
 		await density('connect-failed', 'card');
+		expect(daemonLog).not.toContain('[unhandledRejection]');
 	}, 900_000);
 });
