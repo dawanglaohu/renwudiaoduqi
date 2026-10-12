@@ -1423,6 +1423,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 		'handles rejected background startup for %s without an unhandled promise',
 		async (kind) => {
 			const rejected: unknown[] = [];
+			const logged: unknown[] = [];
 			const observeRejection = (error: unknown) => rejected.push(error);
 			process.on('unhandledRejection', observeRejection);
 			try {
@@ -1440,6 +1441,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 					settingsRepo,
 					lanesService,
 					clock,
+					logFailure: (error) => logged.push(error),
 					ids: { newId: () => `rejected-start-${Math.random().toString(36).slice(2)}` },
 					bus,
 					envelopeFactory,
@@ -1500,6 +1502,7 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 				await expect.poll(() => runsRepo.findById(runId)?.state).toBe('failed');
 				await new Promise<void>((resolve) => setImmediate(resolve));
 				expect(rejected).toEqual([]);
+				expect(logged).toHaveLength(1);
 			} finally {
 				process.off('unhandledRejection', observeRejection);
 			}
