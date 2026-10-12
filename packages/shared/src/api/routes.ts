@@ -9,6 +9,14 @@ import {
 	wrapupBatchBodySchema,
 } from './batches.ts';
 import {
+	PAUSE_DOCUMENT_EXECUTION_BODY_KEYS,
+	RESUME_DOCUMENT_EXECUTION_BODY_KEYS,
+	START_DOCUMENT_EXECUTION_BODY_KEYS,
+	pauseDocumentExecutionBodySchema,
+	resumeDocumentExecutionBodySchema,
+	startDocumentExecutionBodySchema,
+} from './document-execution.ts';
+import {
 	CREATE_DOCUMENT_BODY_KEYS,
 	REFRESH_DOCUMENT_BODY_KEYS,
 	UPDATE_DOCUMENT_SETTINGS_BODY_KEYS,
@@ -48,6 +56,27 @@ export interface RouteDefinition {
 }
 
 export const REQUEST_BODY_SCHEMAS = [
+	{
+		name: 'startDocumentExecution',
+		path: '/api/v1/documents/:docId/execution/start',
+		method: 'POST' as const,
+		schema: startDocumentExecutionBodySchema,
+		keys: START_DOCUMENT_EXECUTION_BODY_KEYS,
+	},
+	{
+		name: 'pauseDocumentExecution',
+		path: '/api/v1/documents/:docId/execution/pause',
+		method: 'POST' as const,
+		schema: pauseDocumentExecutionBodySchema,
+		keys: PAUSE_DOCUMENT_EXECUTION_BODY_KEYS,
+	},
+	{
+		name: 'resumeDocumentExecution',
+		path: '/api/v1/documents/:docId/execution/resume',
+		method: 'POST' as const,
+		schema: resumeDocumentExecutionBodySchema,
+		keys: RESUME_DOCUMENT_EXECUTION_BODY_KEYS,
+	},
 	{
 		name: 'claimPairingCode',
 		path: '/api/v1/pair/claim',
@@ -163,6 +192,62 @@ export const REQUEST_BODY_SCHEMAS = [
 ] as const;
 
 export const ROUTES: readonly RouteDefinition[] = [
+	{
+		method: 'GET',
+		path: '/api/v1/documents/:docId/execution',
+		auth: 'device',
+		reqType: 'void',
+		resType: 'DocumentExecutionResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_INTERNAL'],
+	},
+	{
+		method: 'POST',
+		path: '/api/v1/documents/:docId/execution/start',
+		auth: 'device',
+		reqType: 'StartDocumentExecutionBody',
+		resType: 'DocumentExecutionResponse',
+		errors: [
+			'E_UNAUTHORIZED',
+			'E_DEVICE_REVOKED',
+			'E_NOT_FOUND',
+			'E_VALIDATION',
+			'E_SNAPSHOT_STALE',
+			'E_DOC_SOURCE_UNREADABLE',
+			'E_DOC_CONTRACT_PENDING',
+			'E_INTERNAL',
+		],
+		bodySchema: startDocumentExecutionBodySchema,
+		bodyKeys: START_DOCUMENT_EXECUTION_BODY_KEYS,
+	},
+	{
+		method: 'POST',
+		path: '/api/v1/documents/:docId/execution/pause',
+		auth: 'device',
+		reqType: 'PauseDocumentExecutionBody',
+		resType: 'DocumentExecutionResponse',
+		errors: ['E_UNAUTHORIZED', 'E_DEVICE_REVOKED', 'E_NOT_FOUND', 'E_VALIDATION', 'E_INTERNAL'],
+		bodySchema: pauseDocumentExecutionBodySchema,
+		bodyKeys: PAUSE_DOCUMENT_EXECUTION_BODY_KEYS,
+	},
+	{
+		method: 'POST',
+		path: '/api/v1/documents/:docId/execution/resume',
+		auth: 'device',
+		reqType: 'ResumeDocumentExecutionBody',
+		resType: 'DocumentExecutionResponse',
+		errors: [
+			'E_UNAUTHORIZED',
+			'E_DEVICE_REVOKED',
+			'E_NOT_FOUND',
+			'E_VALIDATION',
+			'E_SNAPSHOT_STALE',
+			'E_DOC_SOURCE_UNREADABLE',
+			'E_DOC_CONTRACT_PENDING',
+			'E_INTERNAL',
+		],
+		bodySchema: resumeDocumentExecutionBodySchema,
+		bodyKeys: RESUME_DOCUMENT_EXECUTION_BODY_KEYS,
+	},
 	{
 		method: 'GET',
 		path: '/api/v1/health',

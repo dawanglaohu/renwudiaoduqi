@@ -60,6 +60,10 @@ import {
 	type DispatchSnapshotsRepo,
 	createDispatchSnapshotsRepo,
 } from '../repo/dispatch-snapshots.ts';
+import {
+	type DocumentExecutionsRepo,
+	createDocumentExecutionsRepo,
+} from '../repo/document-executions.ts';
 import { type DocumentsRepo, createDocumentsRepo } from '../repo/documents.ts';
 import { type EventSeqRepo, createEventSeqRepo } from '../repo/event-seq-repo.ts';
 import { createEventsIndexRepo } from '../repo/events-index-repo.ts';
@@ -83,6 +87,10 @@ import {
 	createDispatchService,
 } from '../service/dispatch.ts';
 import { type DocsService, createDocsService } from '../service/docs.ts';
+import {
+	type DocumentExecutionService,
+	createDocumentExecutionService,
+} from '../service/document-execution.ts';
 import { type GateService, createGateService } from '../service/gates.ts';
 import { type LandingService, createLandingService } from '../service/landing.ts';
 import { type LanesService, createLanesService } from '../service/lanes.ts';
@@ -148,6 +156,7 @@ export interface ContainerRepos {
 	readonly logSegments?: LogSegmentsRepo;
 	readonly devices: DevicesRepo;
 	readonly documents: DocumentsRepo;
+	readonly documentExecutions: DocumentExecutionsRepo;
 	readonly runMessages: RunMessagesRepo;
 	readonly tasks: TasksRepo;
 	readonly runs: RunsRepo;
@@ -176,6 +185,7 @@ export interface ContainerServices {
 	readonly runLog: RunLogService;
 	readonly pairing: PairingService;
 	readonly docs: DocsService;
+	readonly documentExecution: DocumentExecutionService;
 	readonly agents: AgentService;
 	readonly landing: LandingService;
 	readonly message: MessageService;
@@ -240,6 +250,8 @@ export function createContainer(input: {
 	readonly bootstrapPairing?: boolean;
 	readonly docsService?: DocsService;
 	readonly documentsRepo?: DocumentsRepo;
+	readonly documentExecutionsRepo?: DocumentExecutionsRepo;
+	readonly documentExecutionService?: DocumentExecutionService;
 	readonly runMessagesRepo?: RunMessagesRepo;
 	readonly messageService?: MessageService;
 	readonly processRegistry?: ProcessRegistry;
@@ -298,6 +310,8 @@ export function createContainer(input: {
 	const logSegments = input.logSegmentsRepo ?? createLogSegmentsRepo(input.database);
 	const devices = createDevicesRepo(input.database);
 	const documents = input.documentsRepo ?? createDocumentsRepo(input.database);
+	const documentExecutions =
+		input.documentExecutionsRepo ?? createDocumentExecutionsRepo(input.database);
 	const runMessages = input.runMessagesRepo ?? createSqliteRunMessagesRepo(input.database);
 	const tasks = input.tasksRepo ?? createTasksRepo(input.database);
 	const runs = input.runsRepo ?? createRunsRepo(input.database);
@@ -313,6 +327,7 @@ export function createContainer(input: {
 		logSegments,
 		devices,
 		documents,
+		documentExecutions,
 		runMessages,
 		tasks,
 		runs,
@@ -900,10 +915,13 @@ export function createContainer(input: {
 			agentService.getAvailability(agentId)?.effortOptions,
 		);
 	}
+	const documentExecutionHolder: { current?: DocumentExecutionService } = {};
 
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
+			documentExecutionsRepo: documentExecutions,
+			listDocumentExecutions: () => documentExecutionHolder.current?.list() ?? [],
 			validateWorkspace: (docId, taskIds) => docsService.validateWorkspace(docId, taskIds),
 			validateSourceAtCommit: (docId, taskIds) =>
 				docsService.validateSourceAtCommit(docId, taskIds),
@@ -1015,6 +1033,32 @@ export function createContainer(input: {
 				})),
 			listVendorEffortDomain,
 		});
+
+	const documentExecutionService =
+		input.documentExecutionService ??
+		createDocumentExecutionService({
+			executions: documentExecutions,
+			documents,
+			batches,
+			tasks,
+			runs,
+			snapshots: dispatchSnapshots,
+			wrapups: batchWrapups,
+			batchService,
+			unitOfWork,
+			clock: input.clock,
+			bus,
+			envelopeFactory,
+			validateWorkspace: (docId) => docsService.validateWorkspace(docId),
+			validateSourceAtCommit: (docId) => docsService.validateSourceAtCommit(docId),
+			registeredAgent: (agentId) => agentRegistry.getSnapshot().agents[agentId] ?? null,
+			listVendorEffortDomain,
+			modelEffortOptions: (agentId, modelName) =>
+				agentService.getModelEffortOptions(agentId, modelName),
+			isAgentAvailable: (agentId) => agentService.getAvailability(agentId)?.canDispatch === true,
+			nudgeTick,
+		});
+	documentExecutionHolder.current = documentExecutionService;
 
 	const schedulerTickJob =
 		input.schedulerTickJob ??
@@ -1219,6 +1263,7 @@ export function createContainer(input: {
 		retention: retentionService,
 		pairing: pairingService,
 		docs: docsService,
+		documentExecution: documentExecutionService,
 		agents: agentService,
 		landing: landingService,
 		message: messageService,

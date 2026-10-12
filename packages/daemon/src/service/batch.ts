@@ -2,7 +2,10 @@ import type { BatchDto, BatchState } from '@agent-scheduler/shared/api/batches';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
 import { summarizeBatchLanding } from '../domain/batch-landing.ts';
-import { assertCanTransitionBatch } from '../domain/batch-state-machine.ts';
+import {
+	assertCanResetInvalidatedBatch,
+	assertCanTransitionBatch,
+} from '../domain/batch-state-machine.ts';
 import { deriveTaskState } from '../domain/task-state.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
@@ -124,6 +127,12 @@ export interface BatchService {
 		batchId: string,
 		toState: BatchState,
 		reason: string,
+		membershipInvalidated?: {
+			readonly sourceConfirmed: true;
+			readonly versionMatched: true;
+			readonly membersChanged: boolean;
+			readonly completionInvalid: boolean;
+		},
 	) => TransitionBatchInTxResult;
 	readonly getBatch: (batchId: string) => Promise<BatchDto>;
 	readonly listBatches: (docId: string) => Promise<readonly BatchDto[]>;
@@ -153,13 +162,31 @@ export function createBatchService(deps: BatchServiceDeps): BatchService {
 		batchId: string,
 		toState: BatchState,
 		reason: string,
+		membershipInvalidated?: {
+			readonly sourceConfirmed: true;
+			readonly versionMatched: true;
+			readonly membersChanged: boolean;
+			readonly completionInvalid: boolean;
+		},
 	): TransitionBatchInTxResult {
 		const current = deps.batchesRepo.findById(batchId);
 		if (!current) {
 			throw new AppError('E_NOT_FOUND', `Batch not found: ${batchId}`);
 		}
 
-		assertCanTransitionBatch(current.state, toState);
+		if (
+			toState === 'idle' &&
+			reason === 'membership_invalidated' &&
+			membershipInvalidated?.sourceConfirmed &&
+			membershipInvalidated.versionMatched &&
+			(current.state === 'done'
+				? membershipInvalidated.completionInvalid
+				: membershipInvalidated.membersChanged)
+		) {
+			assertCanResetInvalidatedBatch(current.state);
+		} else {
+			assertCanTransitionBatch(current.state, toState);
+		}
 
 		const now = deps.clock.now();
 		const startedAt = toState === 'running' && !current.started_at ? now : current.started_at;

@@ -5,6 +5,7 @@ import type {
 	PauseBatchResponse,
 	StartBatchResponse,
 } from '@agent-scheduler/shared/api/batches';
+import type { DocumentExecutionDto } from '@agent-scheduler/shared/api/document-execution';
 import type { DocumentDto } from '@agent-scheduler/shared/api/documents';
 import type { EventEnvelope } from '@agent-scheduler/shared/api/events';
 import type {
@@ -61,6 +62,7 @@ import type { LaunchSpec, ManagedProcess, SpawnManagedOptions } from '../proc/sp
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
+import type { DocumentExecutionsRepo } from '../repo/document-executions.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { EventSeqRepo } from '../repo/event-seq-repo.ts';
 import type { GatesRepo } from '../repo/gates.ts';
@@ -274,6 +276,8 @@ export interface DispatchServiceDeps {
 	readonly logFailure?: (error: unknown) => void;
 	readonly getDispatchHalt?: () => boolean;
 	readonly agentRegistry?: AgentRegistry;
+	readonly documentExecutionsRepo?: DocumentExecutionsRepo;
+	readonly listDocumentExecutions?: () => readonly DocumentExecutionDto[];
 	readonly listVendorEffortDomain?: (agentId: string) => Promise<readonly string[]>;
 	readonly modelEffortOptions?: (
 		agentId: string,
@@ -633,6 +637,24 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				details: { taskId },
 			});
 		}
+		const execution = deps.documentExecutionsRepo?.findByDocId(task.doc_id);
+		if (
+			execution &&
+			execution.state !== 'idle' &&
+			(execution.state !== 'running' || execution.current_batch_id !== task.batch_id)
+		) {
+			throw new AppError(
+				'E_VALIDATION',
+				'Manual run cannot bypass the active document execution.',
+				{
+					details: {
+						docId: task.doc_id,
+						executionState: execution.state,
+						currentBatchId: execution.current_batch_id,
+					},
+				},
+			);
+		}
 
 		const preflightDoc = checkDocumentReadable(task.doc_id);
 		await deps.validateWorkspace?.(task.doc_id, [task.id]);
@@ -716,6 +738,19 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		let startedEvent: EventEnvelope | null = null;
 		const persist = (): { readonly snapshotId: string } => {
 			assertDocumentUnchanged(preflightDoc);
+			const currentExecution = deps.documentExecutionsRepo?.findByDocId(task.doc_id);
+			if (
+				currentExecution &&
+				currentExecution.state !== 'idle' &&
+				(currentExecution.state !== 'running' ||
+					currentExecution.current_batch_id !== task.batch_id)
+			) {
+				throw new AppError(
+					'E_VALIDATION',
+					'Document execution changed before manual run admission.',
+					{ details: { docId: task.doc_id, executionState: currentExecution.state } },
+				);
+			}
 			if (typeof input.laneNo === 'number' && deps.tasksRepo.assignLaneNo) {
 				const changes = deps.tasksRepo.assignLaneNo(taskId, input.laneNo);
 				if (changes === 0) {
@@ -886,6 +921,20 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				details: { batchId },
 			});
 		}
+		const execution = deps.documentExecutionsRepo?.findByDocId(batch.doc_id);
+		if (execution && execution.state !== 'idle') {
+			throw new AppError(
+				'E_VALIDATION',
+				'Manual batch start is unavailable during a document execution.',
+				{
+					details: {
+						docId: batch.doc_id,
+						executionState: execution.state,
+						currentBatchId: execution.current_batch_id,
+					},
+				},
+			);
+		}
 
 		const preflightDoc = checkDocumentReadable(batch.doc_id);
 		await deps.validateWorkspace?.(batch.doc_id);
@@ -926,6 +975,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		assertDocumentUnchanged(preflightDoc);
 		deps.validateSourceAtCommit?.(batch.doc_id);
+		const currentExecution = deps.documentExecutionsRepo?.findByDocId(batch.doc_id);
+		if (currentExecution && currentExecution.state !== 'idle') {
+			throw new AppError('E_VALIDATION', 'Document execution changed before manual batch start.');
+		}
 		await effectiveBatchService.transitionBatch(batchId, 'running', 'batch_start');
 
 		const batchTasks = deps.tasksRepo.listByBatchId(batchId);
@@ -957,6 +1010,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			throw new AppError('E_NOT_FOUND', `Batch not found: ${batchId}`, {
 				details: { batchId },
 			});
+		}
+		const execution = deps.documentExecutionsRepo?.findByDocId(batch.doc_id);
+		if (execution && execution.state !== 'idle') {
+			throw new AppError(
+				'E_VALIDATION',
+				'Manual batch pause is unavailable during a document execution.',
+				{ details: { docId: batch.doc_id, executionState: execution.state } },
+			);
 		}
 
 		await effectiveBatchService.transitionBatch(batchId, 'paused', 'batch_pause');
@@ -1092,6 +1153,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 		return Object.freeze({
 			documents: Object.freeze(documents),
+			documentExecutions: Object.freeze(deps.listDocumentExecutions?.() ?? []),
 			batches: Object.freeze(allBatches),
 			tasks: Object.freeze(allTasks),
 			runs: Object.freeze(runs),
@@ -1330,6 +1392,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			for (const previousDoc of documents) {
 				const doc = deps.documentsRepo.findById(previousDoc.id);
 				if (!doc) continue;
+				const documentExecution = deps.documentExecutionsRepo?.findByDocId(doc.id);
+				// M8-T12 accepts and persists the plan; M8-T13 owns its automatic dispatch path.
+				if (documentExecution && documentExecution.state !== 'idle') continue;
 				const pendingTaskIds = new Set<string>();
 				const canDispatchNewWork = async (taskIds?: readonly string[]): Promise<boolean> => {
 					if (deps.documentsRepo.findById(doc.id)?.is_source_readable !== 1) return false;
@@ -1357,7 +1422,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				// Step 2: Batch progression & wrap-up trigger (AC 1, AC 2, E-272, E-283)
 				const batches = deps.batchesRepo.listByDocId(doc.id);
 				const activeBatches = batches.filter(
-					(b) => b.state === 'running' || b.state === 'awaiting_landing',
+					(b) =>
+						(b.state === 'running' || b.state === 'awaiting_landing') &&
+						(documentExecution?.state !== 'running' || b.id === documentExecution.current_batch_id),
 				);
 
 				for (const batch of activeBatches) {
@@ -1773,7 +1840,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				}
 
 				const activeBatchesInDoc = docBatches.filter(
-					(b) => b.state === 'running' || b.state === 'awaiting_landing',
+					(b) =>
+						(b.state === 'running' || b.state === 'awaiting_landing') &&
+						(documentExecution?.state !== 'running' || b.id === documentExecution.current_batch_id),
 				);
 				const activeBatchIdSetForRework = new Set(activeBatchesInDoc.map((b) => b.id));
 

@@ -21,6 +21,7 @@ import type { EventBus } from '../../events/bus.ts';
 import type { EnvelopeFactory } from '../../events/envelope.ts';
 import type { BatchService } from '../../service/batch.ts';
 import type { DocsService, DocumentRecord } from '../../service/docs.ts';
+import type { DocumentExecutionService } from '../../service/document-execution.ts';
 
 export interface DocumentParams {
 	readonly docId: string;
@@ -310,7 +311,19 @@ export function registerDocumentRoutes(
 		async (request): Promise<RefreshDocumentResponse> => {
 			authenticateDevice(request);
 			const docsService = options?.docsService ?? resolveDocsService(instance, options);
-			return docsService.refreshDocument(request.params.docId, request.body ?? undefined);
+			const executionService = (
+				request.server as unknown as {
+					container?: { services?: { documentExecution?: DocumentExecutionService } };
+				}
+			).container?.services?.documentExecution;
+			const previousVersion = executionService?.get(request.params.docId).execution.version;
+			const result = await docsService.refreshDocument(
+				request.params.docId,
+				request.body ?? undefined,
+			);
+			if (previousVersion !== undefined)
+				executionService?.publishIfVersionChanged(request.params.docId, previousVersion);
+			return result;
 		},
 	);
 
