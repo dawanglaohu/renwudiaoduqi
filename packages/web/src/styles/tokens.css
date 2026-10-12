@@ -115,7 +115,7 @@
 	--r-sm: 0;
 	--r-lg: 0;
 	--r-pill: 0;
-	--topbar-h: 64px;
+	--topbar-h: 52px; /* e2e spec: topbar 50-56px */
 
 	--accent: #ff6b6b;
 	--accent-soft: #ff9ff3;

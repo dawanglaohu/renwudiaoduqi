@@ -326,10 +326,12 @@
 	font-weight: 900;
 }
 
+/* e2e spec (pipeline-settings AC2): divider is exactly 1px x 16px; Memphis feel via a hard offset shadow that does not change its box */
 [data-theme="light"] .app-controls-divider {
-	width: 4px;
-	height: 28px;
+	width: 1px;
+	height: 16px;
 	background: var(--ink-1);
+	box-shadow: 2px 2px 0 var(--accent);
 }
 
 [data-theme="light"] [data-gate-toggle] > span,
