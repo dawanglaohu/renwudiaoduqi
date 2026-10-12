@@ -1448,7 +1448,10 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 					],
 					agentLimits: () => 10,
 					adapters: {
-						codex: { buildLaunchSpec: buildCodexLaunchSpec, mapEvents: () => [] },
+						codex: {
+							buildLaunchSpec: ({ runId, cwd }) => ({ runId, file: 'codex', args: [], cwd }),
+							mapEvents: () => [],
+						},
 					},
 					proc: {
 						spawnManaged: () => {
@@ -1459,7 +1462,8 @@ describe('M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (A
 						prepareWorktree: async () => ({
 							worktreePath: gitRepoPath,
 							branchName: 'task/m8-t1',
-							baseSha: 'HEAD',
+							baseRef: 'HEAD',
+							isReused: true,
 						}),
 					},
 					runService,
