@@ -172,6 +172,62 @@ function setupMockDom() {
 }
 
 describe('components/pipeline-toggles (M9-T22 / AC 1..6, E-26, E-157, E-306, E-312, E-318, E-356)', () => {
+	it.each(['before-http', 'after-http'])(
+		'releases pending after the daemon clears unsupported effort (%s)',
+		async (order) => {
+			const initialPipeline: PipelineSettings = {
+				bughunt: 0,
+				wrapupMode: 'auto',
+				reviewOverride: null,
+				wrapupAssignment: { mode: 'follow' },
+			};
+			const reviewOverride = {
+				agentId: 'codex',
+				modelName: 'empty-capability-model',
+				effortTier: null,
+				effortVendor: null,
+			};
+			const canonical: PipelineSettings = { ...initialPipeline, reviewOverride };
+			let resolvePatch: ((response: { pipeline: PipelineSettings }) => void) | undefined;
+			const source = createPipelineSettingsSource({
+				initialPipeline,
+				fetcher: async () => ({ pipeline: canonical }),
+				patcher: () =>
+					new Promise((resolve) => {
+						resolvePatch = resolve;
+					}),
+			});
+			const unsubscribe = source.subscribe(() => {});
+			try {
+				const saving = source.updatePipelineSettings({
+					reviewOverride: { ...reviewOverride, effortTier: 'high' },
+				});
+				const confirm = () =>
+					eventBus.push({
+						id: 910,
+						ts: new Date().toISOString(),
+						runId: null,
+						taskId: null,
+						scope: 'settings',
+						kind: 'settings.pipeline_changed',
+						seq: 1,
+						actorDeviceId: null,
+						payload: { pipeline: canonical },
+					});
+				if (order === 'before-http') confirm();
+				resolvePatch?.({ pipeline: canonical });
+				await saving;
+				if (order === 'after-http') {
+					expect(source.getSnapshot().isPending).toBe(true);
+					confirm();
+				}
+				expect(source.getSnapshot()).toMatchObject({ pipeline: canonical, isPending: false });
+			} finally {
+				unsubscribe();
+			}
+		},
+	);
+
 	it('shares cached values and pending across the mounted topbar and settings editors', async () => {
 		const { container, root } = setupMockDom();
 		const initialPipeline: PipelineSettings = {
