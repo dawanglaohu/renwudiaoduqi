@@ -7,6 +7,10 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../.
 const daemonSrc = join(repositoryRoot, 'packages/daemon/src');
 
 describe('M8-T6 Architecture: Batch State Isolation (R1, AC 1)', () => {
+	it('R5: document plan domain has no dependency on repo types', () => {
+		const source = readFileSync(join(daemonSrc, 'domain/document-execution.ts'), 'utf8');
+		expect(source).not.toMatch(/from\s+['"]\.\.\/repo\//);
+	});
 	it('forbids batches state mutations outside BatchService', () => {
 		const files = listTypeScriptFiles(daemonSrc);
 		expect(files.length).toBeGreaterThan(0);

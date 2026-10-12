@@ -1,6 +1,17 @@
 import type { DocumentDefaultAssignment } from '@agent-scheduler/shared/api/document-execution';
-import type { BatchRow } from '../repo/batches.ts';
-import type { TaskRow } from '../repo/tasks.ts';
+
+export interface DocumentPlanBatchInput {
+	readonly id: string;
+	readonly batchNo: number;
+}
+
+export interface DocumentPlanTaskInput {
+	readonly id: string;
+	readonly batchId: string | null;
+	readonly taskKey: string;
+	readonly contractHash: string;
+	readonly isRemovedFromDoc: boolean;
+}
 
 export interface DocumentPlanBatch {
 	readonly batchId: string;
@@ -19,10 +30,10 @@ export interface DocumentPlanBatch {
 export type DocumentPlan = readonly DocumentPlanBatch[];
 
 export function membershipFingerprint(
-	members: readonly Pick<TaskRow, 'task_key' | 'contract_hash'>[],
+	members: readonly Pick<DocumentPlanTaskInput, 'taskKey' | 'contractHash'>[],
 	hash: (value: string) => string,
 ): string {
-	const pairs = members.map((member) => [member.task_key, member.contract_hash]);
+	const pairs = members.map((member) => [member.taskKey, member.contractHash]);
 	pairs.sort((left, right) => {
 		const a = left[0] ?? '';
 		const b = right[0] ?? '';
@@ -32,8 +43,8 @@ export function membershipFingerprint(
 }
 
 export function buildDocumentPlan(
-	batches: readonly BatchRow[],
-	tasks: readonly TaskRow[],
+	batches: readonly DocumentPlanBatchInput[],
+	tasks: readonly DocumentPlanTaskInput[],
 	version: number,
 	hash: (value: string) => string,
 	previous: DocumentPlan = [],
@@ -41,24 +52,21 @@ export function buildDocumentPlan(
 	const byId = new Map(previous.map((entry) => [entry.batchId, entry]));
 	return batches.flatMap((batch) => {
 		const members = tasks
-			.filter((task) => task.batch_id === batch.id && task.is_removed_from_doc === 0)
+			.filter((task) => task.batchId === batch.id && !task.isRemovedFromDoc)
 			.map((task) => ({
 				taskId: task.id,
-				taskKey: task.task_key,
-				contractHash: task.contract_hash,
+				taskKey: task.taskKey,
+				contractHash: task.contractHash,
 			}))
 			.sort((a, b) => (a.taskKey < b.taskKey ? -1 : a.taskKey > b.taskKey ? 1 : 0));
 		if (members.length === 0) return [];
-		const fingerprint = membershipFingerprint(
-			members.map((member) => ({ task_key: member.taskKey, contract_hash: member.contractHash })),
-			hash,
-		);
+		const fingerprint = membershipFingerprint(members, hash);
 		const old = byId.get(batch.id);
 		const unchanged = old?.membershipFingerprint === fingerprint;
 		return [
 			{
 				batchId: batch.id,
-				batchNo: batch.batch_no,
+				batchNo: batch.batchNo,
 				members,
 				membershipFingerprint: fingerprint,
 				generationId: unchanged ? old.generationId : version,

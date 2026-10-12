@@ -21,7 +21,7 @@ import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
-import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
+import type { BatchWrapupRow, BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentExecutionRow, DocumentExecutionsRepo } from '../repo/document-executions.ts';
@@ -105,6 +105,27 @@ function sameMembers(a: readonly string[], b: readonly string[]): boolean {
 	return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+function buildPlanFromRows(
+	batches: readonly BatchRow[],
+	tasks: readonly TaskRow[],
+	version: number,
+	previous: DocumentPlan,
+): DocumentPlan {
+	return buildDocumentPlan(
+		batches.map((batch) => ({ id: batch.id, batchNo: batch.batch_no })),
+		tasks.map((task) => ({
+			id: task.id,
+			batchId: task.batch_id,
+			taskKey: task.task_key,
+			contractHash: task.contract_hash,
+			isRemovedFromDoc: task.is_removed_from_doc === 1,
+		})),
+		version,
+		hash,
+		previous,
+	);
+}
+
 export function createDocumentExecutionService(
 	deps: DocumentExecutionDeps,
 ): DocumentExecutionService {
@@ -170,15 +191,89 @@ export function createDocumentExecutionService(
 		if (batch.state !== 'done') return entry;
 		const latest = deps.wrapups.findLatestByBatchId(batch.id);
 		if (!latest || (latest.verdict !== 'clean' && latest.verdict !== 'fixed')) return entry;
+		if (!legacyCompletionIsProven(entry, latest, tasks, runs)) return entry;
 		const candidate = {
 			...entry,
-			generationId: 0,
-			wrapupRunIds: Array.from(
-				new Set(deps.wrapups.listByBatchId(batch.id).map((item) => item.run_id)),
-			),
 			completion: { wrapupId: latest.id, completionFingerprint: entry.membershipFingerprint },
 		};
 		return evidenceIsValid(candidate, batch, tasks, runs) ? candidate : entry;
+	}
+
+	function legacyCompletionIsProven(
+		entry: DocumentPlanBatch,
+		wrapup: BatchWrapupRow,
+		tasks: readonly TaskRow[],
+		runs: readonly RunRow[],
+	): boolean {
+		const wrapupRun = deps.runs.findById(wrapup.run_id);
+		if (!wrapupRun?.started_at) return false;
+		const frozen = deps.snapshots.findById(wrapupRun.snapshot_id);
+		if (!frozen?.input_text) return false;
+		let input: unknown;
+		try {
+			input = JSON.parse(frozen.input_text);
+		} catch {
+			return false;
+		}
+		if (!input || typeof input !== 'object') return false;
+		const record = input as Record<string, unknown>;
+		if (
+			record.generationId !== entry.generationId ||
+			record.membershipFingerprint !== entry.membershipFingerprint ||
+			!Array.isArray(record.members) ||
+			record.members.length !== tasks.length
+		)
+			return false;
+		const currentMembers = tasks
+			.map((task) => ({ task_key: task.task_key, contractHash: task.contract_hash }))
+			.sort((a, b) => (a.task_key < b.task_key ? -1 : a.task_key > b.task_key ? 1 : 0));
+		if (
+			!record.members.every((member, index) => {
+				const expected = currentMembers[index];
+				return (
+					!!expected &&
+					!!member &&
+					typeof member === 'object' &&
+					(member as Record<string, unknown>).task_key === expected.task_key &&
+					(member as Record<string, unknown>).contractHash === expected.contractHash
+				);
+			})
+		)
+			return false;
+		const acceptedAt = wrapupRun.started_at;
+		return tasks.every((task) =>
+			runs.some((run) => {
+				if (
+					run.task_id !== task.id ||
+					run.kind !== 'implement' ||
+					run.state !== 'landed' ||
+					run.is_in_head !== 1 ||
+					!run.ended_at ||
+					run.ended_at > acceptedAt ||
+					!run.in_head_checked_at ||
+					run.in_head_checked_at > acceptedAt
+				)
+					return false;
+				const snapshot = deps.snapshots.findById(run.snapshot_id);
+				return snapshot?.contract_hash === task.contract_hash && snapshot.created_at <= acceptedAt;
+			}),
+		);
+	}
+
+	function adoptLegacyGeneration(
+		entry: DocumentPlanBatch,
+		batch: BatchRow,
+		runs: readonly RunRow[],
+	): DocumentPlanBatch {
+		const historicalRuns = runs
+			.filter((run) => run.kind === 'wrapup' && run.batch_id === batch.id)
+			.sort((a, b) => a.attempt_no - b.attempt_no);
+		if (batch.state === 'idle' && historicalRuns.length === 0) return entry;
+		return {
+			...entry,
+			generationId: 0,
+			wrapupRunIds: historicalRuns.map((run) => run.id),
+		};
 	}
 
 	function toDto(doc: DocumentRow, row: DocumentExecutionRow | null): DocumentExecutionDto {
@@ -186,7 +281,7 @@ export function createDocumentExecutionService(
 		const batches = deps.batches.listByDocId(doc.id);
 		const tasks = deps.tasks.listByDocId(doc.id);
 		const runs = deps.runs.listAll();
-		const planned = buildDocumentPlan(batches, tasks, row?.version ?? 0, hash, plan);
+		const planned = buildPlanFromRows(batches, tasks, row?.version ?? 0, plan);
 		const byId = new Map(batches.map((batch) => [batch.id, batch]));
 		const done = planned.filter((entry) => {
 			const batch = byId.get(entry.batchId);
@@ -366,27 +461,41 @@ export function createDocumentExecutionService(
 			const tasks = deps.tasks.listByDocId(docId);
 			const runs = deps.runs.listAll();
 			const oldPlan = row ? parsePlan(row.plan_json) : [];
-			let plan = buildDocumentPlan(batches, tasks, expectedVersion + 1, hash, oldPlan).map(
-				(entry) => {
-					const batch = batches.find((item) => item.id === entry.batchId);
-					return batch && !oldPlan.some((item) => item.batchId === entry.batchId)
-						? adoptLegacyEvidence(
-								entry,
-								batch,
-								tasks.filter(
-									(task) => task.batch_id === batch.id && task.is_removed_from_doc === 0,
-								),
-								runs,
-							)
-						: entry;
-				},
-			);
+			let plan = buildPlanFromRows(batches, tasks, expectedVersion + 1, oldPlan).map((entry) => {
+				const batch = batches.find((item) => item.id === entry.batchId);
+				return batch && !oldPlan.some((item) => item.batchId === entry.batchId)
+					? adoptLegacyEvidence(
+							adoptLegacyGeneration(entry, batch, runs),
+							batch,
+							tasks.filter((task) => task.batch_id === batch.id && task.is_removed_from_doc === 0),
+							runs,
+						)
+					: entry;
+			});
 			const active = batches.filter((batch) => ACTIVE_BATCH_STATES.has(batch.state));
 			if (active.length > 1)
 				throw new AppError('E_VALIDATION', 'Multiple legacy batches are active.', {
 					details: { batchIds: active.map((batch) => batch.id) },
 				});
 			const oldById = new Map(oldPlan.map((item) => [item.batchId, item]));
+			const plannedBatchIds = new Set(plan.map((entry) => entry.batchId));
+			for (const old of oldPlan) {
+				if (plannedBatchIds.has(old.batchId) || old.members.length === 0) continue;
+				const batch = batches.find((item) => item.id === old.batchId);
+				if (!batch || (!ACTIVE_BATCH_STATES.has(batch.state) && batch.state !== 'done')) continue;
+				const currentMembers = tasks.filter(
+					(task) => task.batch_id === batch.id && task.is_removed_from_doc === 0,
+				);
+				if (currentMembers.length !== 0) continue;
+				batchEvents.push(
+					deps.batchService.transitionBatchInTx(batch.id, 'idle', 'membership_invalidated', {
+						sourceConfirmed: true,
+						versionMatched: true,
+						membersChanged: true,
+						completionInvalid: true,
+					}),
+				);
+			}
 			plan = plan.map((entry) => {
 				const batch = batches.find((item) => item.id === entry.batchId);
 				if (!batch) return entry;
@@ -425,11 +534,14 @@ export function createDocumentExecutionService(
 					)
 				);
 			});
-			if (active.length === 1 && active[0]?.id !== earliest?.batchId && active[0]?.state !== 'done')
+			const stillActive = Array.from(byId.values()).filter((batch) =>
+				ACTIVE_BATCH_STATES.has(batch.state),
+			);
+			if (stillActive.length === 1 && stillActive[0]?.id !== earliest?.batchId)
 				throw new AppError(
 					'E_VALIDATION',
 					'Legacy active batch is not the earliest incomplete batch.',
-					{ details: { batchIds: active.map((batch) => batch.id) } },
+					{ details: { batchIds: stillActive.map((batch) => batch.id) } },
 				);
 			if (
 				earliest &&

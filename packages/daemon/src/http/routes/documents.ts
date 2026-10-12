@@ -14,7 +14,7 @@ import {
 	refreshDocumentBodySchema,
 	updateDocumentSettingsBodySchema,
 } from '@agent-scheduler/shared/api/documents';
-import type { FastifyInstance, RouteHandlerMethod } from 'fastify';
+import type { FastifyInstance, FastifyRequest, RouteHandlerMethod } from 'fastify';
 import { TASK_STATES } from '../../domain/task-state.ts';
 import { AppError } from '../../errors/app-error.ts';
 import type { EventBus } from '../../events/bus.ts';
@@ -85,6 +85,7 @@ export interface RegisterDocumentRoutesOptions {
 interface ContainerWithDocs {
 	readonly services?: {
 		readonly docs?: DocsService;
+		readonly documentExecution?: DocumentExecutionService;
 		readonly batch?: BatchService;
 		readonly pairing?: {
 			readonly authenticateToken: (authHeader?: string) => { readonly deviceId: string };
@@ -96,6 +97,11 @@ interface ContainerWithDocs {
 		readonly envelopeFactory?: EnvelopeFactory;
 	};
 	readonly jobs?: readonly { readonly name: string; readonly trigger?: () => void }[];
+}
+
+function documentExecutionService(request: FastifyRequest): DocumentExecutionService | undefined {
+	return (request.server as unknown as { container?: ContainerWithDocs }).container?.services
+		?.documentExecution;
 }
 
 function resolveDocsService(
@@ -188,9 +194,17 @@ export function registerDocumentRoutes(
 		async (request): Promise<CreateDocumentResponse> => {
 			authenticateDevice(request);
 			const docsService = options?.docsService ?? resolveDocsService(instance, options);
+			const executionService = documentExecutionService(request);
+			const previousDoc = docsService.getDocumentByPath(resolve(request.body.docsPath));
+			const previousVersion =
+				previousDoc && executionService
+					? executionService.get(previousDoc.id).execution.version
+					: undefined;
 			const result = await docsService.importDocument(request.body.docsPath, {
 				repoPath: request.body.repoPath,
 			});
+			if (previousVersion !== undefined)
+				executionService?.publishIfVersionChanged(result.document.id, previousVersion);
 			return {
 				document: toDocumentDto(result.document),
 				taskCount: result.parsed.tasks.length,
@@ -311,11 +325,7 @@ export function registerDocumentRoutes(
 		async (request): Promise<RefreshDocumentResponse> => {
 			authenticateDevice(request);
 			const docsService = options?.docsService ?? resolveDocsService(instance, options);
-			const executionService = (
-				request.server as unknown as {
-					container?: { services?: { documentExecution?: DocumentExecutionService } };
-				}
-			).container?.services?.documentExecution;
+			const executionService = documentExecutionService(request);
 			const previousVersion = executionService?.get(request.params.docId).execution.version;
 			const result = await docsService.refreshDocument(
 				request.params.docId,
@@ -369,3 +379,4 @@ export function registerDocumentRoutes(
 		},
 	);
 }
+import { resolve } from 'node:path';

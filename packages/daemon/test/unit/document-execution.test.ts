@@ -1,32 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { buildDocumentPlan, membershipFingerprint } from '../../src/domain/document-execution.ts';
-import type { BatchRow } from '../../src/repo/batches.ts';
-import type { TaskRow } from '../../src/repo/tasks.ts';
+import type {
+	DocumentPlanBatchInput,
+	DocumentPlanTaskInput,
+} from '../../src/domain/document-execution.ts';
 
 const hash = (value: string) => value;
 const batch = {
 	id: 'batch-1',
-	doc_id: 'doc-1',
-	batch_no: 1,
-	state: 'done',
-	started_at: null,
-	finished_at: null,
-} as BatchRow;
+	batchNo: 1,
+} satisfies DocumentPlanBatchInput;
 const task = {
 	id: 'task-1',
-	doc_id: 'doc-1',
-	batch_id: 'batch-1',
-	task_key: 'M1-T1',
-	contract_hash: 'hash-1',
-	is_removed_from_doc: 0,
-} as TaskRow;
+	batchId: 'batch-1',
+	taskKey: 'M1-T1',
+	contractHash: 'hash-1',
+	isRemovedFromDoc: false,
+} satisfies DocumentPlanTaskInput;
 
 describe('document plan membership', () => {
 	it('uses sorted task keys and contract hashes, independent of readiness', () => {
-		const a = { ...task, id: 'task-2', task_key: 'M1-T2' };
+		const a = { ...task, id: 'task-2', taskKey: 'M1-T2' };
+		const notReady = { ...task, isContractReady: false };
 		const expected = membershipFingerprint([task, a], hash);
 		expect(membershipFingerprint([a, task], hash)).toBe(expected);
-		expect(membershipFingerprint([{ ...task, is_contract_ready: 0 }, a], hash)).toBe(expected);
+		expect(membershipFingerprint([notReady, a], hash)).toBe(expected);
 	});
 
 	it('retains a generation only for unchanged members and clears stale completion evidence', () => {
@@ -44,7 +42,8 @@ describe('document plan membership', () => {
 				},
 			},
 		];
-		const same = buildDocumentPlan([batch], [{ ...task, is_contract_ready: 0 }], 2, hash, previous);
+		const notReady = { ...task, isContractReady: false };
+		const same = buildDocumentPlan([batch], [notReady], 2, hash, previous);
 		expect(same[0]).toMatchObject({
 			generationId: 1,
 			wrapupRunIds: ['wrapup-1'],
@@ -52,7 +51,7 @@ describe('document plan membership', () => {
 		});
 		const changed = buildDocumentPlan(
 			[batch],
-			[{ ...task, contract_hash: 'hash-2' }],
+			[{ ...task, contractHash: 'hash-2' }],
 			3,
 			hash,
 			previous,
