@@ -28,6 +28,7 @@ import type { DocumentExecutionRow, DocumentExecutionsRepo } from '../repo/docum
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
+import { parseAssignmentDraft } from './assignments.ts';
 import type { BatchService, TransitionBatchInTxResult } from './batch.ts';
 
 export interface DocumentExecutionDeps {
@@ -63,14 +64,24 @@ export interface DocumentExecutionService {
 	readonly start: (
 		docId: string,
 		body: StartDocumentExecutionBody,
+		actorDeviceId?: string | null,
 	) => Promise<DocumentExecutionResponse>;
-	readonly pause: (docId: string, body: PauseDocumentExecutionBody) => DocumentExecutionResponse;
+	readonly pause: (
+		docId: string,
+		body: PauseDocumentExecutionBody,
+		actorDeviceId?: string | null,
+	) => DocumentExecutionResponse;
 	readonly resume: (
 		docId: string,
 		body: ResumeDocumentExecutionBody,
+		actorDeviceId?: string | null,
 	) => Promise<DocumentExecutionResponse>;
 	readonly pauseRunningOnRestart: () => void;
-	readonly publishIfVersionChanged: (docId: string, previousVersion: number) => void;
+	readonly publishIfVersionChanged: (
+		docId: string,
+		previousVersion: number,
+		actorDeviceId?: string | null,
+	) => void;
 }
 
 const hash = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
@@ -312,10 +323,18 @@ export function createDocumentExecutionService(
 				batchId: current?.batchId ?? null,
 				taskIds: currentTasks.filter((task) => task.is_contract_ready !== 1).map((task) => task.id),
 			});
+		const hasMultipleActiveBatches =
+			batches.filter((batch) => ACTIVE_BATCH_STATES.has(batch.state)).length > 1;
+		if (hasMultipleActiveBatches)
+			blockers.push({ code: 'legacy_batches_active', batchId: null, taskIds: [] });
 		const assignment = row ? parseAssignment(row.default_assignment_json) : null;
-		if (assignment && !deps.isAgentAvailable(assignment.agentId)) {
+		if (assignment) {
 			const affected = currentTasks
-				.filter((task) => !task.assignment_draft_json)
+				.filter((task) => {
+					const agentId =
+						parseAssignmentDraft(task.assignment_draft_json)?.agentId ?? assignment.agentId;
+					return !deps.isAgentAvailable(agentId);
+				})
 				.map((task) => task.id);
 			if (affected.length)
 				blockers.push({
@@ -338,7 +357,10 @@ export function createDocumentExecutionService(
 			totalBatchCount: planned.length,
 			pauseReason: row?.pause_reason ?? null,
 			blockers: Object.freeze(blockers),
-			canStart: (row?.state ?? 'idle') === 'idle' && doc.is_source_readable === 1,
+			canStart:
+				(row?.state ?? 'idle') === 'idle' &&
+				doc.is_source_readable === 1 &&
+				!hasMultipleActiveBatches,
 			canPause: row?.state === 'running',
 			canResume: row?.state === 'paused' && doc.is_source_readable === 1,
 			updatedAt: row?.updated_at ?? null,
@@ -397,28 +419,39 @@ export function createDocumentExecutionService(
 		const options = deps.modelEffortOptions(assignment.agentId, assignment.modelName);
 		if (assignment.effort && options && options.length === 0)
 			throw new AppError('E_VALIDATION', 'Selected model does not support reasoning effort.');
-		if (
-			assignment.effort &&
-			'vendor' in assignment.effort &&
-			options &&
-			!options.includes(assignment.effort.vendor)
-		)
-			throw new AppError('E_VALIDATION', 'Selected model does not support this reasoning effort.');
 	}
 
 	function publishChanged(
 		docId: string,
 		batchEvents: readonly TransitionBatchInTxResult[],
+		actorDeviceId: string | null = null,
 	): DocumentExecutionResponse {
 		for (const item of batchEvents) deps.bus.publish(item.envelope);
 		const result = currentResponse(docId);
 		deps.bus.publish(
 			deps.envelopeFactory.createEnvelope({
 				kind: 'document.execution_changed',
+				actorDeviceId,
 				payload: { execution: result.execution },
 			}),
 		);
 		return result;
+	}
+
+	function publishIfVersionChanged(
+		docId: string,
+		previousVersion: number,
+		actorDeviceId: string | null = null,
+	): void {
+		const current = currentResponse(docId);
+		if (current.execution.version !== previousVersion)
+			deps.bus.publish(
+				deps.envelopeFactory.createEnvelope({
+					kind: 'document.execution_changed',
+					actorDeviceId,
+					payload: { execution: current.execution },
+				}),
+			);
 	}
 
 	async function activate(
@@ -427,12 +460,23 @@ export function createDocumentExecutionService(
 		expectedFingerprint: string,
 		assignment: DocumentDefaultAssignment | null,
 		mode: 'start' | 'resume',
+		actorDeviceId: string | null,
 	): Promise<DocumentExecutionResponse> {
 		const initial = requireDocument(docId);
 		assertFingerprint(expectedFingerprint, initial);
 		if (assignment) await validateAssignment(assignment);
-		await deps.validateWorkspace(docId);
-		deps.validateSourceAtCommit(docId);
+		const previousVersion = deps.executions.findByDocId(docId)?.version ?? 0;
+		try {
+			await deps.validateWorkspace(docId);
+			deps.validateSourceAtCommit(docId);
+		} catch (error) {
+			if (error instanceof AppError && error.code === 'E_DOC_SOURCE_UNREADABLE') {
+				const row = deps.executions.findByDocId(docId);
+				if (row?.state === 'paused' && row.pause_reason === 'source_unreadable')
+					publishIfVersionChanged(docId, previousVersion, actorDeviceId);
+			}
+			throw error;
+		}
 		const batchEvents: TransitionBatchInTxResult[] = [];
 		let changed = false;
 		deps.unitOfWork.run(() => {
@@ -570,7 +614,7 @@ export function createDocumentExecutionService(
 			changed = true;
 		});
 		if (!changed) return currentResponse(docId);
-		const result = publishChanged(docId, batchEvents);
+		const result = publishChanged(docId, batchEvents, actorDeviceId);
 		if (result.execution.state === 'running') deps.nudgeTick?.();
 		return result;
 	}
@@ -579,17 +623,29 @@ export function createDocumentExecutionService(
 		get: currentResponse,
 		list: () =>
 			deps.documents.listAll().map((doc) => toDto(doc, deps.executions.findByDocId(doc.id))),
-		start: (docId: string, body: StartDocumentExecutionBody) =>
+		start: (docId: string, body: StartDocumentExecutionBody, actorDeviceId: string | null = null) =>
 			activate(
 				docId,
 				body.expectedVersion,
 				body.expectedFingerprint,
 				body.defaultAssignment,
 				'start',
+				actorDeviceId,
 			),
-		resume: (docId: string, body: ResumeDocumentExecutionBody) =>
-			activate(docId, body.expectedVersion, body.expectedFingerprint, null, 'resume'),
-		pause(docId: string, body: PauseDocumentExecutionBody) {
+		resume: (
+			docId: string,
+			body: ResumeDocumentExecutionBody,
+			actorDeviceId: string | null = null,
+		) =>
+			activate(
+				docId,
+				body.expectedVersion,
+				body.expectedFingerprint,
+				null,
+				'resume',
+				actorDeviceId,
+			),
+		pause(docId: string, body: PauseDocumentExecutionBody, actorDeviceId: string | null = null) {
 			requireDocument(docId);
 			let changed = false;
 			deps.unitOfWork.run(() => {
@@ -607,7 +663,7 @@ export function createDocumentExecutionService(
 				});
 				changed = true;
 			});
-			return changed ? publishChanged(docId, []) : currentResponse(docId);
+			return changed ? publishChanged(docId, [], actorDeviceId) : currentResponse(docId);
 		},
 		pauseRunningOnRestart() {
 			let ids: readonly string[] = [];
@@ -616,16 +672,6 @@ export function createDocumentExecutionService(
 			});
 			for (const id of ids) publishChanged(id, []);
 		},
-		publishIfVersionChanged(docId: string, previousVersion: number) {
-			const current = currentResponse(docId);
-			if (current.execution.version !== previousVersion) {
-				deps.bus.publish(
-					deps.envelopeFactory.createEnvelope({
-						kind: 'document.execution_changed',
-						payload: { execution: current.execution },
-					}),
-				);
-			}
-		},
+		publishIfVersionChanged,
 	});
 }

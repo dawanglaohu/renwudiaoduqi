@@ -37,16 +37,19 @@ export function registerDocumentExecutionRoutes(instance: FastifyInstance): void
 	instance.post<{ Params: { docId: string }; Body: StartDocumentExecutionBody }>(
 		'/api/v1/documents/:docId/execution/start',
 		{ schema: { params: paramsSchema, body: startDocumentExecutionBodySchema } },
-		(request) => resolveService(request).start(request.params.docId, request.body),
+		(request) =>
+			resolveService(request).start(request.params.docId, request.body, request.actorDeviceId),
 	);
 	instance.post<{ Params: { docId: string }; Body: PauseDocumentExecutionBody }>(
 		'/api/v1/documents/:docId/execution/pause',
 		{ schema: { params: paramsSchema, body: pauseDocumentExecutionBodySchema } },
-		(request) => resolveService(request).pause(request.params.docId, request.body),
+		(request) =>
+			resolveService(request).pause(request.params.docId, request.body, request.actorDeviceId),
 	);
 	instance.post<{ Params: { docId: string }; Body: ResumeDocumentExecutionBody }>(
 		'/api/v1/documents/:docId/execution/resume',
 		{ schema: { params: paramsSchema, body: resumeDocumentExecutionBodySchema } },
-		(request) => resolveService(request).resume(request.params.docId, request.body),
+		(request) =>
+			resolveService(request).resume(request.params.docId, request.body, request.actorDeviceId),
 	);
 }

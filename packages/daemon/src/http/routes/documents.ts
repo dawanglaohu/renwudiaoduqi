@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import {
 	type CreateDocumentBody,
 	type CreateDocumentResponse,
@@ -200,15 +201,22 @@ export function registerDocumentRoutes(
 				previousDoc && executionService
 					? executionService.get(previousDoc.id).execution.version
 					: undefined;
-			const result = await docsService.importDocument(request.body.docsPath, {
-				repoPath: request.body.repoPath,
-			});
-			if (previousVersion !== undefined)
-				executionService?.publishIfVersionChanged(result.document.id, previousVersion);
-			return {
-				document: toDocumentDto(result.document),
-				taskCount: result.parsed.tasks.length,
-			};
+			try {
+				const result = await docsService.importDocument(request.body.docsPath, {
+					repoPath: request.body.repoPath,
+				});
+				return {
+					document: toDocumentDto(result.document),
+					taskCount: result.parsed.tasks.length,
+				};
+			} finally {
+				if (previousDoc && previousVersion !== undefined)
+					executionService?.publishIfVersionChanged(
+						previousDoc.id,
+						previousVersion,
+						request.actorDeviceId,
+					);
+			}
 		},
 	);
 
@@ -327,13 +335,16 @@ export function registerDocumentRoutes(
 			const docsService = options?.docsService ?? resolveDocsService(instance, options);
 			const executionService = documentExecutionService(request);
 			const previousVersion = executionService?.get(request.params.docId).execution.version;
-			const result = await docsService.refreshDocument(
-				request.params.docId,
-				request.body ?? undefined,
-			);
-			if (previousVersion !== undefined)
-				executionService?.publishIfVersionChanged(request.params.docId, previousVersion);
-			return result;
+			try {
+				return await docsService.refreshDocument(request.params.docId, request.body ?? undefined);
+			} finally {
+				if (previousVersion !== undefined)
+					executionService?.publishIfVersionChanged(
+						request.params.docId,
+						previousVersion,
+						request.actorDeviceId,
+					);
+			}
 		},
 	);
 
@@ -379,4 +390,3 @@ export function registerDocumentRoutes(
 		},
 	);
 }
-import { resolve } from 'node:path';
