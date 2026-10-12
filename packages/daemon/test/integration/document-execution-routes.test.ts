@@ -276,7 +276,7 @@ describe('M8-T12 document execution through the real container', () => {
 	});
 
 	it('E-361: an old start cannot mask a version conflict after pause and resume', async () => {
-		const { server, container, headers, docId } = await setup();
+		const { server, container, headers, docId, setGitAvailable } = await setup();
 		const url = `/api/v1/documents/${docId}/execution`;
 		const startBody = {
 			expectedVersion: 0,
@@ -305,6 +305,14 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(container.repos.documentExecutions.findByDocId(docId)).toMatchObject({
 			state: 'running',
 			version: 3,
+		});
+		expect(container.events.ringBuffer.latest()?.id).toBe(eventId);
+		setGitAvailable(false);
+		const unavailable = await post('start', startBody);
+		expect(unavailable.statusCode, unavailable.body).toBe(400);
+		expect(unavailable.json().error).toMatchObject({
+			code: 'E_VALIDATION',
+			details: { expectedVersion: 0, actualVersion: 3 },
 		});
 		expect(container.events.ringBuffer.latest()?.id).toBe(eventId);
 		await server.instance.close();

@@ -502,10 +502,12 @@ export function createDocumentExecutionService(
 					sameAssignment(parseAssignment(row.default_assignment_json), assignment)
 				: row?.state === 'running' && row.version === expectedVersion + 1;
 		try {
-			if (isIdempotentRetry(deps.executions.findByDocId(docId))) {
+			const preflightRow = deps.executions.findByDocId(docId);
+			if (isIdempotentRetry(preflightRow)) {
 				deps.validateSourceAtCommit(docId);
 				return currentResponse(docId);
 			}
+			assertVersion(expectedVersion, docId, preflightRow);
 			await deps.validateWorkspace(docId);
 			const observed = deps.executions.findByDocId(docId);
 			if (isIdempotentRetry(observed)) {
