@@ -908,12 +908,25 @@ export function createContainer(input: {
 	async function listVendorEffortDomain(agentId: string): Promise<readonly string[]> {
 		const config = agentRegistry.getSnapshot().agents[agentId];
 		if (!config) return [];
-		return vendorEffortDomain(
-			agentId,
-			config,
-			await agentService.listAgentModels(agentId),
-			agentService.getAvailability(agentId)?.effortOptions,
-		);
+		const availability = agentService.getAvailability(agentId);
+		if (availability?.canDispatch !== true) {
+			await agentService.getAgent(agentId);
+			return agentService.getVendorEffortDomain(agentId);
+		}
+		try {
+			return vendorEffortDomain(
+				agentId,
+				config,
+				await agentService.listAgentModels(agentId),
+				availability.effortOptions,
+			);
+		} catch (error) {
+			if (error instanceof AppError && error.code === 'E_AGENT_UNAVAILABLE') {
+				await agentService.getAgent(agentId);
+				return agentService.getVendorEffortDomain(agentId);
+			}
+			throw error;
+		}
 	}
 	const documentExecutionHolder: { current?: DocumentExecutionService } = {};
 

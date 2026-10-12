@@ -8,7 +8,9 @@ import { BUILT_IN_AGENT_DEFAULTS } from '../../src/config/defaults.ts';
 import { createAgentRegistry } from '../../src/config/registry.ts';
 import { createMigrationRunner } from '../../src/db/migrate.ts';
 import { openDatabase } from '../../src/db/open-database.ts';
+import { vendorEffortDomain } from '../../src/domain/agent-effort-options.ts';
 import { membershipFingerprint } from '../../src/domain/document-execution.ts';
+import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type { NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import { writeTasksDocsData } from '../fixtures/task-docs-data.ts';
@@ -43,6 +45,8 @@ async function setup(
 	options: {
 		readonly modelEffortOptions?: readonly string[];
 		readonly canDispatch?: (agentId: string) => boolean;
+		readonly modelCatalogUnavailable?: boolean;
+		readonly domainNeedsConfigRead?: boolean;
 	} = {},
 ) {
 	const folder = mkdtempSync(join(tmpdir(), 'agsched-document-plan-'));
@@ -64,6 +68,7 @@ async function setup(
 		publishWarning: () => {},
 		builtInDefaults: BUILT_IN_AGENT_DEFAULTS,
 	});
+	let configRead = false;
 	const schedulerTickJob = {
 		name: 'scheduler-tick',
 		start: () => {},
@@ -84,12 +89,25 @@ async function setup(
 			start: async () => {},
 			stop: async () => {},
 			listAgents: async () => [],
+			getAgent: async () => {
+				configRead = true;
+				return undefined;
+			},
 			getAvailability: (agentId: string) => {
 				const canDispatch = options.canDispatch?.(agentId) ?? false;
 				return { canDispatch, isReady: canDispatch, status: canDispatch ? 'ok' : 'not_found' };
 			},
 			getModelEffortOptions: () => options.modelEffortOptions,
-			listAgentModels: async () => ({ currentConfig: { model: null, effort: null }, models: [] }),
+			getVendorEffortDomain: (agentId: string) => {
+				if (options.domainNeedsConfigRead && !configRead) return [];
+				const config = registry.getSnapshot().agents[agentId];
+				return config ? vendorEffortDomain(agentId, config) : [];
+			},
+			listAgentModels: async () => {
+				if (options.modelCatalogUnavailable)
+					throw new AppError('E_AGENT_UNAVAILABLE', 'Agent model catalog is unavailable.');
+				return { currentConfig: { model: null, effort: null }, models: [] };
+			},
 		} as never,
 		schedulerTickJob,
 	});
@@ -111,7 +129,7 @@ async function setup(
 	});
 	expect(imported.statusCode, imported.body).toBe(200);
 	const docId = imported.json().document.id as string;
-	return { folder, database, container, server, headers, docsPath, docId };
+	return { folder, database, container, server, headers, docsPath, docId, registry };
 }
 
 function seedWrapupRun(
@@ -337,6 +355,72 @@ describe('M8-T12 document execution through the real container', () => {
 		});
 		expect(started.statusCode, started.body).toBe(200);
 		expect(started.json().execution.defaultAssignment.effort).toEqual({ vendor: 'ultra' });
+		await server.instance.close();
+	});
+
+	it('E-365: an offline registered agent accepts a configured vendor effort as a waiting plan', async () => {
+		const { server, container, headers, docId } = await setup({
+			modelCatalogUnavailable: true,
+			domainNeedsConfigRead: true,
+		});
+		const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: { vendor: 'ultra' } },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		expect(started.json().execution).toMatchObject({
+			state: 'running',
+			defaultAssignment: { effort: { vendor: 'ultra' } },
+		});
+		expect(started.json().execution.blockers).toContainEqual(
+			expect.objectContaining({ code: 'agent_unavailable' }),
+		);
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		await server.instance.close();
+	});
+
+	it('E-365: resume rejects a saved vendor effort after its Agent capability is removed', async () => {
+		const { server, container, headers, docId, registry } = await setup();
+		const url = `/api/v1/documents/${docId}/execution`;
+		const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: { vendor: 'ultra' } },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const paused = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/pause`,
+			headers,
+			payload: { expectedVersion: 1 },
+		});
+		expect(paused.statusCode).toBe(200);
+		expect((await registry.updateOverrides('codex', { effortVendorMap: null })).ok).toBe(true);
+		const resumed = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: { expectedVersion: 2, expectedFingerprint: fingerprint },
+		});
+		expect(resumed.statusCode).toBe(400);
+		expect(resumed.json().error.code).toBe('E_VALIDATION');
+		expect(container.repos.documentExecutions.findByDocId(docId)).toMatchObject({
+			state: 'paused',
+			version: 2,
+		});
 		await server.instance.close();
 	});
 

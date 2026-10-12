@@ -468,6 +468,15 @@ export function createDocumentExecutionService(
 		const previousVersion = deps.executions.findByDocId(docId)?.version ?? 0;
 		try {
 			await deps.validateWorkspace(docId);
+			if (mode === 'resume') {
+				const stored = deps.executions.findByDocId(docId);
+				if (stored?.state === 'paused' && stored.version === expectedVersion) {
+					const savedAssignment = parseAssignment(stored.default_assignment_json);
+					if (!savedAssignment)
+						throw new AppError('E_INTERNAL', 'Stored document assignment is missing.');
+					await validateAssignment(savedAssignment);
+				}
+			}
 			deps.validateSourceAtCommit(docId);
 		} catch (error) {
 			if (error instanceof AppError && error.code === 'E_DOC_SOURCE_UNREADABLE') {
