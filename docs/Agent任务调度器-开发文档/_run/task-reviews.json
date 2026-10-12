@@ -5299,8 +5299,8 @@
     "verdict": "pass"
   },
   "M8-T13": {
-    "compiler": "2ec4a3abb4c30693f6ed3a9bb5f58237e65acf5d213515cf24c4333dbed998c4",
-    "contractHash": "31fbdbbffdc4a4c3ed9ffb282f47e7d52bb96e45682b78c13cc5f9145e4905f1",
+    "compiler": "eeddd07520a3431c9e3a6f44609ca79790d7653a1082674d6ca4e1c3f7107607",
+    "contractHash": "76737af55a3eb571da30eaa8d32c9e41fcf3cb69cca85102b89ce0c327618c73",
     "evidence": [
       "复核范围仅为待实施任务的需求契约，不代表代码验收或落地；任务笔记 status=todo，既有124项契约哈希及落地进度逐项对照 origin/main 62f645d 保持不变。",
       "19节任务拆分和22节“文档级顺序自动执行”给出输入、产出及可判定验收；本任务配置引用22节，生成的 implementation/review 提示词均带完整源文件路径。",
@@ -5308,9 +5308,13 @@
       "有效路径逐项核对：27处已有文件/目录存在，5处为本扩展明确规划的新文件；校准到 api/event-bus.ts、api/resource-cache.ts、实际路由/迁移与指派测试，不扩大成无界目录。",
       "PR210十项审查已补齐：控制携带expectedVersion防止旧继续撤销新暂停；默认指派复用effort: EffortValue并保留合法vendor；完成证据绑定membershipFingerprint与冻结的completionFingerprint；done重开通过受控membership_invalidated白名单及transitionBatchInTx，M8-T12/M8-T13有效路径包含状态机/service/单元与架构检查；generationId与wrapupRunIds提供每代2轮有效自动收口、6次物理尝试额度，旧代晚到或同代重复控制不得混入/重置；20节统计与19节逐项一致，为114任务175人天，新增4项7.5人天；已注册Agent临时不可用仍保存running等待计划和agent_unavailable，未知ID/非法参数才拒绝且无计划；M8-T12只验收控制层，恢复派发明确由M8-T13接通、M1-T12验收，原任务无后续实施范围前置；受影响的活动批次经membership_invalidated受控回idle，旧来源在途以source_runs_pending等待、旧代queued收口沿既有queued→failed对账、旧回调只保存历史，M8-T13接通且M1-T12验证wrapping新增任务后的正常接续；tasks_json沿用排序task_key字符串数组，契约哈希保存在冻结输入与完成指纹。",
       "新增E-360至E-370覆盖显式开始、顺序/窗口/全局名额、收口、默认指派、旧入口、暂停竞态/阶段接续、重启、文档变化与真实端到端证据；保留既有人工闸门、HEAD落地和失败不自动重派要求。",
-      "最新文档工具链完整213项：212通过，1项因本项目_run目录无SKILL.md按原条件跳过；13项相关契约回归全部通过。新增回归在对应修复前失败、修复后通过；本轮活动批次对账与tasks_json格式修正前7处断言失败。未修改生成器或产品代码。"
+      "最新文档工具链完整213项：212通过，1项因本项目_run目录无SKILL.md按原条件跳过；13项相关契约回归全部通过。新增回归在对应修复前失败、修复后通过；本轮活动批次对账与tasks_json格式修正前7处断言失败。未修改生成器或产品代码。",
+      "本轮对照 19 节 M8-T13 的输入、产出、八条验收与 M8-T12/M8-T6/M8-T7/M8-T10/M7-T9 前置，任务笔记与当前契约哈希一致；本层只交付生产调度，M9-T30 和 M1-T12 仍分别承担 UI 与真实端到端验收。",
+      "22 节文档级顺序执行合同明确 running 授权、成员失效重建、本代收口证据、旧代在途和每代额度；13 节 E-360 至 E-370 与任务笔记逐条相符，无需调整任务定义或降低验收。",
+      "17 节要求 pnpm -w check、真实容器集成和三平台 CI；本轮已核当前 PR #217 的六个提交路径都在有效范围内，container、scheduler-tick 和 eventKinds 为生产接线位置。",
+      "本条仅登记任务契约语义复核，不表示代码验收通过；当前 PR #217 第 1 轮查出生产接缝阻断，须按 REVIEW-ROUND 1 返工并继续保持未落地。"
     ],
-    "reviewed": "2026-10-08T18:05:12.860087+00:00",
+    "reviewed": "2026-10-12T14:58:48.443335+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
