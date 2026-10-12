@@ -334,9 +334,24 @@ export function createDocumentExecutionService(
 				batchId: current?.batchId ?? null,
 				taskIds: currentTasks.filter((task) => task.is_contract_ready !== 1).map((task) => task.id),
 			});
-		const hasMultipleActiveBatches =
-			batches.filter((batch) => ACTIVE_BATCH_STATES.has(batch.state)).length > 1;
-		if (hasMultipleActiveBatches)
+		const activeBatches = batches.filter((batch) => ACTIVE_BATCH_STATES.has(batch.state));
+		const earliestIncomplete = planned.find(
+			(entry) => !done.some((completed) => completed.batchId === entry.batchId),
+		);
+		const active = activeBatches[0];
+		const storedActive = active ? storedById.get(active.id) : undefined;
+		const currentActive = active ? planned.find((entry) => entry.batchId === active.id) : undefined;
+		const willResetActive =
+			storedActive &&
+			(currentActive
+				? storedActive.membershipFingerprint !== currentActive.membershipFingerprint
+				: storedActive.members.length > 0);
+		const hasBlockingLegacyBatch =
+			activeBatches.length > 1 ||
+			(activeBatches.length === 1 &&
+				active?.id !== earliestIncomplete?.batchId &&
+				!willResetActive);
+		if (hasBlockingLegacyBatch)
 			blockers.push({ code: 'legacy_batches_active', batchId: null, taskIds: [] });
 		const assignment = row ? parseAssignment(row.default_assignment_json) : null;
 		if (assignment) {
@@ -373,7 +388,7 @@ export function createDocumentExecutionService(
 			canStart:
 				(row?.state ?? 'idle') === 'idle' &&
 				doc.is_source_readable === 1 &&
-				!hasMultipleActiveBatches,
+				!hasBlockingLegacyBatch,
 			canPause: row?.state === 'running',
 			canResume: row?.state === 'paused' && doc.is_source_readable === 1,
 			updatedAt: row?.updated_at ?? null,

@@ -731,6 +731,47 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(execution.canStart).toBe(false);
 		await server.instance.close();
 	});
+	it('E-366: a lone later legacy batch blocks start while an earlier batch is incomplete', async () => {
+		const { server, container, headers, docId, docsPath } = await setup();
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2', deps: ['M1-T1'] },
+		]);
+		const refresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refresh.statusCode, refresh.body).toBe(200);
+		const batches = container.repos.batches.listByDocId(docId);
+		expect(batches).toHaveLength(2);
+		const later = batches[1];
+		expect(later).toBeDefined();
+		if (!later) return;
+		container.services.batch?.transitionBatch(later.id, 'running', 'legacy_start');
+		const url = `/api/v1/documents/${docId}/execution`;
+		const execution = (await server.instance.inject({ method: 'GET', url, headers })).json()
+			.execution;
+		expect(execution.blockers).toContainEqual({
+			code: 'legacy_batches_active',
+			batchId: null,
+			taskIds: [],
+		});
+		expect(execution.canStart).toBe(false);
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.json().error.code).toBe('E_VALIDATION');
+		await server.instance.close();
+	});
 	it('R3: first adoption retains legacy wrapup attempts and two effective rounds in generation zero', async () => {
 		const env = await setup();
 		const { server, container, headers, docId } = env;
