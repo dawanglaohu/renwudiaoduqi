@@ -173,6 +173,7 @@ describe(
 		let appServerSpawnCount = 0;
 		let forceAppServerTimeout = false;
 		let extraModelEffort: string | null = null;
+		let emptyModelEffort = false;
 		let claudeHelp = '';
 		const spawnedRuns = new Set<string>();
 		const waitForSpawn = (runId: string) =>
@@ -234,6 +235,7 @@ model_reasoning_effort = "xhigh"
 			appServerSpawnCount = 0;
 			forceAppServerTimeout = false;
 			extraModelEffort = null;
+			emptyModelEffort = false;
 			spawnedRuns.clear();
 
 			const configFiles = new Map<string, string>();
@@ -389,6 +391,9 @@ model_reasoning_effort = "xhigh"
 						.filter((l) => l.trim().length > 0)
 						.map((line) => {
 							const message = JSON.parse(line);
+							if (emptyModelEffort && message.result?.data?.[0]) {
+								message.result.data[0].supportedReasoningEfforts = [];
+							}
 							if (extraModelEffort && message.result?.data?.[0]) {
 								message.result.data[0].supportedReasoningEfforts.push({
 									reasoningEffort: extraModelEffort,
@@ -570,6 +575,59 @@ model_reasoning_effort = "xhigh"
 				payload: { defaultEffortTier: { vendor: 'ultra' } },
 			});
 			expect(invalid.statusCode).toBe(400);
+		});
+
+		it('returns and publishes the persisted normalized pipeline for an unsupported model', async () => {
+			emptyModelEffort = true;
+			const headers = { authorization: authToken };
+			const modelsResponse = await server.instance.inject({
+				method: 'GET',
+				url: '/api/v1/agents/codex/models?refresh=1',
+				headers,
+			});
+			expect(modelsResponse.statusCode).toBe(200);
+			const model = modelsResponse
+				.json<ListAgentModelsResponse>()
+				.models.find((item) => item.source === 'live');
+			expect(model?.effortOptions).toEqual([]);
+			if (!model) throw new Error('No advertised model');
+			const published: unknown[] = [];
+			const unsubscribe = container.events.bus.subscribe((event) => {
+				if (event.kind === 'settings.pipeline_changed') published.push(event.payload);
+			});
+			try {
+				const response = await server.instance.inject({
+					method: 'PATCH',
+					url: '/api/v1/settings/pipeline',
+					headers,
+					payload: {
+						bughunt: 0,
+						wrapupMode: 'auto',
+						reviewOverride: { agentId: 'codex', modelName: model.name, effortTier: 'high' },
+						wrapupAssignment: {
+							mode: 'fixed',
+							agentId: 'codex',
+							modelName: model.name,
+							effortTier: 'high',
+						},
+					},
+				});
+				expect(response.statusCode, response.body).toBe(200);
+				const pipeline = response.json().pipeline;
+				expect(pipeline.reviewOverride).toMatchObject({ effortTier: null, effortVendor: null });
+				expect(pipeline.wrapupAssignment).toMatchObject({ effortTier: null, effortVendor: null });
+				expect(published).toEqual([{ pipeline }]);
+				const persisted = await server.instance.inject({
+					method: 'GET',
+					url: '/api/v1/settings/pipeline',
+					headers,
+				});
+				expect(persisted.statusCode).toBe(200);
+				expect(persisted.json().pipeline).toEqual(pipeline);
+				expect(container.services.settings.getPipeline()).toEqual(pipeline);
+			} finally {
+				unsubscribe();
+			}
 		});
 
 		it('accepts a newly advertised model effort consistently in agent and pipeline settings', async () => {
