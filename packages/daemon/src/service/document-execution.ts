@@ -292,7 +292,18 @@ export function createDocumentExecutionService(
 		const batches = deps.batches.listByDocId(doc.id);
 		const tasks = deps.tasks.listByDocId(doc.id);
 		const runs = deps.runs.listAll();
-		const planned = buildPlanFromRows(batches, tasks, row?.version ?? 0, plan);
+		const storedById = new Map(plan.map((entry) => [entry.batchId, entry]));
+		const planned = buildPlanFromRows(batches, tasks, row?.version ?? 0, plan).map((entry) => {
+			const stored = storedById.get(entry.batchId);
+			return stored
+				? {
+						...entry,
+						generationId: stored.generationId,
+						wrapupRunIds: stored.wrapupRunIds,
+						completion: stored.completion,
+					}
+				: entry;
+		});
 		const byId = new Map(batches.map((batch) => [batch.id, batch]));
 		const done = planned.filter((entry) => {
 			const batch = byId.get(entry.batchId);
@@ -329,7 +340,9 @@ export function createDocumentExecutionService(
 			blockers.push({ code: 'legacy_batches_active', batchId: null, taskIds: [] });
 		const assignment = row ? parseAssignment(row.default_assignment_json) : null;
 		if (assignment) {
+			const pendingTaskKeys = new Set(summarizeBatchLanding(currentTasks, runs).notLandedTaskKeys);
 			const affected = currentTasks
+				.filter((task) => pendingTaskKeys.has(task.task_key))
 				.filter((task) => {
 					const agentId =
 						parseAssignmentDraft(task.assignment_draft_json)?.agentId ?? assignment.agentId;
@@ -464,18 +477,42 @@ export function createDocumentExecutionService(
 	): Promise<DocumentExecutionResponse> {
 		const initial = requireDocument(docId);
 		assertFingerprint(expectedFingerprint, initial);
-		if (assignment) await validateAssignment(assignment);
 		const previousVersion = deps.executions.findByDocId(docId)?.version ?? 0;
 		try {
 			await deps.validateWorkspace(docId);
-			if (mode === 'resume') {
-				const stored = deps.executions.findByDocId(docId);
-				if (stored?.state === 'paused' && stored.version === expectedVersion) {
-					const savedAssignment = parseAssignment(stored.default_assignment_json);
-					if (!savedAssignment)
-						throw new AppError('E_INTERNAL', 'Stored document assignment is missing.');
-					await validateAssignment(savedAssignment);
+			const observed = deps.executions.findByDocId(docId);
+			if (mode === 'start' && observed?.state === 'running') {
+				if (
+					observed.content_fingerprint === expectedFingerprint &&
+					assignment &&
+					sameAssignment(parseAssignment(observed.default_assignment_json), assignment)
+				) {
+					deps.validateSourceAtCommit(docId);
+					return currentResponse(docId);
 				}
+				throw new AppError('E_VALIDATION', 'Active document execution has different settings.', {
+					details: { execution: currentResponse(docId).execution },
+				});
+			}
+			if (
+				mode === 'resume' &&
+				observed?.state === 'running' &&
+				observed.version === expectedVersion + 1
+			) {
+				deps.validateSourceAtCommit(docId);
+				return currentResponse(docId);
+			}
+			assertVersion(expectedVersion, docId, observed);
+			if (mode === 'start' && (observed?.state ?? 'idle') !== 'idle')
+				throw new AppError('E_VALIDATION', 'Document execution is not idle.');
+			if (mode === 'resume' && observed?.state !== 'paused')
+				throw new AppError('E_VALIDATION', 'Document execution is not paused.');
+			if (assignment) await validateAssignment(assignment);
+			if (mode === 'resume' && observed) {
+				const savedAssignment = parseAssignment(observed.default_assignment_json);
+				if (!savedAssignment)
+					throw new AppError('E_INTERNAL', 'Stored document assignment is missing.');
+				await validateAssignment(savedAssignment);
 			}
 			deps.validateSourceAtCommit(docId);
 		} catch (error) {

@@ -237,6 +237,124 @@ function seedImplementationRun(
 }
 
 describe('M8-T12 document execution through the real container', () => {
+	it('E-361: duplicate start returns the committed plan after Agent capability changes', async () => {
+		const { server, container, headers, docId, registry } = await setup();
+		const url = `/api/v1/documents/${docId}/execution/start`;
+		const body = {
+			expectedVersion: 0,
+			expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			defaultAssignment: { agentId: 'codex', modelName: null, effort: { vendor: 'ultra' } },
+		};
+		const started = await server.instance.inject({ method: 'POST', url, headers, payload: body });
+		expect(started.statusCode, started.body).toBe(200);
+		const eventId = container.events.ringBuffer.latest()?.id;
+		expect((await registry.updateOverrides('codex', { effortVendorMap: null })).ok).toBe(true);
+		const retried = await server.instance.inject({ method: 'POST', url, headers, payload: body });
+		expect(retried.statusCode, retried.body).toBe(200);
+		expect(retried.json().execution).toMatchObject({ state: 'running', version: 1 });
+		expect(container.events.ringBuffer.latest()?.id).toBe(eventId);
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		const paused = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/pause`,
+			headers,
+			payload: { expectedVersion: 1 },
+		});
+		expect(paused.statusCode).toBe(200);
+		const stale = await server.instance.inject({ method: 'POST', url, headers, payload: body });
+		expect(stale.statusCode).toBe(400);
+		expect(stale.json().error.details.actualVersion).toBe(2);
+		expect(container.repos.documentExecutions.findByDocId(docId)?.state).toBe('paused');
+		await server.instance.close();
+	});
+
+	it('E-369: read-only execution DTO retains persisted generation and attempts until resume', async () => {
+		const env = await setup();
+		const { server, container, headers, docId, docsPath } = env;
+		const batchId = container.repos.batches.listByDocId(docId)[0]?.id;
+		expect(batchId).toBeDefined();
+		if (!batchId) return;
+		container.services.batch?.transitionBatch(batchId, 'running', 'legacy_start');
+		container.services.batch?.transitionBatch(batchId, 'needs_attention', 'legacy_attention');
+		seedWrapupRun(env, {
+			id: 'legacy-attempt',
+			batchId,
+			attemptNo: 1,
+			state: 'failed',
+			createdAt: '2026-09-01T08:00:00.000Z',
+		});
+		const url = `/api/v1/documents/${docId}/execution`;
+		const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
+		const start = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(start.statusCode, start.body).toBe(200);
+		expect(start.json().execution.wrapupProgress).toMatchObject({
+			generationId: 0,
+			physicalAttempts: 1,
+		});
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2' },
+		]);
+		const refresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refresh.statusCode, refresh.body).toBe(200);
+		const read = await server.instance.inject({ method: 'GET', url, headers });
+		expect(read.json().execution).toMatchObject({
+			state: 'paused',
+			wrapupProgress: { generationId: 0, physicalAttempts: 1 },
+		});
+		await server.instance.close();
+	});
+
+	it('E-365: landed work does not remain blocked by its unavailable Agent', async () => {
+		const env = await setup();
+		const { server, container, headers, docId } = env;
+		const taskId = container.repos.tasks.listByDocId(docId)[0]?.id;
+		const batchId = container.repos.batches.listByDocId(docId)[0]?.id;
+		expect(taskId).toBeDefined();
+		expect(batchId).toBeDefined();
+		if (!taskId || !batchId) return;
+		seedImplementationRun(env, {
+			id: 'landed-before-plan',
+			taskId,
+			batchId,
+			attemptNo: 1,
+			contractHash: 'contract-1',
+			createdAt: '2026-09-01T08:00:00.000Z',
+		});
+		const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		expect(
+			started
+				.json()
+				.execution.blockers.some((item: { code: string }) => item.code === 'agent_unavailable'),
+		).toBe(false);
+		await server.instance.close();
+	});
+
 	it('E-369: refresh publishes a pause after source becomes unreadable', async () => {
 		const { server, container, headers, docId, docsPath } = await setup();
 		const url = `/api/v1/documents/${docId}/execution`;
