@@ -182,6 +182,17 @@ vm.runInContext(x.core,c);vm.runInContext(x.hand,c);process.stdout.write(JSON.st
         self.assertIn('data-task="' + tid + '"', rendered['html'])
         self.assertEqual(len(rendered['layers']['by']), 1)
 
+    def test_unwrapped_batches_excludes_landed_repair_tasks_from_original_layers(self):
+        tasks = [
+            {'id': 'M8-T12', 'deps': []},
+            {'id': 'M8-T13', 'deps': ['M8-T12']},
+            {'id': 'R17-T12345678', 'deps': [], 'repair': True},
+        ]
+        progress = {task['id']: 'done' for task in tasks}
+        records = {'batch-18': {'tasks': ['M8-T12'], 'verdict': 'fixed', 'date': '2026-10-12'}}
+        self.assertEqual(build_docs.unwrapped_batches(tasks, progress, records),
+                         [(2, ['M8-T13'])])
+
     def test_record_matches_current_batch_by_task_set_not_batch_number(self):
         self.record('renumbered', batch=77)
         self.build()
