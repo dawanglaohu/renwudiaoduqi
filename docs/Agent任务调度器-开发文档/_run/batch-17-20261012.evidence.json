@@ -2666,6 +2666,20 @@
       "fix": "95c8cbd",
       "typedTest": "d4f174d",
       "limit": "Catching rejected background startup does not establish the physical cause of native thread/start latency."
+    },
+    {
+      "id": "B4",
+      "severity": "S3",
+      "tasks": [
+        "M8-T8",
+        "M9-T23"
+      ],
+      "crossBatch": true,
+      "introducedDuringCloseout": true,
+      "red": "two controlled background startup cases each logged twice instead of once",
+      "green": "17 owning integration tests passed; each rejected startup still failed and logged exactly once, with no unhandled rejection",
+      "fix": "39542be1680a4d0b9f5b287d185cf3d19777c90d",
+      "review": "https://github.com/dawanglaohu/renwudiaoduqi/pull/214#discussion_r4244989719"
     }
   ],
   "environmentFailures": [
@@ -2678,7 +2692,8 @@
     "Linux index stat/EOL cache was refreshed only after staged content was verified byte-equivalent to HEAD.",
     "Parallel Windows full check and native run on 92ed3b0 encountered thread/start timeout; serial unchanged-config retry on abbd5c4 passed. Load is a correlation, not an established physical root.",
     "Linux dependency preparation missed shell-desktop/mobile Windows bindings, causing 13 import failures in one full check; locked Windows force install restored owned dependencies, following full check passed.",
-    "Initial B3 fixture omitted workspace preparation for a new task; corrected before counting both controlled red cases. Its dependency type declarations were then corrected before the final full check."
+    "Initial B3 fixture omitted workspace preparation for a new task; corrected before counting both controlled red cases. Its dependency type declarations were then corrected before the final full check.",
+    "d4023ec native attempt stopped before Web build/product startup: four newly committed evidence/record files had equivalent raw HEAD blobs but stale shared Git EOL/stat cache; add only those exact content-equivalent paths and verify the staged tree against HEAD, as source-write ruling A allows."
   ],
   "decisions": [
     {
@@ -3213,6 +3228,66 @@
           "output_tokens": 108
         }
       }
+    },
+    {
+      "id": "rejection-logging",
+      "state": {
+        "requirement": "Reproduce every closeout bug before a bounded root fix, preserve existing concurrency and lifecycle behavior, and address verified PR feedback before merging. All normal finite implementation choices go to Jev.",
+        "task": {
+          "title": "Keep background launch rejection observed exactly once",
+          "accept": "New task and queued wrapup startup rejection must not become unhandledRejection and must be logged exactly once. Keep nonblocking tick and existing failure state handling; retain actual native proof."
+        },
+        "conflict": "PR 214 automated feedback correctly identifies double logging introduced by the B3 fix: launchRun logs inside its catch then rethrows, while the two newly attached catch handlers call logFailure again. Existing direct and queued task callers also log in catch, but the authorized bounded change adds handlers only to the two newly fixed background paths. A separate regression must first demonstrate duplicate records on the current code.",
+        "options": {
+          "A": "Only the two new background catch handlers consume the rejection that launchRun already logged. Add an injected log sink to the two actual tick/SQLite failure regressions and require exactly one recorded error plus no unhandled rejection. Add a concise comment explaining logging ownership. Do not change unrelated callers or launchRun behavior.",
+          "B": "Remove launchRun internal logging and make every caller including directly awaited and all detached launches responsible for recording failures. Add regressions for all callers and public startup failures; this broadens the caller audit and changes diagnostic ownership beyond the two scoped calls.",
+          "C": "Retain current code and a complete S3 duplicate-diagnostic repair task, keep closeout open, and publish existing failure handling evidence while leaving PR feedback visibly unresolved."
+        }
+      },
+      "result": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "A": 1.0,
+              "B": 0.0,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.11,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.2,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.77,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.11) outside_stack=no(0.20) needs_owner=no(0.09) reversible=yes(0.77) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1108,
+          "output_tokens": 108
+        }
+      }
     }
   ],
   "logs": {
@@ -3310,6 +3385,22 @@
       "sha256": "2fb5d1587faccf28131a37077720c58ca650fb114392b5c9b55d5ed572f3e8e1",
       "lines": 50,
       "tail": "✓ built in 6.07s\nThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\n\n RUN  v2.1.9 /mnt/d/xiangmu/agent-scheduler-batch-17\n\nstdout | e2e/batch-17-real-provider.test.ts\nReal-provider evidence: /mnt/d/xiangmu/.codex-plans/agent-scheduler-batch-17/provider-emePFi\n\n ✓ e2e/batch-17-real-provider.test.ts (2 tests) 370782ms\n   ✓ R17-T73118308 real native provider > honors the configured budget while a real native process is descheduled for 16s 72870ms\n   ✓ R17-T73118308 real native provider > production bootstrap → UI pairing/import/assignment → valid content → invalid model → recovery 296389ms\n\n Test Files  1 passed (1)\n      Tests  2 passed (2)\n   Start at  13:08:45\n   Duration  374.86s (transform 445ms, setup 0ms, collect 3.68s, tests 370.78s, environment 0ms, prepare 99ms)\n\n{\"head\": \"abbd5c415d177bd5d51a89cd45222d4976d0d714\", \"trackedFiles\": 2257, \"allRawGitBlobsMatch\": true, \"stage\": \"after\"}"
+    },
+    "rejection-logging-red.log": {
+      "sha256": "beaa1478389db4862f26dd4b6b91cfda088fa80105108fcaff2bb84bc5f2da9c",
+      "text": "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\n\n RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17\n\nstderr | packages/daemon/test/integration/pipeline-lanes.test.ts > M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > handles rejected background startup for queued wrapup without an unhandled promise\n[E-296] Document did not provide matching dispatchBatches for batch batch-1, falling back to builtin wrapup prompt\n\n ❯ packages/daemon/test/integration/pipeline-lanes.test.ts (17 tests | 2 failed | 15 skipped) 1519ms\n   × M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > handles rejected background startup for new task without an unhandled promise 901ms\n     → expected [ …(2) ] to have a length of 1 but got 2\n   × M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > handles rejected background startup for queued wrapup without an unhandled promise 615ms\n     → expected [ …(2) ] to have a length of 1 but got 2\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  packages/daemon/test/integration/pipeline-lanes.test.ts > M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > handles rejected background startup for new task without an unhandled promise\n FAIL  packages/daemon/test/integration/pipeline-lanes.test.ts > M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > handles rejected background startup for queued wrapup without an unhandled promise\nAssertionError: expected [ …(2) ] to have a length of 1 but got 2\n\n- Expected\n+ Received\n\n- 1\n+ 2\n\n ❯ packages/daemon/test/integration/pipeline-lanes.test.ts:1505:20\n    1503|     await new Promise<void>((resolve) => setImmediate(resolve));\n    1504|     expect(rejected).toEqual([]);\n    1505|     expect(logged).toHaveLength(1);\n       |                    ^\n    1506|    } finally {\n    1507|     process.off('unhandledRejection', observeRejection);\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n Test Files  1 failed (1)\n      Tests  2 failed | 15 skipped (17)\n   Start at  13:49:28\n   Duration  4.47s (transform 1.42s, setup 0ms, collect 2.27s, tests 1.52s, environment 0ms, prepare 185ms)\n\n"
+    },
+    "rejection-logging-green.log": {
+      "sha256": "f2cc83eb58c07ef9634fc5b67c949883ef6ac4a4dee3b4b6a497e1f105d04cc4",
+      "text": "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\n\n RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-17\n\nstderr | packages/daemon/test/integration/pipeline-lanes.test.ts > M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ⑫: wrapupMode manual stops auto wrapup and canWrapup=true; switching to auto spawns wrapup on next tick; restart produces byte-identical lanes\n[E-296] Document did not provide matching dispatchBatches for batch batch-1, falling back to builtin wrapup prompt\n\nstderr | packages/daemon/test/integration/pipeline-lanes.test.ts > M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > handles rejected background startup for queued wrapup without an unhandled promise\n[E-296] Document did not provide matching dispatchBatches for batch batch-1, falling back to builtin wrapup prompt\n\nstderr | packages/daemon/test/integration/pipeline-lanes.test.ts > M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Round-3 R1: the launched wrap-up run receives the frozen eight-section prompt (AC 6, E-283)\n[E-296] Document did not provide matching dispatchBatches for batch batch-1, falling back to builtin wrapup prompt\n\n ✓ packages/daemon/test/integration/pipeline-lanes.test.ts (17 tests) 14559ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ① & ⑭: 4 eligible tasks occupy lanes 1..4, 5th has lane_no NULL, and lane.* events have scope=lane and match docId filter 937ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ② & ③: review verdict rework injects into existing session, and subsequent exit advances review_round=2 with same vendor_session_ref 555ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ④, ⑤, ⑩: round 2 pass creates bughunt run, clean bughunt leads to landed, releases lane, archives session, next tick reuses laneNo for task 5, POST /messages returns 409 1035ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ⑥: FIXED bughunt output triggers review_round=3 and rework_count=1, or awaiting_human if already rework_count=2 1894ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ⑦: NOT_FIXED S1 transitions to awaiting_human, releases tasks.lane_no, but leaves session_archived_at NULL 963ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ⑧: missing NEXT section transitions both impl and bughunt to awaiting_human, gate pass lands impl 1061ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ⑨: bughunt crashes on start -> awaiting_human (bughunt_failed), POST /rerun succeeds 726ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ⑪: reducing laneCount 4->2 stops backfill, marks overLimit, emits document.settings_changed without lane.released; increasing 2->5 triggers instant nudge 542ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ⑫: wrapupMode manual stops auto wrapup and canWrapup=true; switching to auto spawns wrapup on next tick; restart produces byte-identical lanes 556ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Assertion ⑬: human rejected task in awaiting_human re-enters queue ahead of new tasks (E-327) 631ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Round-3 R2: POST /gates/:id/decide reject adds rework_count exactly once (E-327) 828ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Round-3 R2: reject while batch paused keeps the task outside lanes and defers delivery (E-326, E-327) 950ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Round-3 R3: GET /snapshot scopes lanes to the document and never advertises parked/future/blocked tasks (E-317, E-319, E-326) 868ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Round-3 R5: a conflict on the second candidate rolls back the whole tick assignment (AC 2) 853ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > handles rejected background startup for new task without an unhandled promise 664ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > handles rejected background startup for queued wrapup without an unhandled promise 582ms\n   ✓ M8-T8 Integration: Pipeline Lanes, Slots, Backfill & Stage Settings (AC 1-7, E-302~E-312, E-326, E-327, E-334) > Round-3 R1: the launched wrap-up run receives the frozen eight-section prompt (AC 6, E-283) 909ms\n\n Test Files  1 passed (1)\n      Tests  17 passed (17)\n   Start at  13:50:36\n   Duration  17.73s (transform 1.47s, setup 0ms, collect 2.39s, tests 14.56s, environment 0ms, prepare 292ms)\n\n"
     }
+  },
+  "postReviewChecks": {
+    "passed": 17,
+    "files": 1,
+    "seconds": 17.73,
+    "typecheck": "pass",
+    "biome": "pass",
+    "scope": "the two launch rejection consumers and their actual tick/SQLite failure regressions"
   }
 }
