@@ -24151,8 +24151,10 @@
     "_run/task-contracts.json": "7f1ed8a8eb22493645a100c768aad0fd64465a2e8725b6da74290b820ad360ee"
   },
   "sourceVersion": "d7d08b252962e53c5d4f7054c8f9b6dd8573b5ee2bddf6371ac869d619aaf17f",
-  "status": "synced",
+  "status": "verified",
   "synced": "2026-10-10T09:31:28.535898+00:00",
   "task": "R17-T78766144",
-  "verifiedTasks": []
+  "verifiedTasks": [
+    "R17-T78766144"
+  ]
 }

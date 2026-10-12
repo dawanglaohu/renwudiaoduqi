@@ -1,0 +1,1990 @@
+{
+  "round": 2,
+  "verdict": "pass",
+  "demonstratedHead": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+  "fullCheck": {
+    "command": "pnpm -w check",
+    "summary": "pnpm -w check: Windows 249 files / 3205 passed / 4 skipped; macOS 249 files / 3172 passed / 36 skipped; both exact-head CI success.",
+    "ci": [
+      {
+        "head": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+        "job": {
+          "id": 114625602934,
+          "head_sha": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+          "name": "Desktop CI / Windows (x64)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        "logTruncated": true,
+        "summary": [
+          "2026-10-12T01:27:03.2448231Z  Test Files  249 passed (249)\r",
+          "2026-10-12T01:27:03.2456581Z       Tests  3205 passed | 4 skipped (3209)\r",
+          "2026-10-12T01:27:04.8860761Z  Test Files  3 passed (3)\r",
+          "2026-10-12T01:27:04.8861625Z       Tests  16 passed (16)\r"
+        ],
+        "workflowCommand": "pnpm -w check",
+        "workflowPath": ".github/workflows/desktop-ci.yml:203"
+      },
+      {
+        "head": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+        "job": {
+          "id": 114625602941,
+          "head_sha": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+          "name": "Desktop CI / macOS (Apple Silicon)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        "logTruncated": true,
+        "summary": [
+          "2026-10-12T01:26:28.5026450Z  Test Files  249 passed (249)",
+          "2026-10-12T01:26:28.5035970Z       Tests  3172 passed | 36 skipped (3208)",
+          "2026-10-12T01:26:29.7596500Z  Test Files  3 passed (3)",
+          "2026-10-12T01:26:29.7597240Z       Tests  16 passed (16)"
+        ],
+        "workflowCommand": "pnpm -w check",
+        "workflowPath": ".github/workflows/desktop-ci.yml:203"
+      }
+    ],
+    "localDuplicate": {
+      "command": "pnpm -w check --maxWorkers=2 --minWorkers=1",
+      "completed": false,
+      "passedFiles": 108,
+      "summary": "",
+      "status": "Stopped unfinished duplicate after identical-head full CI and local HTTP/native/DOM checks passed; no full local pass claimed"
+    }
+  },
+  "generator": {
+    "command": "python -B -m unittest discover -s docs/Agent任务调度器-开发文档/_run/tests -p test_*.py",
+    "total": 213,
+    "passed": 212,
+    "skipped": 1
+  },
+  "realDom": {
+    "head": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+    "origin": "http://127.0.0.1:36153",
+    "transport": "unchanged production bootstrap with private mount namespace for real isolated system lock, ordinary public HTTP, real SQLite, real compiled DOM",
+    "catalogSource": "External CLI model/list boundary fixture, NOT live vendor inference. No HTTP route/save mocking or database writes.",
+    "catalog": {
+      "models": [
+        {
+          "name": "r17-thinking",
+          "source": "live",
+          "effortOptions": [
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ],
+          "isCurrentConfig": false,
+          "isDefault": true
+        },
+        {
+          "name": "r17-no-thinking",
+          "source": "live",
+          "effortOptions": [],
+          "isCurrentConfig": true,
+          "isDefault": false
+        },
+        {
+          "name": "r17-unknown",
+          "source": "live",
+          "isCurrentConfig": false,
+          "isDefault": false
+        }
+      ],
+      "isComplete": true,
+      "refreshedAt": "2026-10-12T01:15:11.033Z",
+      "liveFailure": null,
+      "currentConfig": {
+        "model": "r17-no-thinking",
+        "effort": {
+          "vendor": "xhigh"
+        },
+        "configPath": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/unsupported-model-Om1kO4/home/.codex/config.toml",
+        "effortRecognized": true
+      },
+      "isRefreshing": false
+    },
+    "thinkingModelRequest": {
+      "defaultModel": "r17-thinking"
+    },
+    "thinkingModelSaved": {
+      "id": "codex",
+      "name": "Codex",
+      "monogram": "CX",
+      "isAvailable": true,
+      "defaultModel": "r17-thinking",
+      "defaultEffortTier": {
+        "vendor": "xhigh"
+      },
+      "layers": {
+        "defaultModel": {
+          "builtin": null,
+          "config": "r17-no-thinking",
+          "override": "r17-thinking",
+          "hasOverride": true
+        },
+        "defaultEffortTier": {
+          "builtin": null,
+          "config": {
+            "vendor": "xhigh"
+          },
+          "override": null,
+          "hasOverride": false
+        }
+      },
+      "effortVendorMap": {
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "effortOptions": [
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra"
+      ],
+      "builtinModels": [],
+      "maxConcurrency": 1,
+      "permissionTier": "workspaceWrite",
+      "execPath": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/unsupported-model-Om1kO4/catalog-cli",
+      "login": {
+        "state": "logged_in",
+        "reason": null,
+        "checkedAt": "2026-10-12T01:15:13.601Z",
+        "loginCommand": "codex login",
+        "warningCode": null
+      },
+      "unavailableReason": null,
+      "unavailableCode": null,
+      "missingRequirements": []
+    },
+    "lowSaved": {
+      "id": "codex",
+      "name": "Codex",
+      "monogram": "CX",
+      "isAvailable": true,
+      "defaultModel": "r17-thinking",
+      "defaultEffortTier": {
+        "tier": "low"
+      },
+      "layers": {
+        "defaultModel": {
+          "builtin": null,
+          "config": "r17-no-thinking",
+          "override": "r17-thinking",
+          "hasOverride": true
+        },
+        "defaultEffortTier": {
+          "builtin": null,
+          "config": {
+            "vendor": "xhigh"
+          },
+          "override": {
+            "tier": "low"
+          },
+          "hasOverride": true
+        }
+      },
+      "effortVendorMap": {
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "effortOptions": [
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra"
+      ],
+      "builtinModels": [],
+      "maxConcurrency": 1,
+      "permissionTier": "workspaceWrite",
+      "execPath": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/unsupported-model-Om1kO4/catalog-cli",
+      "login": {
+        "state": "logged_in",
+        "reason": null,
+        "checkedAt": "2026-10-12T01:15:18.172Z",
+        "loginCommand": "codex login",
+        "warningCode": null
+      },
+      "unavailableReason": null,
+      "unavailableCode": null,
+      "missingRequirements": []
+    },
+    "agent": {
+      "request": {
+        "defaultModel": "r17-no-thinking"
+      },
+      "saved": null,
+      "defaultModel": "r17-no-thinking"
+    },
+    "reviewOverride": {
+      "request": {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": {
+          "agentId": "codex",
+          "modelName": "r17-no-thinking",
+          "effortTier": null,
+          "effortVendor": null
+        },
+        "wrapupAssignment": {
+          "mode": "follow"
+        }
+      },
+      "saved": {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": {
+          "agentId": "codex",
+          "modelName": "r17-no-thinking",
+          "effortTier": null,
+          "effortVendor": null
+        },
+        "wrapupAssignment": {
+          "mode": "follow"
+        }
+      },
+      "sqlite": {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": {
+          "agentId": "codex",
+          "modelName": "r17-no-thinking",
+          "effortTier": null,
+          "effortVendor": null
+        },
+        "wrapupAssignment": {
+          "mode": "follow"
+        }
+      }
+    },
+    "wrapupAssignment": {
+      "request": {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": {
+          "agentId": "codex",
+          "modelName": "r17-no-thinking",
+          "effortTier": null,
+          "effortVendor": null
+        },
+        "wrapupAssignment": {
+          "mode": "fixed",
+          "agentId": "codex",
+          "modelName": "r17-no-thinking",
+          "effortTier": null,
+          "effortVendor": null
+        }
+      },
+      "saved": {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": {
+          "agentId": "codex",
+          "modelName": "r17-no-thinking",
+          "effortTier": null,
+          "effortVendor": null
+        },
+        "wrapupAssignment": {
+          "mode": "fixed",
+          "agentId": "codex",
+          "modelName": "r17-no-thinking",
+          "effortTier": null,
+          "effortVendor": null
+        }
+      },
+      "sqlite": {
+        "bughunt": 0,
+        "wrapupMode": "auto",
+        "reviewOverride": {
+          "agentId": "codex",
+          "modelName": "r17-no-thinking",
+          "effortTier": null,
+          "effortVendor": null
+        },
+        "wrapupAssignment": {
+          "mode": "fixed",
+          "agentId": "codex",
+          "modelName": "r17-no-thinking",
+          "effortTier": null,
+          "effortVendor": null
+        }
+      }
+    },
+    "passed": true,
+    "headAtEnd": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+    "frames": [
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/unsupported-model-Om1kO4/agent-unsupported-saved.png",
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/unsupported-model-Om1kO4/review-override-unsupported-saved.png",
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/unsupported-model-Om1kO4/wrapup-assignment-unsupported-saved.png"
+    ]
+  },
+  "realNative": {
+    "origin": "http://127.0.0.1:41439",
+    "head": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+    "headAtEnd": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+    "tree": "/mnt/d/xiangmu/agent-scheduler-r17-t78766144",
+    "cleanAtStart": true,
+    "mode": "unchanged production bootstrap in private mount namespace for genuine isolated system lock; normal isolated profile; ordinary registry; real native transport; fresh touch-capable Chromium context; account rate-limit and credential-bearing log rows masked in screenshots",
+    "validModel": "gpt-6.1-sol",
+    "invalidModel": "r17-model-that-does-not-exist",
+    "errors": [],
+    "frames": [
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/frames/00-pair.png",
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/frames/01-pipeline-pending.png",
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/frames/02-native-review-override-saved.png",
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/frames/03-unsupported-review-override-saved.png",
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/frames/04-native-wrapup-assignment-saved.png",
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/frames/05-unsupported-wrapup-assignment-saved.png",
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/frames/06-assigned.png",
+      "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/frames/07-round2-native-control-passed.png"
+    ],
+    "observations": {
+      "disk": {
+        "freeBytes": 1862139904,
+        "thresholdBytes": 524288000
+      },
+      "bootstrap": {
+        "pid": 146,
+        "readinessMs": 73966.2824,
+        "node": "22.17.0",
+        "platform": "linux"
+      },
+      "pairingFile": {
+        "directory": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-data/provider-KrptAV",
+        "mode": "0600"
+      },
+      "style:pair": {
+        "fontFamily": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "backgroundColor": "rgb(238, 241, 239)",
+        "pageToken": "#eef1ef"
+      },
+      "catalog": {
+        "models": [
+          {
+            "name": "gpt-6-astra",
+            "source": "live",
+            "effortOptions": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max",
+              "ultra"
+            ],
+            "isCurrentConfig": false,
+            "isDefault": true,
+            "note": "Frontier intelligence for the most demanding work."
+          },
+          {
+            "name": "gpt-6-sol",
+            "source": "live",
+            "effortOptions": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max",
+              "ultra"
+            ],
+            "isCurrentConfig": false,
+            "isDefault": false,
+            "note": "Previous generation workhorse model."
+          },
+          {
+            "name": "gpt-6-luna",
+            "source": "live",
+            "effortOptions": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "isCurrentConfig": false,
+            "isDefault": false,
+            "note": "Fast and affordable model for easier tasks."
+          },
+          {
+            "name": "gpt-5.6-sol",
+            "source": "live",
+            "effortOptions": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max",
+              "ultra"
+            ],
+            "isCurrentConfig": false,
+            "isDefault": false,
+            "note": "Older generation workhorse model."
+          },
+          {
+            "name": "gpt-5.6-terra",
+            "source": "live",
+            "effortOptions": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max",
+              "ultra"
+            ],
+            "isCurrentConfig": false,
+            "isDefault": false,
+            "note": "Older balanced model for straightforward work."
+          },
+          {
+            "name": "gpt-5.6-luna",
+            "source": "live",
+            "effortOptions": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "isCurrentConfig": false,
+            "isDefault": false,
+            "note": "Older fast and efficient model."
+          },
+          {
+            "name": "gpt-6.1-sol",
+            "source": "config",
+            "isCurrentConfig": true,
+            "isDefault": true,
+            "note": "当前配置 · 清单未列"
+          }
+        ],
+        "isComplete": true,
+        "refreshedAt": "2026-10-12T01:57:13.619Z",
+        "liveFailure": null,
+        "currentConfig": {
+          "model": "gpt-6.1-sol",
+          "effort": {
+            "vendor": "max"
+          },
+          "configPath": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.codex/config.toml",
+          "effortRecognized": true
+        },
+        "isRefreshing": false
+      },
+      "style:pipeline-pending": {
+        "fontFamily": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "backgroundColor": "rgb(238, 241, 239)",
+        "pageToken": "#eef1ef"
+      },
+      "nativePipeline:review-override": {
+        "request": {
+          "bughunt": 0,
+          "wrapupMode": "auto",
+          "reviewOverride": {
+            "agentId": "codex",
+            "modelName": null,
+            "effortTier": null,
+            "effortVendor": "xhigh"
+          },
+          "wrapupAssignment": {
+            "mode": "follow"
+          }
+        },
+        "saved": {
+          "bughunt": 0,
+          "wrapupMode": "auto",
+          "reviewOverride": {
+            "agentId": "codex",
+            "modelName": null,
+            "effortTier": null,
+            "effortVendor": "xhigh"
+          },
+          "wrapupAssignment": {
+            "mode": "follow"
+          }
+        }
+      },
+      "style:native-review-override-saved": {
+        "fontFamily": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "backgroundColor": "rgb(238, 241, 239)",
+        "pageToken": "#eef1ef"
+      },
+      "unknownModel:review-override": "native value retained after actual DOM model switch and HTTP save",
+      "unsupportedAgent:review-override": {
+        "agentId": "dsh",
+        "modelName": null,
+        "effortTier": null,
+        "effortVendor": null
+      },
+      "style:unsupported-review-override-saved": {
+        "fontFamily": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "backgroundColor": "rgb(238, 241, 239)",
+        "pageToken": "#eef1ef"
+      },
+      "nativePipeline:wrapup-assignment": {
+        "request": {
+          "bughunt": 0,
+          "wrapupMode": "auto",
+          "reviewOverride": null,
+          "wrapupAssignment": {
+            "mode": "fixed",
+            "agentId": "codex",
+            "modelName": null,
+            "effortTier": null,
+            "effortVendor": "xhigh"
+          }
+        },
+        "saved": {
+          "bughunt": 0,
+          "wrapupMode": "auto",
+          "reviewOverride": null,
+          "wrapupAssignment": {
+            "mode": "fixed",
+            "agentId": "codex",
+            "modelName": null,
+            "effortTier": null,
+            "effortVendor": "xhigh"
+          }
+        }
+      },
+      "style:native-wrapup-assignment-saved": {
+        "fontFamily": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "backgroundColor": "rgb(238, 241, 239)",
+        "pageToken": "#eef1ef"
+      },
+      "unknownModel:wrapup-assignment": "native value retained after actual DOM model switch and HTTP save",
+      "unsupportedAgent:wrapup-assignment": {
+        "mode": "fixed",
+        "agentId": "dsh",
+        "modelName": null,
+        "effortTier": null
+      },
+      "style:unsupported-wrapup-assignment-saved": {
+        "fontFamily": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "backgroundColor": "rgb(238, 241, 239)",
+        "pageToken": "#eef1ef"
+      },
+      "style:assigned": {
+        "fontFamily": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "backgroundColor": "rgb(238, 241, 239)",
+        "pageToken": "#eef1ef"
+      },
+      "dispatchStart": {
+        "agents": [
+          {
+            "id": "codex"
+          },
+          {
+            "id": "claude"
+          },
+          {
+            "id": "pi"
+          },
+          {
+            "id": "grok"
+          },
+          {
+            "id": "dsh"
+          }
+        ],
+        "snapshot": {
+          "documents": [
+            {
+              "id": "req_72423c99b47b",
+              "docsPath": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/project/docs-data.js",
+              "projectName": "真实供应商生产验收",
+              "repoPath": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/provider-KrptAV/project",
+              "mainBranch": "main",
+              "branchPrefix": "task/",
+              "laneCount": 2,
+              "contentFingerprint": "051282a95fbfb691137add9aea3bcb0f532168598cd29926a76686337171c913",
+              "isSourceReadable": true,
+              "isTakeoverNotified": false,
+              "importedAt": "2026-10-12T01:57:23.882Z",
+              "lastSeenAt": "2026-10-12T01:57:23.882Z"
+            }
+          ],
+          "batches": [
+            {
+              "id": "req_1223d90eb625",
+              "docId": "req_72423c99b47b",
+              "batchNo": 1,
+              "state": "running",
+              "startedAt": "2026-10-12T01:57:33.080Z",
+              "finishedAt": null,
+              "canWrapup": false,
+              "notInHeadCount": 0,
+              "taskCount": 2,
+              "landedCount": 0,
+              "runningCount": 0,
+              "waitingCount": 0,
+              "defaultExpanded": true
+            }
+          ],
+          "tasks": [
+            {
+              "id": "req_91e4a8e6019d",
+              "docId": "req_72423c99b47b",
+              "taskKey": "R17-P1",
+              "title": "合法模型内容控制",
+              "moduleKey": "M1",
+              "deps": [],
+              "estDays": 0.1,
+              "batchId": "req_1223d90eb625",
+              "state": "never_dispatched",
+              "inHead": null,
+              "inHeadMethod": null,
+              "crossBatchFix": false
+            },
+            {
+              "id": "req_8a317ff63e7d",
+              "docId": "req_72423c99b47b",
+              "taskKey": "R17-P2",
+              "title": "错误模型零产出恢复",
+              "moduleKey": "M1",
+              "deps": [],
+              "estDays": 0.1,
+              "batchId": "req_1223d90eb625",
+              "state": "never_dispatched",
+              "inHead": null,
+              "inHeadMethod": null,
+              "crossBatchFix": false
+            }
+          ],
+          "runs": [],
+          "gates": [],
+          "agents": [
+            {
+              "id": "codex",
+              "name": "Codex",
+              "monogram": "CX",
+              "isAvailable": true,
+              "defaultModel": "gpt-6.1-sol",
+              "defaultEffortTier": {
+                "vendor": "max"
+              },
+              "layers": {
+                "defaultModel": {
+                  "builtin": null,
+                  "config": "gpt-6.1-sol",
+                  "override": null,
+                  "hasOverride": false
+                },
+                "defaultEffortTier": {
+                  "builtin": null,
+                  "config": {
+                    "vendor": "max"
+                  },
+                  "override": null,
+                  "hasOverride": false
+                }
+              },
+              "effortVendorMap": {
+                "low": "low",
+                "medium": "medium",
+                "high": "high"
+              },
+              "effortOptions": [
+                "none",
+                "minimal",
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max",
+                "ultra"
+              ],
+              "builtinModels": [],
+              "maxConcurrency": 1,
+              "permissionTier": "workspaceWrite",
+              "execPath": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-data/bin/codex",
+              "login": {
+                "state": "unknown",
+                "reason": "unparsable",
+                "checkedAt": "2026-10-12T01:57:26.795Z",
+                "loginCommand": "codex login",
+                "warningCode": "E_AGENT_LOGIN_PROBE_FAILED"
+              },
+              "unavailableReason": null,
+              "unavailableCode": null,
+              "missingRequirements": []
+            },
+            {
+              "id": "claude",
+              "name": "Claude Code",
+              "monogram": "CL",
+              "isAvailable": false,
+              "defaultModel": null,
+              "defaultEffortTier": null,
+              "layers": {
+                "defaultModel": {
+                  "builtin": null,
+                  "config": null,
+                  "override": null,
+                  "hasOverride": false
+                },
+                "defaultEffortTier": {
+                  "builtin": null,
+                  "config": null,
+                  "override": null,
+                  "hasOverride": false
+                }
+              },
+              "effortVendorMap": {
+                "low": "low",
+                "medium": "medium",
+                "high": "high"
+              },
+              "effortOptions": [],
+              "builtinModels": [
+                {
+                  "name": "opus",
+                  "note": "别名，实际可用由登录账号决定"
+                },
+                {
+                  "name": "sonnet",
+                  "note": "别名，实际可用由登录账号决定"
+                },
+                {
+                  "name": "haiku",
+                  "note": "别名，实际可用由登录账号决定"
+                },
+                {
+                  "name": "opus[1m]",
+                  "note": "别名，实际可用由登录账号决定"
+                }
+              ],
+              "maxConcurrency": 1,
+              "permissionTier": "workspaceWrite",
+              "execPath": "claude",
+              "login": {
+                "state": "unknown",
+                "reason": "not_probed",
+                "checkedAt": null,
+                "loginCommand": "claude auth login",
+                "warningCode": null
+              },
+              "unavailableReason": "Multiple candidate executables were found on PATH; manual confirmation is required.",
+              "unavailableCode": "E_VALIDATION",
+              "missingRequirements": [
+                "User selection among multiple candidates"
+              ],
+              "errorDetails": {
+                "code": "E_VALIDATION",
+                "execPath": "claude",
+                "checkedPaths": [
+                  "/mnt/d/xiangmu/agent-scheduler-r17-t78766144/node_modules/.bin/claude",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-git/bin/claude",
+                  "/usr/bin/claude",
+                  "/bin/claude",
+                  "/usr/local/sbin/claude",
+                  "/usr/local/bin/claude",
+                  "/usr/sbin/claude",
+                  "/sbin/claude",
+                  "/usr/games/claude",
+                  "/usr/local/games/claude",
+                  "/usr/lib/wsl/lib/claude",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/powershell/claude",
+                  "/mnt/c/Users/admin/.codex/tmp/arg0/codex-arg0HTqFFg/claude",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/libheif/libheif/bin/claude",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/jxrlib/jxrlib/bin/claude",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/poppler/Library/bin/claude",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/claude",
+                  "/mnt/d/Program Files/Python313/Scripts/claude",
+                  "/mnt/d/Program Files/Python313/claude",
+                  "/mnt/c/Windows/system32/claude",
+                  "/mnt/c/Program Files/OpenSSH/claude",
+                  "/mnt/c/Windows/claude",
+                  "/mnt/c/Windows/System32/Wbem/claude",
+                  "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/claude",
+                  "/mnt/c/Windows/System32/OpenSSH/claude",
+                  "/mnt/c/Users/admin/bin/claude",
+                  "/mnt/d/Program Files/nodejs/claude",
+                  "/mnt/d/Program Files/nodejs/node_global/claude",
+                  "/mnt/d/Program Files/nodejs/node_cache/claude",
+                  "/mnt/d/Program Files/Notepad++/claude",
+                  "/mnt/d/Program Files/Git/cmd/claude",
+                  "/mnt/d/Program Files/Git/bin/bash.exe/bash/claude",
+                  "/mnt/d/Program Files/mysql-8.0.40-winx64/bin/claude",
+                  "/mnt/d/Program Files/Git/bin/bash.exe/claude",
+                  "/mnt/c/Program Files/NVIDIA Corporation/NVIDIA App/NvDLISR/claude",
+                  "/mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common/claude",
+                  "/mnt/c/Program Files/GitHub CLI/claude",
+                  "/mnt/c/Users/admin/AppData/Local/agy/bin/claude",
+                  "/mnt/c/Users/admin/.cargo/bin/claude",
+                  "/mnt/c/Users/admin/.grok/bin/claude",
+                  "/mnt/c/Users/admin/AppData/Local/Microsoft/WindowsApps/claude",
+                  "/mnt/d/Program Files/Microsoft VS Code/bin/claude",
+                  "/mnt/d/Program Files/Hyper/resources/bin/claude",
+                  "/mnt/c/Users/admin/AppData/Local/Programs/ace-tool-rs/v0.1.14/claude",
+                  "/mnt/d/Program Files/Java/jdk-17/bin/claude",
+                  "/mnt/d/Program Files/Android/Sdk/platform-tools/claude",
+                  "/mnt/d/Program Files/Android/Sdk/cmdline-tools/latest/bin/claude",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback/claude",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/claude",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/git/cmd/claude",
+                  "/mnt/c/Users/admin/AppData/Local/OpenAI/Codex/bin/9a7ba4b9ea0c44a3/claude",
+                  "/mnt/c/Users/admin/AppData/Local/OpenAI/Codex/bin/2e5e00daee91c61d/claude",
+                  "/snap/bin/claude",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.local/bin/claude",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.npm-global/bin/claude",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.grok/bin/claude"
+                ],
+                "reason": "multiple-candidates-found",
+                "resolvedPath": "/usr/bin/claude"
+              },
+              "warningBanner": {
+                "code": "E_VALIDATION",
+                "message": "Multiple executable candidates were found on PATH. Confirmation is required before dispatching.",
+                "details": {
+                  "primaryCandidate": "/usr/bin/claude",
+                  "allCandidates": [
+                    "/usr/bin/claude",
+                    "/mnt/d/Program Files/nodejs/node_global/claude"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "pi",
+              "name": "Pi Agent",
+              "monogram": "PI",
+              "isAvailable": false,
+              "defaultModel": null,
+              "defaultEffortTier": null,
+              "layers": {
+                "defaultModel": {
+                  "builtin": null,
+                  "config": null,
+                  "override": null,
+                  "hasOverride": false
+                },
+                "defaultEffortTier": {
+                  "builtin": null,
+                  "config": null,
+                  "override": null,
+                  "hasOverride": false
+                }
+              },
+              "effortVendorMap": {
+                "low": "low",
+                "medium": "medium",
+                "high": "high"
+              },
+              "effortOptions": [
+                "off",
+                "minimal",
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ],
+              "builtinModels": [],
+              "maxConcurrency": 1,
+              "permissionTier": "workspaceWrite",
+              "execPath": "pi",
+              "login": {
+                "state": "unknown",
+                "reason": "not_probed",
+                "checkedAt": null,
+                "loginCommand": null,
+                "warningCode": null
+              },
+              "unavailableReason": "Agent version output did not match expected fingerprint; manual path configuration required.",
+              "unavailableCode": "E_AGENT_VERSION_UNRECOGNIZED",
+              "missingRequirements": [
+                "Compatible version matching pattern \"\\bpi\\b\""
+              ],
+              "errorDetails": {
+                "code": "E_AGENT_VERSION_UNRECOGNIZED",
+                "observed": "",
+                "expected": "\\bpi\\b",
+                "execPath": "/mnt/d/Program Files/nodejs/node_global/pi",
+                "resolvedPath": "/mnt/d/Program Files/nodejs/node_global/pi"
+              }
+            },
+            {
+              "id": "grok",
+              "name": "Grok CLI",
+              "monogram": "GK",
+              "isAvailable": false,
+              "defaultModel": null,
+              "defaultEffortTier": null,
+              "layers": {
+                "defaultModel": {
+                  "builtin": null,
+                  "config": null,
+                  "override": null,
+                  "hasOverride": false
+                },
+                "defaultEffortTier": {
+                  "builtin": null,
+                  "config": null,
+                  "override": null,
+                  "hasOverride": false
+                }
+              },
+              "effortVendorMap": {
+                "low": "low",
+                "medium": "medium",
+                "high": "high"
+              },
+              "effortOptions": [
+                "none",
+                "minimal",
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ],
+              "builtinModels": [],
+              "maxConcurrency": 1,
+              "permissionTier": "workspaceWrite",
+              "execPath": "grok",
+              "login": {
+                "state": "unknown",
+                "reason": "not_probed",
+                "checkedAt": null,
+                "loginCommand": "grok login",
+                "warningCode": null
+              },
+              "unavailableReason": "Agent executable was not found in PATH or platform candidate locations.",
+              "unavailableCode": "E_AGENT_EXEC_NOT_FOUND",
+              "missingRequirements": [
+                "Executable file on PATH or configured path"
+              ],
+              "errorDetails": {
+                "code": "E_AGENT_EXEC_NOT_FOUND",
+                "execPath": "grok",
+                "checkedPaths": [
+                  "/mnt/d/xiangmu/agent-scheduler-r17-t78766144/node_modules/.bin/grok",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-git/bin/grok",
+                  "/usr/bin/grok",
+                  "/bin/grok",
+                  "/usr/local/sbin/grok",
+                  "/usr/local/bin/grok",
+                  "/usr/sbin/grok",
+                  "/sbin/grok",
+                  "/usr/games/grok",
+                  "/usr/local/games/grok",
+                  "/usr/lib/wsl/lib/grok",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/powershell/grok",
+                  "/mnt/c/Users/admin/.codex/tmp/arg0/codex-arg0HTqFFg/grok",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/libheif/libheif/bin/grok",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/jxrlib/jxrlib/bin/grok",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/poppler/Library/bin/grok",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/grok",
+                  "/mnt/d/Program Files/Python313/Scripts/grok",
+                  "/mnt/d/Program Files/Python313/grok",
+                  "/mnt/c/Windows/system32/grok",
+                  "/mnt/c/Program Files/OpenSSH/grok",
+                  "/mnt/c/Windows/grok",
+                  "/mnt/c/Windows/System32/Wbem/grok",
+                  "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/grok",
+                  "/mnt/c/Windows/System32/OpenSSH/grok",
+                  "/mnt/c/Users/admin/bin/grok",
+                  "/mnt/d/Program Files/nodejs/grok",
+                  "/mnt/d/Program Files/nodejs/node_global/grok",
+                  "/mnt/d/Program Files/nodejs/node_cache/grok",
+                  "/mnt/d/Program Files/Notepad++/grok",
+                  "/mnt/d/Program Files/Git/cmd/grok",
+                  "/mnt/d/Program Files/Git/bin/bash.exe/bash/grok",
+                  "/mnt/d/Program Files/mysql-8.0.40-winx64/bin/grok",
+                  "/mnt/d/Program Files/Git/bin/bash.exe/grok",
+                  "/mnt/c/Program Files/NVIDIA Corporation/NVIDIA App/NvDLISR/grok",
+                  "/mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common/grok",
+                  "/mnt/c/Program Files/GitHub CLI/grok",
+                  "/mnt/c/Users/admin/AppData/Local/agy/bin/grok",
+                  "/mnt/c/Users/admin/.cargo/bin/grok",
+                  "/mnt/c/Users/admin/.grok/bin/grok",
+                  "/mnt/c/Users/admin/AppData/Local/Microsoft/WindowsApps/grok",
+                  "/mnt/d/Program Files/Microsoft VS Code/bin/grok",
+                  "/mnt/d/Program Files/Hyper/resources/bin/grok",
+                  "/mnt/c/Users/admin/AppData/Local/Programs/ace-tool-rs/v0.1.14/grok",
+                  "/mnt/d/Program Files/Java/jdk-17/bin/grok",
+                  "/mnt/d/Program Files/Android/Sdk/platform-tools/grok",
+                  "/mnt/d/Program Files/Android/Sdk/cmdline-tools/latest/bin/grok",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback/grok",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/grok",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/git/cmd/grok",
+                  "/mnt/c/Users/admin/AppData/Local/OpenAI/Codex/bin/9a7ba4b9ea0c44a3/grok",
+                  "/mnt/c/Users/admin/AppData/Local/OpenAI/Codex/bin/2e5e00daee91c61d/grok",
+                  "/snap/bin/grok",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.local/bin/grok",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.npm-global/bin/grok",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.grok/bin/grok"
+                ]
+              }
+            },
+            {
+              "id": "dsh",
+              "name": "DeepSeek Harness",
+              "monogram": "DS",
+              "isAvailable": false,
+              "defaultModel": null,
+              "defaultEffortTier": null,
+              "layers": {
+                "defaultModel": {
+                  "builtin": null,
+                  "config": null,
+                  "override": null,
+                  "hasOverride": false
+                },
+                "defaultEffortTier": {
+                  "builtin": null,
+                  "config": null,
+                  "override": null,
+                  "hasOverride": false
+                }
+              },
+              "effortVendorMap": null,
+              "effortOptions": [],
+              "builtinModels": [],
+              "maxConcurrency": 1,
+              "permissionTier": "workspaceWrite",
+              "execPath": "dsh",
+              "login": null,
+              "unavailableReason": "Agent executable was not found in PATH or platform candidate locations.",
+              "unavailableCode": "E_AGENT_EXEC_NOT_FOUND",
+              "missingRequirements": [
+                "Executable file on PATH or configured path"
+              ],
+              "errorDetails": {
+                "code": "E_AGENT_EXEC_NOT_FOUND",
+                "execPath": "dsh",
+                "checkedPaths": [
+                  "/mnt/d/xiangmu/agent-scheduler-r17-t78766144/node_modules/.bin/dsh",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-git/bin/dsh",
+                  "/usr/bin/dsh",
+                  "/bin/dsh",
+                  "/usr/local/sbin/dsh",
+                  "/usr/local/bin/dsh",
+                  "/usr/sbin/dsh",
+                  "/sbin/dsh",
+                  "/usr/games/dsh",
+                  "/usr/local/games/dsh",
+                  "/usr/lib/wsl/lib/dsh",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/powershell/dsh",
+                  "/mnt/c/Users/admin/.codex/tmp/arg0/codex-arg0HTqFFg/dsh",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/libheif/libheif/bin/dsh",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/jxrlib/jxrlib/bin/dsh",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/poppler/Library/bin/dsh",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/dsh",
+                  "/mnt/d/Program Files/Python313/Scripts/dsh",
+                  "/mnt/d/Program Files/Python313/dsh",
+                  "/mnt/c/Windows/system32/dsh",
+                  "/mnt/c/Program Files/OpenSSH/dsh",
+                  "/mnt/c/Windows/dsh",
+                  "/mnt/c/Windows/System32/Wbem/dsh",
+                  "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/dsh",
+                  "/mnt/c/Windows/System32/OpenSSH/dsh",
+                  "/mnt/c/Users/admin/bin/dsh",
+                  "/mnt/d/Program Files/nodejs/dsh",
+                  "/mnt/d/Program Files/nodejs/node_global/dsh",
+                  "/mnt/d/Program Files/nodejs/node_cache/dsh",
+                  "/mnt/d/Program Files/Notepad++/dsh",
+                  "/mnt/d/Program Files/Git/cmd/dsh",
+                  "/mnt/d/Program Files/Git/bin/bash.exe/bash/dsh",
+                  "/mnt/d/Program Files/mysql-8.0.40-winx64/bin/dsh",
+                  "/mnt/d/Program Files/Git/bin/bash.exe/dsh",
+                  "/mnt/c/Program Files/NVIDIA Corporation/NVIDIA App/NvDLISR/dsh",
+                  "/mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common/dsh",
+                  "/mnt/c/Program Files/GitHub CLI/dsh",
+                  "/mnt/c/Users/admin/AppData/Local/agy/bin/dsh",
+                  "/mnt/c/Users/admin/.cargo/bin/dsh",
+                  "/mnt/c/Users/admin/.grok/bin/dsh",
+                  "/mnt/c/Users/admin/AppData/Local/Microsoft/WindowsApps/dsh",
+                  "/mnt/d/Program Files/Microsoft VS Code/bin/dsh",
+                  "/mnt/d/Program Files/Hyper/resources/bin/dsh",
+                  "/mnt/c/Users/admin/AppData/Local/Programs/ace-tool-rs/v0.1.14/dsh",
+                  "/mnt/d/Program Files/Java/jdk-17/bin/dsh",
+                  "/mnt/d/Program Files/Android/Sdk/platform-tools/dsh",
+                  "/mnt/d/Program Files/Android/Sdk/cmdline-tools/latest/bin/dsh",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback/dsh",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/dsh",
+                  "/mnt/c/Users/admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/git/cmd/dsh",
+                  "/mnt/c/Users/admin/AppData/Local/OpenAI/Codex/bin/9a7ba4b9ea0c44a3/dsh",
+                  "/mnt/c/Users/admin/AppData/Local/OpenAI/Codex/bin/2e5e00daee91c61d/dsh",
+                  "/snap/bin/dsh",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.local/bin/dsh",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.npm-global/bin/dsh",
+                  "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.grok/bin/dsh"
+                ]
+              }
+            }
+          ],
+          "lanes": [
+            {
+              "laneNo": 1,
+              "taskId": null,
+              "currentRunId": null,
+              "stage": "idle",
+              "nextTaskId": "req_91e4a8e6019d",
+              "nextBlockedBy": [],
+              "archivedTaskIds": [],
+              "archivedWrapupRunId": null,
+              "overLimit": false
+            },
+            {
+              "laneNo": 2,
+              "taskId": null,
+              "currentRunId": null,
+              "stage": "idle",
+              "nextTaskId": "req_8a317ff63e7d",
+              "nextBlockedBy": [],
+              "archivedTaskIds": [],
+              "archivedWrapupRunId": null,
+              "overLimit": false
+            }
+          ],
+          "latestEventId": 23
+        }
+      },
+      "nativeRun": {
+        "id": "req_a9b3917a6734",
+        "effort": {
+          "vendor": "xhigh"
+        },
+        "kind": "implement"
+      },
+      "round2": {
+        "passed": true,
+        "scope": "R1/R2",
+        "preexistingUntracked": "packages/daemon/test/fixtures/runs preserved and not consumed"
+      },
+      "style:round2-native-control-passed": {
+        "fontFamily": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "backgroundColor": "rgb(238, 241, 239)",
+        "pageToken": "#eef1ef"
+      }
+    },
+    "densities": [
+      {
+        "label": "pair",
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:41439/#/pair",
+          "type": "card",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1920,
+            "width": 1920
+          },
+          "contentFound": true,
+          "fill": 0.233,
+          "leftGap": 736,
+          "rightGap": 736,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 3,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [
+            {
+              "path": "div.flex.min-h-screen.flex-col > main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)]",
+              "maxWidth": "480px",
+              "width": 480
+            }
+          ],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 1
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      },
+      {
+        "label": "pair",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:41439/#/pair",
+          "type": "card",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1440,
+            "width": 1440
+          },
+          "contentFound": true,
+          "fill": 0.311,
+          "leftGap": 496,
+          "rightGap": 496,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 3,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [
+            {
+              "path": "div.flex.min-h-screen.flex-col > main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)]",
+              "maxWidth": "480px",
+              "width": 480
+            }
+          ],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 1
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      },
+      {
+        "label": "pair",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:41439/#/pair",
+          "type": "card",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          },
+          "contentFound": true,
+          "fill": 0.918,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 3,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [
+            {
+              "path": "main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)] > div.min-w-0.w-full.bg-bg",
+              "gap": 32,
+              "limit": 18
+            },
+            {
+              "path": "section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)] > div.min-w-0.w-full.bg-bg > form.flex.flex-col.gap-5",
+              "gap": 20,
+              "limit": 18
+            }
+          ],
+          "padOffenders": [
+            {
+              "path": "main.flex-1 > section.flex.min-h-[calc(100vh-var(--topbar-h))] > div.flex.flex-col.gap-[var(--sp-3)] > div.min-w-0.w-full.bg-bg",
+              "pad": 24,
+              "limit": 18
+            }
+          ],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 2,
+            "padOffenders": 1,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      },
+      {
+        "label": "pipeline",
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:41439/#/settings/pipeline",
+          "type": "form",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 18
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1920,
+            "width": 1920
+          },
+          "contentFound": true,
+          "fill": 0.983,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.006
+          },
+          "overflowX": 0,
+          "bars": 5,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      },
+      {
+        "label": "pipeline",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:41439/#/settings/pipeline",
+          "type": "form",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 18
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1440,
+            "width": 1440
+          },
+          "contentFound": true,
+          "fill": 0.978,
+          "leftGap": 16,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.008
+          },
+          "overflowX": 0,
+          "bars": 5,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      },
+      {
+        "label": "pipeline",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:41439/#/settings/pipeline",
+          "type": "form",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 18
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 390,
+            "width": 390
+          },
+          "contentFound": true,
+          "fill": 0.938,
+          "leftGap": 12,
+          "rightGap": 12,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 5,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      }
+    ]
+  },
+  "realNativeSQLite": {
+    "source": "readonly production SQLite after native browser round",
+    "runs": [
+      {
+        "id": "req_a9b3917a6734",
+        "kind": "implement",
+        "state": "exited",
+        "agent_id": "codex",
+        "model_name": "gpt-6.1-sol",
+        "effort_tier": null,
+        "effort_vendor": "xhigh",
+        "snapshot_id": "8d54d120-8af3-4245-b5e6-18924231958c",
+        "permission_tier": "workspaceWrite",
+        "exit_code": 0
+      }
+    ],
+    "snapshots": [
+      {
+        "id": "8d54d120-8af3-4245-b5e6-18924231958c",
+        "assignment": {
+          "agentId": "codex",
+          "modelName": "gpt-6.1-sol",
+          "effortTier": null,
+          "effortVendor": "xhigh",
+          "source": "task",
+          "followedTaskId": null,
+          "capturedAt": "2026-10-12T01:57:33.580Z"
+        }
+      }
+    ]
+  },
+  "gif": {
+    "url": "https://raw.githubusercontent.com/dawanglaohu/renwudiaoduqi/025a46c7afc2e47c3a550b55684898dfa5c8ee75/r17-native-effort-round2-8faaa49.gif",
+    "branch": "batch-17-assets",
+    "commit": "025a46c7afc2e47c3a550b55684898dfa5c8ee75",
+    "path": "r17-native-effort-round2-8faaa49.gif",
+    "sha256": "ec458b50a061539eca41b7b839f8c10c9187bb9040425bcf348482077134c4ce",
+    "bytes": 339118,
+    "remoteVerified": true,
+    "demonstratedHead": "8faaa49ae30e715ededc1f66b6965ccee9eb54c5",
+    "width": 1440,
+    "height": 900,
+    "durationSeconds": 12.01,
+    "sourceFrames": 5,
+    "encodedFrames": 96,
+    "servingMode": "production bootstrap, real native Codex model, normal API/SQLite/DOM, no HTTP mocks",
+    "origin": "http://127.0.0.1:41439"
+  },
+  "modelRoundEvents": [
+    {
+      "id": 25,
+      "ts": "2026-10-12T01:57:33.581Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "run.state_changed",
+      "seq": 0,
+      "actorDeviceId": null,
+      "payload": {
+        "from": "none",
+        "to": "starting",
+        "reason": "dispatched"
+      }
+    },
+    {
+      "id": 26,
+      "ts": "2026-10-12T01:57:37.121Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "run.state_changed",
+      "seq": 1,
+      "actorDeviceId": null,
+      "payload": {
+        "from": "starting",
+        "to": "running",
+        "reason": "process_spawned"
+      }
+    },
+    {
+      "id": 29,
+      "ts": "2026-10-12T01:58:37.503Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "agent_message_chunk",
+      "seq": 4,
+      "actorDeviceId": null,
+      "payload": {
+        "chunk": "R",
+        "vendor": {
+          "method": "item/agentMessage/delta",
+          "params": {
+            "threadId": "01a12dd4-73c0-7c40-96aa-82da78545a65",
+            "turnId": "01a12dd5-02a8-7840-ac8e-2990272b31d3",
+            "itemId": "msg_02e4d0aa90af9278016acc3ecd964087d088b753f3ea54117c",
+            "delta": "R"
+          },
+          "emittedAtMs": 1791770317502
+        }
+      }
+    },
+    {
+      "id": 30,
+      "ts": "2026-10-12T01:58:37.504Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "agent_message_chunk",
+      "seq": 5,
+      "actorDeviceId": null,
+      "payload": {
+        "chunk": "17",
+        "vendor": {
+          "method": "item/agentMessage/delta",
+          "params": {
+            "threadId": "01a12dd4-73c0-7c40-96aa-82da78545a65",
+            "turnId": "01a12dd5-02a8-7840-ac8e-2990272b31d3",
+            "itemId": "msg_02e4d0aa90af9278016acc3ecd964087d088b753f3ea54117c",
+            "delta": "17"
+          },
+          "emittedAtMs": 1791770317502
+        }
+      }
+    },
+    {
+      "id": 31,
+      "ts": "2026-10-12T01:58:37.509Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "agent_message_chunk",
+      "seq": 6,
+      "actorDeviceId": null,
+      "payload": {
+        "chunk": "-C",
+        "vendor": {
+          "method": "item/agentMessage/delta",
+          "params": {
+            "threadId": "01a12dd4-73c0-7c40-96aa-82da78545a65",
+            "turnId": "01a12dd5-02a8-7840-ac8e-2990272b31d3",
+            "itemId": "msg_02e4d0aa90af9278016acc3ecd964087d088b753f3ea54117c",
+            "delta": "-C"
+          },
+          "emittedAtMs": 1791770317507
+        }
+      }
+    },
+    {
+      "id": 32,
+      "ts": "2026-10-12T01:58:37.509Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "agent_message_chunk",
+      "seq": 7,
+      "actorDeviceId": null,
+      "payload": {
+        "chunk": "ONT",
+        "vendor": {
+          "method": "item/agentMessage/delta",
+          "params": {
+            "threadId": "01a12dd4-73c0-7c40-96aa-82da78545a65",
+            "turnId": "01a12dd5-02a8-7840-ac8e-2990272b31d3",
+            "itemId": "msg_02e4d0aa90af9278016acc3ecd964087d088b753f3ea54117c",
+            "delta": "ONT"
+          },
+          "emittedAtMs": 1791770317507
+        }
+      }
+    },
+    {
+      "id": 33,
+      "ts": "2026-10-12T01:58:37.517Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "agent_message_chunk",
+      "seq": 8,
+      "actorDeviceId": null,
+      "payload": {
+        "chunk": "ROL",
+        "vendor": {
+          "method": "item/agentMessage/delta",
+          "params": {
+            "threadId": "01a12dd4-73c0-7c40-96aa-82da78545a65",
+            "turnId": "01a12dd5-02a8-7840-ac8e-2990272b31d3",
+            "itemId": "msg_02e4d0aa90af9278016acc3ecd964087d088b753f3ea54117c",
+            "delta": "ROL"
+          },
+          "emittedAtMs": 1791770317516
+        }
+      }
+    },
+    {
+      "id": 34,
+      "ts": "2026-10-12T01:58:37.886Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "agent_message_chunk",
+      "seq": 9,
+      "actorDeviceId": null,
+      "payload": {
+        "chunk": "R17-CONTROL\n",
+        "vendor": {
+          "method": "item/completed",
+          "params": {
+            "item": {
+              "type": "agentMessage",
+              "id": "msg_02e4d0aa90af9278016acc3ecd964087d088b753f3ea54117c",
+              "text": "R17-CONTROL",
+              "phase": "final_answer",
+              "memoryCitation": null,
+              "delivery": null,
+              "questions": null
+            },
+            "threadId": "01a12dd4-73c0-7c40-96aa-82da78545a65",
+            "turnId": "01a12dd5-02a8-7840-ac8e-2990272b31d3",
+            "completedAtMs": 1791770317695
+          },
+          "emittedAtMs": 1791770317885
+        }
+      }
+    },
+    {
+      "id": 35,
+      "ts": "2026-10-12T01:58:46.325Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "run.state_changed",
+      "seq": 10,
+      "actorDeviceId": null,
+      "payload": {
+        "from": "running",
+        "to": "exited",
+        "reason": "process_exited"
+      }
+    },
+    {
+      "id": 36,
+      "ts": "2026-10-12T01:58:46.329Z",
+      "runId": "req_a9b3917a6734",
+      "taskId": "req_91e4a8e6019d",
+      "scope": "run",
+      "kind": "run.exited",
+      "seq": 11,
+      "actorDeviceId": null,
+      "payload": {
+        "exitCode": 0,
+        "signal": null,
+        "stderrTail": [
+          "2026-10-12T01:57:39.577322Z ERROR codex_app_server: Codex is ignoring 6 unrecognized configuration settings. Check for typos or deprecated settings.",
+          "  user (/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.codex/config.toml): `mcp_servers.augment-context-engine.type` is ignored.",
+          "  user (/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.codex/config.toml): `mcp_servers.context7.type` is ignored.",
+          "  user (/mnt/d/xiangmu/.codex-plans/agent-scheduler-r17-t78766144/native-home/.codex/config.toml): `mcp_servers.mcp-mysql-server.type` is ignored.",
+          "  ... and 3 more ignored settings.",
+          "2026-10-12T01:57:39.577513Z ERROR codex_app_server: Codex could not find bubblewrap on PATH. Install bubblewrap with your OS package manager. See the sandbox prerequisites: https://developers.openai.com/codex/concepts/sandboxing#prerequisites. Codex will use the bundled bubblewrap in the meantime."
+        ]
+      }
+    }
+  ],
+  "adjudication": {
+    "status": "ok",
+    "template": "adjudicate",
+    "model": "jev-1.13.0",
+    "verdicts": {
+      "pick": {
+        "choice": "B",
+        "confidence": 0.67,
+        "band": "medium",
+        "probabilities": {
+          "A": 0.25,
+          "B": 0.75,
+          "C": 0.0,
+          "D": 0.0
+        }
+      },
+      "spec_change": {
+        "p": 0.14,
+        "verdict": "no"
+      },
+      "outside_stack": {
+        "p": 0.09,
+        "verdict": "no"
+      },
+      "needs_owner": {
+        "p": 0.09,
+        "verdict": "no"
+      },
+      "reversible": {
+        "p": 0.73,
+        "verdict": "yes"
+      },
+      "adopt": {
+        "action": "take",
+        "option": "B",
+        "confidence": "medium",
+        "why": "Jev 选 B（medium）"
+      }
+    },
+    "line": "adjudicate: pick=B(medium 0.67) spec_change=no(0.14) outside_stack=no(0.09) needs_owner=no(0.09) reversible=yes(0.73) adopt=take(B)",
+    "usage": {
+      "input_tokens": 1831,
+      "output_tokens": 115
+    }
+  },
+  "semanticReview": {
+    "status": "ok",
+    "template": "review",
+    "model": "jev-1.13.0",
+    "verdicts": {
+      "hardcoded_gate": {
+        "p": 0.08,
+        "verdict": "no"
+      },
+      "stub_in_production": {
+        "p": 0.05,
+        "verdict": "no"
+      },
+      "test_hook": {
+        "p": 0.24,
+        "verdict": "no"
+      },
+      "duplicates_shared": {
+        "p": 0.13,
+        "verdict": "no"
+      },
+      "fixed_response": {
+        "p": 0.04,
+        "verdict": "no"
+      },
+      "claim_c1": {
+        "choice": "supports",
+        "confidence": 1.0,
+        "band": "high",
+        "probabilities": {
+          "supports": 1.0,
+          "contradicts": 0.0,
+          "absent": 0.0
+        }
+      },
+      "claim_c2": {
+        "choice": "supports",
+        "confidence": 1.0,
+        "band": "high",
+        "probabilities": {
+          "supports": 1.0,
+          "contradicts": 0.0,
+          "absent": 0.0
+        }
+      },
+      "claim_c3": {
+        "choice": "supports",
+        "confidence": 1.0,
+        "band": "high",
+        "probabilities": {
+          "supports": 1.0,
+          "contradicts": 0.0,
+          "absent": 0.0
+        }
+      }
+    },
+    "line": "review: hardcoded_gate=no(0.08) stub_in_production=no(0.05) test_hook=no(0.24) duplicates_shared=no(0.13) fixed_response=no(0.04) claim_c1=supports(high 1.00) claim_c2=supports(high 1.00) claim_c3=supports(high 1.00)",
+    "usage": {
+      "input_tokens": 5527,
+      "output_tokens": 214
+    }
+  },
+  "preservedHistoricBlocks": 646,
+  "protectedBaselineBlocks": 648,
+  "authorizedBackfill": "Only the two target R17-T78766144 code/notes blocks are excluded from the unchanged-history hash check.",
+  "revalidatedTasks": 124,
+  "stagingExceptions": [
+    "Private mount namespace isolates the normal system daemon lock",
+    "Fresh ordinary CLI profile uses the installed real Codex native transport",
+    "The separate empty-capability catalog probe uses an external CLI catalog fixture; HTTP saves, SQLite and DOM are production",
+    "Existing generated test artifacts are never consumed by the browser probes"
+  ],
+  "r1": {
+    "dispatch": "packages/daemon/src/service/dispatch.ts:651",
+    "wrapup": "packages/daemon/src/service/wrapup.ts:233",
+    "tests": [
+      "packages/daemon/test/integration/dispatch-spawn.test.ts:1034",
+      "packages/daemon/test/integration/batch-wrapup.test.ts:978"
+    ],
+    "result": "DSH tier/vendor and legacy manual tier receive HTTP400 E_VALIDATION effort_unsupported; no run, snapshot, or spawned process is added"
+  },
+  "r2": {
+    "component": "packages/web/src/components/pipeline-assignment.tsx:72",
+    "strictConfirmation": "packages/web/src/features/run-deck/use-pipeline-settings.ts:74",
+    "test": "packages/web/test/pipeline-assignment.test.tsx:436",
+    "result": "Both initial custom writes include effortVendor:null; actual DOM waits for data-pending=false before later controls/model changes; native value retained for unknown capability and cleared for []"
+  },
+  "batch17": "Existing open record is retained. This task does not declare a new clean/fixed batch wrapup."
+}
