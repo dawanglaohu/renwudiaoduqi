@@ -1,0 +1,210 @@
+/* Desktop (Tauri) custom title bar, Memphis. Colors come from theme tokens (light + dark). */
+
+:root {
+	--titlebar-h: 34px;
+}
+
+.has-desktop-titlebar body {
+	padding-top: var(--titlebar-h);
+}
+
+.has-desktop-titlebar .min-h-screen {
+	min-height: calc(100vh - var(--titlebar-h));
+}
+
+.desktop-titlebar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 2147483000;
+	display: flex;
+	align-items: center;
+	gap: var(--sp-2);
+	height: var(--titlebar-h);
+	padding-left: var(--sp-3);
+	background-color: var(--needs-soft);
+	background-image: repeating-linear-gradient(
+		-45deg,
+		var(--spine-pending) 0 2px,
+		transparent 2px 9px
+	);
+	background-size: 120px 100%;
+	background-repeat: no-repeat;
+	background-position: right 160px center;
+	border-bottom: 4px solid var(--ink-1);
+	color: var(--ink-1);
+	user-select: none;
+	-webkit-user-select: none;
+	font-family: var(--font-ui);
+}
+
+.desktop-titlebar[data-mode="overlay"] {
+	padding-left: 84px; /* macOS traffic lights */
+}
+
+.desktop-titlebar-mark {
+	width: 14px;
+	height: 14px;
+	background: var(--accent);
+	border: 3px solid var(--ink-1);
+	transform: rotate(12deg);
+	box-shadow: 2px 2px 0 var(--ink-1);
+}
+
+.desktop-titlebar-title {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-size: var(--fs-dense);
+	font-weight: 900;
+	letter-spacing: -0.02em;
+}
+
+.desktop-titlebar-controls {
+	display: flex;
+	align-self: stretch;
+	border-left: 4px solid var(--ink-1);
+}
+
+.desktop-titlebar-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 46px;
+	height: 100%;
+	background: transparent;
+	color: var(--ink-1);
+	border: 0;
+	border-radius: 0;
+	cursor: default;
+}
+
+.desktop-titlebar-btn + .desktop-titlebar-btn {
+	border-left: 4px solid var(--ink-1);
+}
+
+.desktop-titlebar-btn:hover {
+	background: var(--panel-2);
+}
+
+.desktop-titlebar-btn.is-close:hover {
+	background: var(--down-soft);
+}
+
+.desktop-titlebar-btn:focus-visible {
+	outline: 3px solid var(--ink-1);
+	outline-offset: -5px;
+}
+
+.desktop-titlebar-glyph {
+	display: block;
+	width: 12px;
+	height: 12px;
+	box-sizing: border-box;
+}
+
+.desktop-titlebar-glyph.is-min {
+	height: 3px;
+	background: currentColor;
+}
+
+.desktop-titlebar-glyph.is-max {
+	border: 3px solid currentColor;
+}
+
+.desktop-titlebar-glyph.is-restore {
+	border: 3px solid currentColor;
+	box-shadow: 3px -3px 0 -1px var(--needs-soft), 3px -3px 0 1px currentColor;
+}
+
+.desktop-titlebar-glyph.is-close {
+	position: relative;
+}
+
+.desktop-titlebar-glyph.is-close::before,
+.desktop-titlebar-glyph.is-close::after {
+	content: "";
+	position: absolute;
+	left: -2px;
+	top: 4px;
+	width: 16px;
+	height: 3px;
+	background: currentColor;
+	transform: rotate(45deg);
+}
+
+.desktop-titlebar-glyph.is-close::after {
+	transform: rotate(-45deg);
+}
+
+.desktop-resize-edge {
+	position: fixed;
+	z-index: 2147483001;
+}
+
+.desktop-resize-edge.edge-North,
+.desktop-resize-edge.edge-South {
+	left: 8px;
+	right: 8px;
+	height: 4px;
+	cursor: ns-resize;
+}
+
+.desktop-resize-edge.edge-North {
+	top: 0;
+}
+
+.desktop-resize-edge.edge-South {
+	bottom: 0;
+}
+
+.desktop-resize-edge.edge-East,
+.desktop-resize-edge.edge-West {
+	top: 8px;
+	bottom: 8px;
+	width: 4px;
+	cursor: ew-resize;
+}
+
+.desktop-resize-edge.edge-East {
+	right: 0;
+}
+
+.desktop-resize-edge.edge-West {
+	left: 0;
+}
+
+.desktop-resize-edge.edge-NorthEast,
+.desktop-resize-edge.edge-NorthWest,
+.desktop-resize-edge.edge-SouthEast,
+.desktop-resize-edge.edge-SouthWest {
+	width: 8px;
+	height: 8px;
+}
+
+.desktop-resize-edge.edge-NorthEast {
+	top: 0;
+	right: 0;
+	cursor: nesw-resize;
+}
+
+.desktop-resize-edge.edge-SouthWest {
+	bottom: 0;
+	left: 0;
+	cursor: nesw-resize;
+}
+
+.desktop-resize-edge.edge-NorthWest {
+	top: 0;
+	left: 0;
+	cursor: nwse-resize;
+}
+
+.desktop-resize-edge.edge-SouthEast {
+	bottom: 0;
+	right: 0;
+	cursor: nwse-resize;
+}

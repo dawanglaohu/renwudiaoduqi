@@ -10,7 +10,11 @@
 		"withGlobalTauri": false,
 		"windows": [
 			{
+				"label": "main",
 				"title": "Desktop Shell",
+				"decorations": false,
+				"shadow": true,
+				"resizable": true,
 				"width": 1200,
 				"height": 800,
 				"minWidth": 800,
