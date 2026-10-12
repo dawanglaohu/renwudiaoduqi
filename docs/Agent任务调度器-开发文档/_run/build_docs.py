@@ -4280,9 +4280,10 @@ stable_key: {stable}
 
 def unwrapped_batches(tasks, progress, records, include_open=False):
     """已全部落地、尚未收口的批：[(1 起批次号, [任务ID…])]。include_open 包含最新记录有遗留的批；按 tasks 集合匹配，不看批次号"""
-    lv = task_layers(tasks)
+    originals = [task for task in tasks if not task.get('repair')]
+    lv = task_layers(originals)
     by = {}
-    for t in tasks:
+    for t in originals:
         by.setdefault(lv[t["id"]], []).append(t["id"])
     latest = {}
     for record in sorted(records.values(), key=lambda r: str(r.get("date", ""))):

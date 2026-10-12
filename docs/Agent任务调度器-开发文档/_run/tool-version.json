@@ -1,6 +1,6 @@
 {
   "files": {
-    "build_docs.py": "951f84ddca7d977dc3f3fd0920acfde5b5d72051ce89be80563ca33b52990a75",
+    "build_docs.py": "100273fd816e8fe54960efd2d247d094b1b28a01abab255782c22f23f5677e3d",
     "build_vault.py": "d627d6e278e8c920b47a3a75693c90662a7b13b6ce8f0a835b439a66b6336a65",
     "check_stale.py": "88d2ed43b826c35e249ea7503c92ed16cfe9f4f11b3c7e09b98ec16d4684310d",
     "compile_prompts.js": "cf52dd3065904b092f1357ced88d41f79f1c7ff43778ab406fd9a0a9e5317c8b",
@@ -21,7 +21,7 @@
     "tests/test_release_1_4_prompts.py": "f5f9e9e61a808ffa2725049fab014c5cd858b00b5e4809d107f232718c36b0e3",
     "tests/test_release_1_5_typesafe.py": "a54a5632f1d6c53f52e526eea9beede4011821ae640b6544c7f9cfdc95ad09b9",
     "tests/test_release_1_6_1_tests.py": "1726e73c500f2011cb2f2323f819e4597f5608c616dc20fd63bc39c10652fe64",
-    "tests/test_release_1_6_adjudication.py": "ee0bd6c9caaaba410182cb7a66811519fbdee84435d675926731ecbba3c70715",
+    "tests/test_release_1_6_adjudication.py": "db1a7575171b264a952576f9a207448b3a6acf5c45027594891eeadad7222632",
     "tests/test_release_1_7_density.py": "5a9637e9f75ebeda5f00c3d608f6b230bb2a83419f61ca29979767afcb196918",
     "tests/test_stage.py": "6622c566ed0b6b517d311a8989534db1c6dfcf59ccce76b51e0934e511e9b796",
     "typesafe_ask.py": "a735c1e6c1fa76961a552eb4871af984e55c0603cc2c8523247101b3ca5584c5"
