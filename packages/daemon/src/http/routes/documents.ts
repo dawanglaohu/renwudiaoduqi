@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import {
 	type CreateDocumentBody,
 	type CreateDocumentResponse,
@@ -14,13 +15,14 @@ import {
 	refreshDocumentBodySchema,
 	updateDocumentSettingsBodySchema,
 } from '@agent-scheduler/shared/api/documents';
-import type { FastifyInstance, RouteHandlerMethod } from 'fastify';
+import type { FastifyInstance, FastifyRequest, RouteHandlerMethod } from 'fastify';
 import { TASK_STATES } from '../../domain/task-state.ts';
 import { AppError } from '../../errors/app-error.ts';
 import type { EventBus } from '../../events/bus.ts';
 import type { EnvelopeFactory } from '../../events/envelope.ts';
 import type { BatchService } from '../../service/batch.ts';
 import type { DocsService, DocumentRecord } from '../../service/docs.ts';
+import type { DocumentExecutionService } from '../../service/document-execution.ts';
 
 export interface DocumentParams {
 	readonly docId: string;
@@ -84,6 +86,7 @@ export interface RegisterDocumentRoutesOptions {
 interface ContainerWithDocs {
 	readonly services?: {
 		readonly docs?: DocsService;
+		readonly documentExecution?: DocumentExecutionService;
 		readonly batch?: BatchService;
 		readonly pairing?: {
 			readonly authenticateToken: (authHeader?: string) => { readonly deviceId: string };
@@ -95,6 +98,11 @@ interface ContainerWithDocs {
 		readonly envelopeFactory?: EnvelopeFactory;
 	};
 	readonly jobs?: readonly { readonly name: string; readonly trigger?: () => void }[];
+}
+
+function documentExecutionService(request: FastifyRequest): DocumentExecutionService | undefined {
+	return (request.server as unknown as { container?: ContainerWithDocs }).container?.services
+		?.documentExecution;
 }
 
 function resolveDocsService(
@@ -187,13 +195,28 @@ export function registerDocumentRoutes(
 		async (request): Promise<CreateDocumentResponse> => {
 			authenticateDevice(request);
 			const docsService = options?.docsService ?? resolveDocsService(instance, options);
-			const result = await docsService.importDocument(request.body.docsPath, {
-				repoPath: request.body.repoPath,
-			});
-			return {
-				document: toDocumentDto(result.document),
-				taskCount: result.parsed.tasks.length,
-			};
+			const executionService = documentExecutionService(request);
+			const previousDoc = docsService.getDocumentByPath(resolve(request.body.docsPath));
+			const previousVersion =
+				previousDoc && executionService
+					? executionService.get(previousDoc.id).execution.version
+					: undefined;
+			try {
+				const result = await docsService.importDocument(request.body.docsPath, {
+					repoPath: request.body.repoPath,
+				});
+				return {
+					document: toDocumentDto(result.document),
+					taskCount: result.parsed.tasks.length,
+				};
+			} finally {
+				if (previousDoc && previousVersion !== undefined)
+					executionService?.publishIfVersionChanged(
+						previousDoc.id,
+						previousVersion,
+						request.actorDeviceId,
+					);
+			}
 		},
 	);
 
@@ -310,7 +333,18 @@ export function registerDocumentRoutes(
 		async (request): Promise<RefreshDocumentResponse> => {
 			authenticateDevice(request);
 			const docsService = options?.docsService ?? resolveDocsService(instance, options);
-			return docsService.refreshDocument(request.params.docId, request.body ?? undefined);
+			const executionService = documentExecutionService(request);
+			const previousVersion = executionService?.get(request.params.docId).execution.version;
+			try {
+				return await docsService.refreshDocument(request.params.docId, request.body ?? undefined);
+			} finally {
+				if (previousVersion !== undefined)
+					executionService?.publishIfVersionChanged(
+						request.params.docId,
+						previousVersion,
+						request.actorDeviceId,
+					);
+			}
 		},
 	);
 

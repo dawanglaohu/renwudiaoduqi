@@ -135,6 +135,8 @@ describe('M2-T4 Event Envelope & Single Mapping Derivation', () => {
 					return 'settings_pipeline';
 				case 'document.settings_changed':
 					return 'doc_settings';
+				case 'document.execution_changed':
+					return 'doc_execution';
 				case 'system.disk_warning':
 					return 'sys_disk';
 				case 'system.docs_changed':

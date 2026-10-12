@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { registerAgentRoutes } from '../routes/agents.ts';
 import { registerBatchesRoutes } from '../routes/batches.ts';
 import { registerDeviceRoutes } from '../routes/devices.ts';
+import { registerDocumentExecutionRoutes } from '../routes/document-execution.ts';
 import { registerDocumentRoutes } from '../routes/documents.ts';
 import { registerEventsRoutes } from '../routes/events.ts';
 import { registerGateRoutes } from '../routes/gates.ts';
@@ -52,6 +53,7 @@ export const routesPlugin: FastifyPluginAsync = async (
 	registerPairRoutes(target);
 	registerDeviceRoutes(target);
 	registerDocumentRoutes(target);
+	registerDocumentExecutionRoutes(target);
 	registerAgentRoutes(target);
 	registerEventsRoutes(target);
 	registerTasksRoutes(target);

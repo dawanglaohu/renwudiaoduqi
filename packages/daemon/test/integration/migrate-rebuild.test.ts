@@ -72,6 +72,10 @@ describe('M8-T6 Database Migration & Rebuild (AC 6, E-291)', () => {
 		const fullRunner = createRunner(db);
 		const result = fullRunner.run(MIGRATIONS_DIR);
 		expect(result.appliedVersions).toContain('0007_rebuild_tables_for_wrapup.sql');
+		expect(result.appliedVersions).toContain('0012_document_executions.sql');
+		expect(
+			db.prepare('SELECT state, version FROM document_executions WHERE doc_id = ?').get('doc-1'),
+		).toMatchObject({ state: 'idle', version: 0 });
 
 		// 4. Verify foreign_key_check is 0 rows
 		const fkErrors = db.pragma('foreign_key_check') as unknown[];

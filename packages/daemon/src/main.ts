@@ -115,6 +115,7 @@ export async function startDaemon(dependencies: DaemonStartDependencies): Promis
 			bootstrapPairing: false,
 			agentRegistry: dependencies.agentRegistry,
 		});
+		container.services.documentExecution.pauseRunningOnRestart();
 		disposeEvents = container.events.dispose;
 		stopAgents = () => container.services.agents.stop();
 		server = dependencies.createServer({ container });

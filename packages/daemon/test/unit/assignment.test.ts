@@ -570,7 +570,7 @@ describe('domain/assignment (AC 1, AC 3, E-341, E-342, E-344, E-347, E-93)', () 
 		const violatingFiles: string[] = [];
 		for (const file of files) {
 			const content = readFileSync(file, 'utf8');
-			if (content.includes('assignment_json') && !allowedFiles.has(file)) {
+			if (/\bassignment_json\b/.test(content) && !allowedFiles.has(file)) {
 				violatingFiles.push(file);
 			}
 		}

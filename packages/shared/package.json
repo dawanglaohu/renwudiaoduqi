@@ -10,6 +10,7 @@
 		"./api/pair": "./src/api/pair.ts",
 		"./api/devices": "./src/api/devices.ts",
 		"./api/documents": "./src/api/documents.ts",
+		"./api/document-execution": "./src/api/document-execution.ts",
 		"./api/batches": "./src/api/batches.ts",
 		"./api/agents": "./src/api/agents.ts",
 		"./api/runs": "./src/api/runs.ts",

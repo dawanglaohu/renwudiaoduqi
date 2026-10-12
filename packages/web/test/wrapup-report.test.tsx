@@ -743,6 +743,7 @@ describe('M9-T20: 收口泳道、收口报告面板与批次落地清单', () =>
 	describe('R1 & E-297: buildDeckLanes maps the daemon lane list (E-317)', () => {
 		it('keeps a completed wrapup row after its active lane is released', () => {
 			const snapshot: SnapshotResponse = {
+				documentExecutions: [],
 				documents: [],
 				batches: [
 					{

@@ -56,6 +56,24 @@ export function assertCanTransitionBatch(from: BatchState, to: BatchState): void
 	}
 }
 
+/** Only the document-plan rebuild may use this separate reset path. */
+export function assertCanResetInvalidatedBatch(from: BatchState): void {
+	if (from === 'idle') return;
+	if (
+		from === 'done' ||
+		from === 'running' ||
+		from === 'paused' ||
+		from === 'awaiting_landing' ||
+		from === 'wrapping' ||
+		from === 'needs_attention'
+	)
+		return;
+	throw new AppError(
+		'E_INVALID_STATE_TRANSITION',
+		`Batch state '${from}' cannot be reset by a document plan.`,
+	);
+}
+
 export function isTerminalBatchState(state: BatchState): boolean {
 	return state === 'done';
 }

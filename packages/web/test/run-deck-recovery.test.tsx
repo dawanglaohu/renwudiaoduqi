@@ -32,6 +32,7 @@ it('M9-T21 reloads authoritative deck lanes after connection recovery without a 
 		switch (route.path) {
 			case '/api/v1/snapshot':
 				return {
+					documentExecutions: [],
 					documents: [],
 					batches: [],
 					tasks: [],

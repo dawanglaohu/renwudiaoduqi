@@ -1757,7 +1757,16 @@
         "packages/daemon/src/domain/batch-state-machine.ts",
         "packages/daemon/src/service/batch.ts",
         "packages/daemon/test/unit/batch-state-machine.test.ts",
-        "packages/daemon/test/arch/batch-state-isolation.test.ts"
+        "packages/daemon/test/arch/batch-state-isolation.test.ts",
+        "packages/daemon/test/unit/events.test.ts",
+        "packages/daemon/test/unit/database.test.ts",
+        "packages/daemon/test/unit/assignment.test.ts",
+        "packages/web/test/batch-tree.test.tsx",
+        "packages/web/test/gate-login-refresh.test.tsx",
+        "packages/web/test/route-entries.test.tsx",
+        "packages/web/test/run-deck-recovery.test.tsx",
+        "packages/web/test/sse-client.test.ts",
+        "packages/web/test/wrapup-report.test.tsx"
       ]
     },
     "M8-T13": {

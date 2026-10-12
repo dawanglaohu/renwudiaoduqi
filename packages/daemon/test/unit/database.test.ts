@@ -162,6 +162,7 @@ describe('migration runner', () => {
 				'0009_batch_wrapups_human_verdict.sql',
 				'0010_bughunt_stage.sql',
 				'0011_review_rework_text.sql',
+				'0012_document_executions.sql',
 			],
 		});
 		expect(readTableNames(database)).toEqual([
@@ -169,6 +170,7 @@ describe('migration runner', () => {
 			'batches',
 			'devices',
 			'dispatch_snapshots',
+			'document_executions',
 			'documents',
 			'event_seq',
 			'events',
@@ -222,6 +224,10 @@ describe('migration runner', () => {
 			},
 			{
 				version: '0011_review_rework_text.sql',
+				applied_at: '2026-09-04T03:00:00.000Z',
+			},
+			{
+				version: '0012_document_executions.sql',
 				applied_at: '2026-09-04T03:00:00.000Z',
 			},
 		]);

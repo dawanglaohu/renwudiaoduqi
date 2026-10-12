@@ -1,0 +1,30 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T12": {
+      "contractHash": "1cbfe1f2a8c9323e90e190bed0ae5bd642b51c8e87260a2317a108140a273593",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M8-T12": {
+      "contractHash": "fdf9720b43acbc5575b43f63059bed240751ba997e0f8b00af456e139a6337be",
+      "evidence": [
+        "M8-T12 契约语义复核：19 节任务行、13 节 E-360/E-361/E-365/E-366/E-368/E-369、17 节 pnpm -w check 及 22 节 181-260 行一致；控制层与 M8-T13 自动派发、M9-T30 UI、M1-T12 端到端的责任分界未变，验收与边界未降低。",
+        "定点补丁仅在 task-contracts.json 的 M8-T12.supportPaths 补入事件穷尽断言、迁移列表、任务指派字面量守护及六个共享快照测试文件；九处测试更新保留必填 documentExecutions 与既有守护，未改生产接口或数据形状。Jev jev-1.13.0 review-scope 选择 A high 0.94，adopt=take(A)。",
+        "真实验证：pnpm -w check --maxWorkers=2 --minWorkers=1 通过，251 个文件、3219 通过、3 个既有 skipped；七个重点文件 27/27 通过。另用真实容器+Fastify+SQLite 的临时红例复现空历史活动批次无法继续、同指纹来源重绑不暂停、旧文档重新导入暂停后缺 document.execution_changed；红例已撤回，代码评审结论仍是 rework，此处 pass 仅登记任务契约与补丁路径复核。",
+        "09/10 节由实施提交新增的持久字段、四路由、事件和快照契约已与 shared、迁移、容器核对；06/08 层次和事务规则仍为硬约束，发现的 domain→repo 类型依赖列入代码返工而非修改契约。"
+      ],
+      "verdict": "pass"
+    },
+    "M8-T13": {
+      "contractHash": "76737af55a3eb571da30eaa8d32c9e41fcf3cb69cca85102b89ce0c327618c73",
+      "evidence": [],
+      "verdict": "pending"
+    },
+    "M9-T30": {
+      "contractHash": "9cdf908492c355bea098a737b99d9ce9ec092d02c9737d238c2e4ab768ea681e",
+      "evidence": [],
+      "verdict": "pending"
+    }
+  }
+}

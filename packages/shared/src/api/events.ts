@@ -1,5 +1,6 @@
 import type { LoginState } from './agents.ts';
 import type { BatchState } from './batches.ts';
+import type { DocumentExecutionDto } from './document-execution.ts';
 import type { GateSettings, PipelineSettings } from './settings.ts';
 
 export type EventScope =
@@ -62,6 +63,7 @@ export const EVENT_DEFINITIONS = {
 	'settings.gates_changed': { scope: 'settings', milestone: true },
 	'settings.pipeline_changed': { scope: 'settings', milestone: true },
 	'document.settings_changed': { scope: 'document', milestone: true },
+	'document.execution_changed': { scope: 'document', milestone: true },
 	'system.disk_warning': { scope: 'system', milestone: true },
 	'system.docs_changed': { scope: 'system', milestone: true },
 } as const;
@@ -109,6 +111,7 @@ const EVENT_KIND_VALUES = [
 	'settings.gates_changed',
 	'settings.pipeline_changed',
 	'document.settings_changed',
+	'document.execution_changed',
 	'system.disk_warning',
 	'system.docs_changed',
 ] as const satisfies readonly EventKind[];
@@ -166,6 +169,7 @@ export const PRODUCT_EVENT_KINDS = [
 	'settings.gates_changed',
 	'settings.pipeline_changed',
 	'document.settings_changed',
+	'document.execution_changed',
 	'system.disk_warning',
 	'system.docs_changed',
 ] as const satisfies readonly EventKind[];
@@ -486,6 +490,10 @@ export interface EventPayloadMap {
 	readonly 'settings.gates_changed': SettingsGatesChangedPayload;
 	readonly 'settings.pipeline_changed': SettingsPipelineChangedPayload;
 	readonly 'document.settings_changed': DocumentSettingsChangedPayload;
+	readonly 'document.execution_changed': {
+		readonly execution: DocumentExecutionDto;
+		readonly [key: string]: unknown;
+	};
 	readonly 'system.disk_warning': SystemDiskWarningPayload;
 	readonly 'system.docs_changed': SystemDocsChangedPayload;
 }

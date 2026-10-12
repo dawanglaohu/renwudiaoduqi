@@ -1,5 +1,6 @@
 import type { AgentEntryDto } from './agents.ts';
 import type { BatchDto } from './batches.ts';
+import type { DocumentExecutionDto } from './document-execution.ts';
 import type { DocumentDto } from './documents.ts';
 import type { GateDto } from './gates.ts';
 import type { LaneView } from './lanes.ts';
@@ -10,6 +11,7 @@ export * from './lanes.ts';
 
 export interface SnapshotResponse {
 	readonly documents: readonly DocumentDto[];
+	readonly documentExecutions: readonly DocumentExecutionDto[];
 	readonly batches: readonly BatchDto[];
 	readonly tasks: readonly TaskDto[];
 	readonly runs: readonly RunDto[];
