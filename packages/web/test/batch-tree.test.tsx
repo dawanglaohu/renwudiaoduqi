@@ -408,6 +408,7 @@ describe('components/batch-tree (M9-T19, AC 1, AC 4, AC 5, E-13, E-272, E-282, E
 	// ─── R13-T98191508 AC 3: 真实服务端快照投影在批次树中呈现实际数字，左栏与任务页一致 ───
 	it('R13-T98191508 AC 3: renders authoritative counts from daemon snapshot instead of dashes across desktop and mobile', () => {
 		const snapshot: SnapshotResponse = {
+			documentExecutions: [],
 			documents: [
 				{
 					id: 'doc-real',

@@ -70,6 +70,7 @@ function mountDeck(options: { empty?: boolean } = {}) {
 	let readGates: () => Promise<ListGatesResponse> = async () => ({ gates });
 	let readRuns = async () => ({ runs: [] });
 	const snapshot: SnapshotResponse = {
+		documentExecutions: [],
 		documents: [],
 		batches: [
 			{

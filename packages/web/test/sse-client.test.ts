@@ -449,6 +449,7 @@ describe('M9-T5 SSE Client (sse-client.ts)', () => {
 
 			const mockSnapshot: SnapshotResponse = {
 				documents: [],
+				documentExecutions: [],
 				batches: [],
 				tasks: [],
 				runs: [],
@@ -537,6 +538,7 @@ describe('M9-T5 SSE Client (sse-client.ts)', () => {
 					snapshotPulled = true;
 					return {
 						documents: [],
+						documentExecutions: [],
 						batches: [],
 						tasks: [],
 						runs: [],

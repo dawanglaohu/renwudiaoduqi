@@ -48,6 +48,7 @@ async function setInput(input: HTMLInputElement, value: string): Promise<void> {
 
 function snapshotFixture(): SnapshotResponse {
 	return {
+		documentExecutions: [],
 		documents: [],
 		batches: [
 			{
