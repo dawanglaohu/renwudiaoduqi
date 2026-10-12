@@ -1,0 +1,98 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T22": {
+      "contractHash": "12e8206acb6afec8f84b5e4086a55ba457e2b14b5038b9644eccd4460afbcb9a",
+      "verdict": "pass",
+      "changedFields": [
+        "edges",
+        "sections:02-设计/10-接口约定.md"
+      ],
+      "patchHistory": [
+        {
+          "changedFields": [
+            "edges",
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+        },
+        {
+          "changedFields": [
+            "edges",
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "cb53f264a09301ac73bb0a0fa90a853cac47a086935d53f8214e0cddc528048b"
+        },
+        {
+          "changedFields": [
+            "edges",
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "1834e6cbb11c83c298d6d7ae13ff610dda780f7e29b3b591d05c2d026f2f3ee6"
+        },
+        {
+          "changedFields": [
+            "edges",
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "d7d08b252962e53c5d4f7054c8f9b6dd8573b5ee2bddf6371ac869d619aaf17f"
+        }
+      ],
+      "evidence": [
+        "逐项核对 M9-T22 的 changedFields=['edges', 'sections:02-设计/10-接口约定.md']；完整 patches 历史随本回执保留，只复核变化义务，不重审未变验收。",
+        "共享 10 节的四入口原生值、tier/vendor 互斥、显式 null、[] 与未知能力、旧三档和旧快照规则已对照 shared/service/UI 与正式 HTTP 回归；无能力 Agent 的 tier 绕过和首次保存 pending 已修复。",
+        "真实通过证据：_run/R17-T78766144.review-round2-20261012.proof.json；完整检查：pnpm -w check: Windows 249 files / 3205 passed / 4 skipped; macOS 249 files / 3172 passed / 36 skipped; both exact-head CI success.；生成器 213 tests OK，1 existing skip。",
+        "真实服务 DOM 保存（没有 HTTP mock 或数据库写入）验证首次自定义、模型切换后的 saved state 和 pending=false；独立真实 Codex 生产容器轮次验证 xhigh 运行及有效内容。",
+        "M9-T22 的额外字段已逐项对照原 pending 回执中的 ownerChanges、补丁 changes 与当前源码；原验收指标和权限/快照要求保留。",
+        "packages/daemon/src/service/settings.ts:204",
+        "packages/shared/src/api/settings.ts:8",
+        "packages/web/src/components/pipeline-assignment.tsx:72",
+        "packages/web/test/pipeline-assignment.test.tsx:436",
+        "补丁前后边界差异为 ['E-356']，逐项对应 sourceRefs；共享接口之外未变条款不重审。"
+      ],
+      "ownerChanges": {},
+      "changedEdges": [
+        {
+          "id": "E-356",
+          "scene": "pipeline 设置四键的写入与校验",
+          "trigger": "`PATCH /settings/pipeline` 缺键、`reviewOverride.agentId` 不在注册表、dsh 配了非空 `effortTier` 或 `effortVendor`，两字段同时非空或原生值不在域内、旧库 `pipeline` 行只有两键",
+          "expect": "四键 `{bughunt, wrapupMode, reviewOverride, wrapupAssignment}` 整体写入，缺任一 `E_VALIDATION`（AJV `additionalProperties:false`、`required` 四项）；`reviewOverride`／`wrapupAssignment.agentId` 必须存在于注册表当前快照，否则 `E_VALIDATION`（`details.field` 用点路径），校验只查注册表快照不起探测子进程；`reviewOverride` 与 fixed `wrapupAssignment` 支持三档 `effortTier` 和原生 `effortVendor`（字符串 1–256），二者不得同时非空，`effortTier` 仍只收三档；厂商值按 E-351 的域校验，不在域内 → `E_VALIDATION`（点路径 `reviewOverride.effortVendor`／`wrapupAssignment.effortVendor`，带 `allowed[]`）；该 agent `effortVendorMap` 为 null 时任一非空强度 → `E_VALIDATION`（reason `effort_unsupported`）；省略与显式 null 的阶段取值按 10 节／E-344，模型明确不支持与未知能力按 E-351；`modelName` 不做清单校验（等同 manual 来源，E-36）；缺行返回默认 `{bughunt:0, wrapupMode:'auto', reviewOverride:null, wrapupAssignment:{mode:'follow'}}` 不插行，旧行只有两键读侧补默认不改库，任一键形状非法整体回落默认并 warn（E-292 同法）；不需迁移（JSON 列）；写成功发 `settings.pipeline_changed{pipeline}`（完整四键）并 nudge tick；两项设置不进 `gates` 行、不进 `documents`，算出的结果进快照 `assignment_json`、设置本体不进；运行时再核一次 agent 存在与可用，不可用走各阶段既有转人路径",
+          "module": "M8"
+        }
+      ],
+      "changedObligations": {
+        "fields": [
+          "edges",
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "changedEdgeIds": [
+          "E-356"
+        ],
+        "sourceRefs": [
+          "packages/daemon/src/service/settings.ts:204",
+          "packages/shared/src/api/settings.ts:8",
+          "packages/web/src/components/pipeline-assignment.tsx:72",
+          "packages/web/test/pipeline-assignment.test.tsx:436"
+        ],
+        "currentContractHash": "12e8206acb6afec8f84b5e4086a55ba457e2b14b5038b9644eccd4460afbcb9a",
+        "currentFieldAudit": {
+          "patchAfterMatchesCurrent": true,
+          "fieldsCompared": [
+            "task",
+            "definition",
+            "edges",
+            "sections"
+          ],
+          "contractHash": "12e8206acb6afec8f84b5e4086a55ba457e2b14b5038b9644eccd4460afbcb9a"
+        },
+        "historicBlocksUnchanged": true,
+        "proof": "R17-T78766144.review-round2-20261012.proof.json"
+      },
+      "proof": "R17-T78766144.review-round2-20261012.proof.json"
+    }
+  }
+}

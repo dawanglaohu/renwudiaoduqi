@@ -1,0 +1,42 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R14-T23602992": {
+      "contractHash": "dfa020b32dff14cd8a7eb2617f16ab65aa2489439909326719c94afaccce21ff",
+      "verdict": "pending",
+      "changedFields": [
+        "sections:02-设计/10-接口约定.md"
+      ],
+      "patchHistory": [
+        {
+          "changedFields": [
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+        },
+        {
+          "changedFields": [
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "cb53f264a09301ac73bb0a0fa90a853cac47a086935d53f8214e0cddc528048b"
+        },
+        {
+          "changedFields": [
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "1834e6cbb11c83c298d6d7ae13ff610dda780f7e29b3b591d05c2d026f2f3ee6"
+        }
+      ],
+      "evidence": [
+        "已逐项读取本任务 revalidation.changedFields 与补丁 changes；该任务含共享 10-接口约定.md 的变化，不能只用它原有测试绿色替代新增手动收口/能力语义的验收。",
+        "更新后的共享入口支持手动结构化 tier；实际 DSH POST /batches/:id/wrapup 的结构化 tier 和旧 effortTier 均 HTTP200、运行和 assignment_json 保存 high，违反必须边界 E-254。根因与两份真实回执见 R17-T78766144.implementation-20261009.evidence.json。",
+        "本项结论为 pending，既有 done 与全部 patches/changedFields 历史保留；未执行本任务 pass verify 或 --landed。源正文/路径/边界的额外变化另列 ownerChanges。"
+      ],
+      "ownerChanges": {},
+      "changedEdges": []
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M10-T2": {
+      "contractHash": "44bf8f2ab908f12e152704fe11717a572d047cbdd1793942397338fb0ae4c992",
+      "verdict": "pass",
+      "changedFields": [
+        "sections:02-设计/10-接口约定.md"
+      ],
+      "patchHistory": [
+        {
+          "changedFields": [
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "9dcfd2be8bbe8fbc4c7df114d50e6330c1089f10e509cafc0a2d9e684c9257a2"
+        },
+        {
+          "changedFields": [
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "cb53f264a09301ac73bb0a0fa90a853cac47a086935d53f8214e0cddc528048b"
+        },
+        {
+          "changedFields": [
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "1834e6cbb11c83c298d6d7ae13ff610dda780f7e29b3b591d05c2d026f2f3ee6"
+        },
+        {
+          "changedFields": [
+            "sections:02-设计/10-接口约定.md"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "d7d08b252962e53c5d4f7054c8f9b6dd8573b5ee2bddf6371ac869d619aaf17f"
+        }
+      ],
+      "evidence": [
+        "逐项核对 M10-T2 的 changedFields=['sections:02-设计/10-接口约定.md']；完整 patches 历史随本回执保留，只复核变化义务，不重审未变验收。",
+        "共享 10 节的四入口原生值、tier/vendor 互斥、显式 null、[] 与未知能力、旧三档和旧快照规则已对照 shared/service/UI 与正式 HTTP 回归；无能力 Agent 的 tier 绕过和首次保存 pending 已修复。",
+        "真实通过证据：_run/R17-T78766144.review-round2-20261012.proof.json；完整检查：pnpm -w check: Windows 249 files / 3205 passed / 4 skipped; macOS 249 files / 3172 passed / 36 skipped; both exact-head CI success.；生成器 213 tests OK，1 existing skip。",
+        "真实服务 DOM 保存（没有 HTTP mock 或数据库写入）验证首次自定义、模型切换后的 saved state 和 pending=false；独立真实 Codex 生产容器轮次验证 xhigh 运行及有效内容。",
+        "M10-T2（三平台桌面壳（Tauri v2））仅因共享接口指纹传播；任务正文、边界和定义未变。复核该任务消费或沿用的共享规则与上述生产链一致，原任务代码位置和实施沉淀内容未改。"
+      ],
+      "ownerChanges": {},
+      "changedEdges": [],
+      "changedObligations": {
+        "fields": [
+          "sections:02-设计/10-接口约定.md"
+        ],
+        "changedEdgeIds": [],
+        "sourceRefs": [
+          "docs/Agent任务调度器-开发文档/02-设计/10-接口约定.md:190"
+        ],
+        "currentContractHash": "44bf8f2ab908f12e152704fe11717a572d047cbdd1793942397338fb0ae4c992",
+        "currentFieldAudit": {
+          "patchAfterMatchesCurrent": true,
+          "fieldsCompared": [
+            "task",
+            "definition",
+            "edges",
+            "sections"
+          ],
+          "contractHash": "44bf8f2ab908f12e152704fe11717a572d047cbdd1793942397338fb0ae4c992"
+        },
+        "historicBlocksUnchanged": true,
+        "proof": "R17-T78766144.review-round2-20261012.proof.json"
+      },
+      "proof": "R17-T78766144.review-round2-20261012.proof.json"
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M7-T6": {
+      "contractHash": "0df41e6dd9cac5f5829d3d74a50f89126fa980d4f24ff0eba25da6af53ee801b",
+      "verdict": "pass",
+      "changedFields": [
+        "providers"
+      ],
+      "evidence": [
+        "M7-T6 changedFields 仅 providers；补丁 before.context 与 after.context 完全相等，当前四个字段组也与 after 相等。仅祖先指纹传播，不消费新手动收口能力条款。",
+        "收口报告解析原语与原 34 用例对 main 基线 184af024 字节等价；本轮本地单次全量跑中的 wrapup-report.test.ts 34 用例实际通过，相同提交 Windows/macOS 全量也通过。",
+        "E-274/E-286/E-290 的原解析义务保持；本项通过不替代 WrapupService 原生指派验收；646 个非目标历史区块内容未改。",
+        "完整证明 _run/R17-T78766144.review-round2-20261012.proof.json，patches 历史保留；重新同步重新加入的标记仍仅由 verify/--landed 清除。",
+        "packages/daemon/src/domain/wrapup-report.ts:18",
+        "packages/daemon/test/unit/wrapup-report.test.ts:1"
+      ],
+      "sourceDigests": {
+        "packages/daemon/src/domain/wrapup-report.ts": "f47869117f13e2c733602124f7093436bae36eeb8cf43c2e10c040bbcb2eec4c",
+        "packages/daemon/test/unit/wrapup-report.test.ts": "fc431a5e56f7ceb7bb21faaa7dc561e8624a3ee91299e22d10dcfb85740ad6eb"
+      },
+      "testReceipt": {
+        "command": "pnpm -w check --maxWorkers=2 --minWorkers=1",
+        "suite": "✓ packages/daemon/test/unit/wrapup-report.test.ts (34 tests) 175ms",
+        "fullWorkspaceVerdict": "not_passed",
+        "runtimeSourcesUnchanged": true
+      },
+      "patchHistory": [
+        {
+          "changedFields": [
+            "providers"
+          ],
+          "patch": "r17-native-effort-contract-20261009",
+          "sourceVersion": "d7d08b252962e53c5d4f7054c8f9b6dd8573b5ee2bddf6371ac869d619aaf17f"
+        }
+      ],
+      "changedObligations": {
+        "fields": [
+          "providers"
+        ],
+        "changedEdgeIds": [],
+        "sourceRefs": [
+          "packages/daemon/src/domain/wrapup-report.ts:18",
+          "packages/daemon/test/unit/wrapup-report.test.ts:1"
+        ],
+        "currentContractHash": "0df41e6dd9cac5f5829d3d74a50f89126fa980d4f24ff0eba25da6af53ee801b",
+        "currentFieldAudit": {
+          "patchAfterMatchesCurrent": true,
+          "fieldsCompared": [
+            "task",
+            "definition",
+            "edges",
+            "sections"
+          ],
+          "contractHash": "0df41e6dd9cac5f5829d3d74a50f89126fa980d4f24ff0eba25da6af53ee801b"
+        },
+        "historicBlocksUnchanged": true,
+        "proof": "R17-T78766144.review-round2-20261012.proof.json",
+        "providerContextEqual": true
+      },
+      "proof": "R17-T78766144.review-round2-20261012.proof.json"
+    }
+  }
+}
