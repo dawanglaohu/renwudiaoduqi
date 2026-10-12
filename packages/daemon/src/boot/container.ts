@@ -619,6 +619,7 @@ export function createContainer(input: {
 		});
 
 	const schedulerTickJobHolder: { current?: ContainerJob & { trigger?: () => void } } = {};
+	const documentExecutionHolder: { current?: DocumentExecutionService } = {};
 	const nudgeTick = () => {
 		schedulerTickJobHolder.current?.trigger?.();
 	};
@@ -626,6 +627,9 @@ export function createContainer(input: {
 	const wrapupService =
 		input.wrapupService ??
 		createWrapupService({
+			documentExecutionsRepo: documentExecutions,
+			publishDocumentExecutionChange: (docId, previousVersion) =>
+				documentExecutionHolder.current?.publishIfVersionChanged(docId, previousVersion),
 			batchesRepo: batches,
 			tasksRepo: tasks,
 			runsRepo: runs,
@@ -928,12 +932,12 @@ export function createContainer(input: {
 			throw error;
 		}
 	}
-	const documentExecutionHolder: { current?: DocumentExecutionService } = {};
 
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
 			documentExecutionsRepo: documentExecutions,
+			advanceDocumentExecution: (docId) => documentExecutionHolder.current?.advanceRunning(docId),
 			listDocumentExecutions: () => documentExecutionHolder.current?.list() ?? [],
 			validateWorkspace: (docId, taskIds) => docsService.validateWorkspace(docId, taskIds),
 			validateSourceAtCommit: (docId, taskIds) =>
@@ -1051,6 +1055,7 @@ export function createContainer(input: {
 		input.documentExecutionService ??
 		createDocumentExecutionService({
 			executions: documentExecutions,
+			settings,
 			documents,
 			batches,
 			tasks,
