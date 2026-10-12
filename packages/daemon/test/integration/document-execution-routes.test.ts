@@ -2064,6 +2064,11 @@ describe('M8-T12 document execution through the real container', () => {
 		await container.services.wrapup?.recordWrapupResult({ runId, rawText: cleanReport });
 		available = false;
 		expect(container.repos.batches.findById(first.id)?.state).toBe('done');
+		container.repos.runs.updateInHead?.({
+			id: runId,
+			isInHead: 0,
+			checkedAt: '2026-10-12T11:00:00.000Z',
+		});
 		await container.services.dispatch.tick();
 		expect(container.repos.batches.findById(second.id)?.state).toBe('idle');
 		container.repos.runs.updateInHead?.({
