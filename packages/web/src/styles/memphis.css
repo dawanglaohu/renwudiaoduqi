@@ -6472,3 +6472,27 @@
 			160px 0 0 3px var(--ink-1);
 	}
 }
+
+/* Deck rail task row: the status badge and the 7ch HEAD column left the title column 0px wide in the
+   272px rail. Keep id + title on row 1 with the badge, move the HEAD/landing column to row 2. */
+[data-theme="light"]
+	[data-component="deck-page"]
+	[role="treeitem"][aria-level="2"][data-task-key]
+	> .grid {
+	grid-template-columns: 20px minmax(6ch, 1fr) auto;
+	row-gap: 2px;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	height: auto;
+	min-height: var(--row-h);
+}
+
+[data-theme="light"]
+	[data-component="deck-page"]
+	[role="treeitem"][aria-level="2"][data-task-key]
+	> .grid
+	> :nth-child(4) {
+	grid-column: 2 / -1;
+	justify-self: start;
+	width: auto;
+}
