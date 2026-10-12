@@ -275,6 +275,41 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('E-361: an old start cannot mask a version conflict after pause and resume', async () => {
+		const { server, container, headers, docId } = await setup();
+		const url = `/api/v1/documents/${docId}/execution`;
+		const startBody = {
+			expectedVersion: 0,
+			expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+		};
+		const post = (action: string, payload: Record<string, unknown>) =>
+			server.instance.inject({ method: 'POST', url: `${url}/${action}`, headers, payload });
+		expect((await post('start', startBody)).statusCode).toBe(200);
+		const firstEventId = container.events.ringBuffer.latest()?.id;
+		expect((await post('start', { ...startBody, expectedVersion: 1 })).statusCode).toBe(200);
+		expect(container.events.ringBuffer.latest()?.id).toBe(firstEventId);
+		expect((await post('pause', { expectedVersion: 1 })).statusCode).toBe(200);
+		expect(
+			(
+				await post('resume', {
+					expectedVersion: 2,
+					expectedFingerprint: startBody.expectedFingerprint,
+				})
+			).statusCode,
+		).toBe(200);
+		const eventId = container.events.ringBuffer.latest()?.id;
+		const stale = await post('start', startBody);
+		expect(stale.statusCode, stale.body).toBe(400);
+		expect(stale.json().error.details).toMatchObject({ expectedVersion: 0, actualVersion: 3 });
+		expect(container.repos.documentExecutions.findByDocId(docId)).toMatchObject({
+			state: 'running',
+			version: 3,
+		});
+		expect(container.events.ringBuffer.latest()?.id).toBe(eventId);
+		await server.instance.close();
+	});
+
 	it('E-361: duplicate resume reads the committed plan while the repository is unavailable', async () => {
 		const { server, container, headers, docId, setGitAvailable } = await setup();
 		const url = `/api/v1/documents/${docId}/execution`;

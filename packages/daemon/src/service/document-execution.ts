@@ -496,6 +496,7 @@ export function createDocumentExecutionService(
 		const isIdempotentRetry = (row: DocumentExecutionRow | null): boolean =>
 			mode === 'start'
 				? row?.state === 'running' &&
+					(row.version === expectedVersion || row.version === expectedVersion + 1) &&
 					row.content_fingerprint === expectedFingerprint &&
 					assignment !== null &&
 					sameAssignment(parseAssignment(row.default_assignment_json), assignment)
@@ -512,6 +513,7 @@ export function createDocumentExecutionService(
 				return currentResponse(docId);
 			}
 			if (mode === 'start' && observed?.state === 'running') {
+				assertVersion(expectedVersion, docId, observed);
 				throw new AppError('E_VALIDATION', 'Active document execution has different settings.', {
 					details: { execution: currentResponse(docId).execution },
 				});
@@ -545,11 +547,13 @@ export function createDocumentExecutionService(
 			assertFingerprint(expectedFingerprint, doc);
 			if (mode === 'start' && row?.state === 'running') {
 				if (
+					(row.version === expectedVersion || row.version === expectedVersion + 1) &&
 					row.content_fingerprint === expectedFingerprint &&
 					assignment &&
 					sameAssignment(parseAssignment(row.default_assignment_json), assignment)
 				)
 					return;
+				assertVersion(expectedVersion, docId, row);
 				throw new AppError('E_VALIDATION', 'Active document execution has different settings.', {
 					details: { execution: currentResponse(docId).execution },
 				});
