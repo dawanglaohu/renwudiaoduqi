@@ -4322,3 +4322,526 @@
 		font-size: var(--fs-num);
 	}
 }
+
+/* 06-settingsDevices. Device list card, network card, inputs, and buttons. */
+
+[data-theme="light"]:has([data-component="settings-devices-page"]) .min-h-screen.bg-page {
+	background-color: var(--page);
+	background-image: radial-gradient(circle, var(--ink-1) 1.35px, transparent 1.55px),
+		linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--needs), var(--needs)),
+		linear-gradient(var(--auto-soft), var(--auto-soft)),
+		linear-gradient(var(--spine-live), var(--spine-live)),
+		linear-gradient(var(--accent-soft), var(--accent-soft));
+	background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+	background-size: 16px 16px, 28px 28px, 22px 22px, 36px 36px, 18px 42px, 30px 30px;
+	background-position: 0 0, left 8px bottom 20px, left 44px bottom 26px, right 10px bottom 18px,
+		right 6px top 230px, left 12px top 260px;
+}
+
+[data-theme="light"]:has([data-component="settings-devices-page"]) .min-h-screen.bg-page::before,
+[data-theme="light"]:has([data-component="settings-devices-page"]) .min-h-screen.bg-page::after {
+	display: block;
+	z-index: 0;
+	pointer-events: none;
+	border: 4px solid var(--ink-1);
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"]:has([data-component="settings-devices-page"]) .min-h-screen.bg-page::before {
+	top: auto;
+	right: auto;
+	left: 0;
+	bottom: 18px;
+	width: 48px;
+	height: 48px;
+	background: var(--accent);
+	transform: rotate(16deg);
+}
+
+[data-theme="light"]:has([data-component="settings-devices-page"]) .min-h-screen.bg-page::after {
+	left: auto;
+	bottom: auto;
+	top: 228px;
+	right: 0;
+	width: 40px;
+	height: 56px;
+	background: var(--spine-live);
+	transform: rotate(-14deg);
+}
+
+[data-theme="light"]:has([data-component="settings-devices-page"])
+	.settings-navigation
+	[aria-current="page"] {
+	background: var(--spine-live);
+	color: var(--ink-1);
+}
+
+[data-theme="light"]:has([data-component="settings-devices-page"])
+	.settings-navigation
+	[data-testid="settings-back"] {
+	background: var(--page);
+	color: var(--ink-1);
+}
+
+[data-theme="light"] [data-component="settings-devices-container"] {
+	position: relative;
+	z-index: 1;
+	padding: 12px 24px 36px;
+}
+
+[data-theme="light"] [data-component="settings-devices-container"] > .grid {
+	align-items: stretch;
+	gap: 22px;
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	.col-span-full:not(:has([data-testid="browser-mode-banner"])) {
+	display: none;
+}
+
+[data-theme="light"] [data-testid="browser-mode-banner"] {
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--needs);
+	box-shadow: var(--shadow);
+	color: var(--on-needs);
+	font-weight: 800;
+}
+
+[data-theme="light"] [data-testid="browser-mode-banner"] > span.bg-needs.text-on-needs {
+	border: 3px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--accent);
+	color: var(--on-accent);
+	box-shadow: 3px 3px 0 var(--ink-1);
+	font-weight: 900;
+}
+
+[data-theme="light"] [data-component="settings-devices-container"] > .grid > div.flex.flex-col,
+[data-theme="light"] [data-component="settings-devices-container"] > .grid > aside {
+	position: relative;
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background-color: var(--page);
+	box-shadow: var(--shadow-lg);
+	padding: 24px 24px 84px;
+}
+
+[data-theme="light"] [data-component="settings-devices-container"] > .grid > div.flex.flex-col {
+	gap: 16px;
+	background-image: repeating-linear-gradient(-45deg, var(--ink-1) 0 3px, var(--needs) 3px 8px),
+		linear-gradient(var(--accent), var(--accent)),
+		linear-gradient(var(--spine-live), var(--spine-live)),
+		linear-gradient(var(--auto-soft), var(--auto-soft)), linear-gradient(var(--ink-1), var(--ink-1)),
+		linear-gradient(var(--ink-1), var(--ink-1)), linear-gradient(var(--ink-1), var(--ink-1)),
+		linear-gradient(var(--ink-1), var(--ink-1));
+	background-repeat: no-repeat;
+	background-size: 40px 40px, 14px 14px, 14px 14px, 14px 14px, 48px 48px, 22px 22px, 22px 22px, 22px
+		22px;
+	background-position:
+		left 24px bottom 20px, right 70px bottom 26px, right 42px bottom 26px, right 14px bottom 26px,
+		left 20px bottom 16px, right 66px bottom 22px, right 38px bottom 22px, right 10px bottom 22px;
+}
+
+[data-theme="light"] [data-component="settings-devices-container"] > .grid > aside {
+	gap: 16px;
+	background-image: linear-gradient(var(--ink-1), var(--ink-1)),
+		linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--needs), var(--needs)),
+		linear-gradient(var(--spine-live), var(--spine-live)),
+		linear-gradient(var(--accent-soft), var(--accent-soft)),
+		linear-gradient(var(--auto-soft), var(--auto-soft)), linear-gradient(var(--ink-1), var(--ink-1)),
+		linear-gradient(var(--ink-1), var(--ink-1)), linear-gradient(var(--ink-1), var(--ink-1)),
+		linear-gradient(var(--ink-1), var(--ink-1)), linear-gradient(var(--ink-1), var(--ink-1)),
+		linear-gradient(var(--ink-1), var(--ink-1));
+	background-repeat: no-repeat;
+	background-size:
+		calc(100% - 48px) 4px, 14px 14px, 14px 14px, 14px 14px, 14px 14px, 14px 14px,
+		22px 22px, 22px 22px, 22px 22px, 22px 22px, 22px 22px, 64px 8px;
+	background-position:
+		left 24px bottom 56px, left 24px bottom 22px, left 52px bottom 22px,
+		left 80px bottom 22px, left 108px bottom 22px, left 136px bottom 22px, left 20px bottom 18px,
+		left 48px bottom 18px, left 76px bottom 18px, left 104px bottom 18px, left 132px bottom 18px,
+		right 20px bottom 24px;
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-container"]
+	> .grid
+	> div.flex.flex-col::before,
+[data-theme="light"] [data-component="settings-devices-container"] > .grid > aside::before {
+	content: "";
+	position: absolute;
+	top: -16px;
+	right: -12px;
+	z-index: 2;
+	width: 26px;
+	height: 26px;
+	pointer-events: none;
+	border: 4px solid var(--ink-1);
+	background: var(--accent);
+	box-shadow: 4px 4px 0 var(--ink-1);
+	transform: rotate(14deg);
+}
+
+[data-theme="light"] [data-component="settings-devices-container"] > .grid > aside::before {
+	background: var(--accent-soft);
+	transform: rotate(-12deg);
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] div:has(> div > h1) {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 14px;
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] h1 {
+	margin: 0;
+	color: var(--ink-1);
+	font-size: 2.25rem;
+	font-weight: 900;
+	letter-spacing: -0.04em;
+	line-height: 1.05;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] h1 + p {
+	max-width: 42em;
+	margin-top: 8px;
+	color: var(--ink-1);
+	font-size: var(--fs-meta);
+	font-weight: 700;
+	line-height: 1.5;
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	button:not([aria-pressed]):not([role="combobox"]) {
+	border-width: 4px;
+	box-shadow: var(--shadow);
+	font-weight: 900;
+}
+
+[data-theme="light"] [data-testid="refresh-devices-button"],
+[data-theme="light"] [data-testid="settings-reset-host-button"],
+[data-theme="light"] [data-testid="revoke-cancel-button"] {
+	background: var(--page);
+	color: var(--ink-1);
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	button[data-testid="generate-code-button"].bg-needs {
+	background: var(--spine-live);
+	color: var(--ink-1);
+}
+
+[data-theme="light"] [data-testid="settings-save-host-button"] {
+	background: var(--auto-soft);
+	color: var(--ink-1);
+}
+
+[data-theme="light"] button[data-testid^="revoke-device-button-"],
+[data-theme="light"] [data-testid="revoke-confirm-button"] {
+	background: var(--accent);
+	color: var(--on-accent);
+}
+
+[data-theme="light"] [data-testid="refresh-devices-button"],
+[data-theme="light"] [data-testid="generate-code-button"],
+[data-theme="light"] [data-testid="settings-save-host-button"],
+[data-theme="light"] [data-testid="settings-reset-host-button"] {
+	min-height: 44px;
+	padding-inline: 16px;
+}
+
+[data-theme="light"] [data-testid="devices-error-notice"] {
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--accent);
+	color: var(--on-accent);
+	box-shadow: var(--shadow);
+	font-weight: 800;
+}
+
+[data-theme="light"] [data-testid="new-pairing-code-card"] {
+	gap: 12px;
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	padding: 14px;
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"] [data-testid="new-pairing-code-card"],
+[data-theme="light"] [data-testid="new-pairing-code-card"] * {
+	color: var(--ink-1) !important;
+}
+
+[data-theme="light"] [data-testid="display-pairing-code"] {
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--needs);
+	box-shadow: var(--shadow);
+	font-family: var(--font-mono);
+	font-weight: 900;
+	letter-spacing: 0.18em;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] .overflow-hidden.border.bg-bg {
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background-color: var(--page);
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	.overflow-hidden.border.bg-bg
+	> .bg-panel-2 {
+	border-bottom: 4px solid var(--ink-1);
+	background: var(--needs);
+	color: var(--ink-1);
+	font-weight: 900;
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	.overflow-hidden.border.bg-bg
+	> .bg-panel-2
+	> span:last-child {
+	padding: 2px 6px;
+	background: var(--ink-1);
+	color: var(--page);
+	font-family: var(--font-mono);
+	font-weight: 900;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] .overflow-hidden.border.bg-bg::after {
+	content: "";
+	display: block;
+	height: 12px;
+	margin: 12px;
+	pointer-events: none;
+	border: 4px solid var(--ink-1);
+	background: repeating-linear-gradient(-45deg, var(--ink-1) 0 4px, var(--accent-soft) 4px 8px);
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] .divide-y > :not(:first-child) {
+	border-top: 4px solid var(--ink-1);
+}
+
+[data-theme="light"] [data-testid^="device-row-"] .font-medium {
+	font-weight: 900;
+}
+
+[data-theme="light"] [data-testid^="device-row-"] span.rounded-sm {
+	border: 3px solid var(--ink-1);
+	border-radius: 0;
+	color: var(--ink-1);
+	font-family: var(--font-mono);
+	font-weight: 900;
+}
+
+[data-theme="light"] [data-testid^="device-row-"] span.bg-auto-soft {
+	background: var(--auto-soft);
+}
+
+[data-theme="light"]
+	[data-testid^="device-row-"]
+	span[data-testid="current-device-badge"].bg-auto-soft {
+	background: var(--accent-soft);
+	color: var(--ink-1);
+}
+
+[data-theme="light"] [data-testid^="device-row-"] span.bg-panel-2 {
+	background: var(--needs);
+	color: var(--on-needs);
+}
+
+[data-theme="light"] [data-testid^="device-revoked-badge-"] {
+	background: var(--down-soft);
+	color: var(--ink-1);
+}
+
+[data-theme="light"] [data-testid^="device-row-"] .font-mono.flex-wrap,
+[data-theme="light"] [data-testid^="device-row-"] .font-mono.flex-wrap span {
+	color: var(--ink-1);
+	font-weight: 700;
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	.overflow-hidden.border.bg-bg
+	> .text-ink-3 {
+	color: var(--ink-1);
+	font-weight: 800;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] aside h2 {
+	margin: 0;
+	color: var(--ink-1);
+	font-size: 1.75rem;
+	font-weight: 900;
+	letter-spacing: -0.04em;
+	line-height: 1.15;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] aside h2 + p {
+	margin: 0;
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	padding: 12px 14px;
+	color: var(--ink-1);
+	box-shadow: var(--shadow);
+	font-size: var(--fs-meta);
+	font-weight: 700;
+	line-height: 1.55;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] aside > .grid {
+	gap: 14px;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] aside > .grid > div {
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	padding: 12px;
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	aside
+	> .grid
+	> div
+	> span:first-child {
+	color: var(--ink-1);
+	font-size: var(--fs-meta);
+	font-weight: 900;
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	aside
+	> .grid
+	> div:first-child
+	> span:last-child {
+	display: block;
+	margin-top: 8px;
+	padding: 8px;
+	border: 4px solid var(--ink-1);
+	background: var(--spine-live);
+	color: var(--ink-1);
+	font-family: var(--font-mono);
+	font-weight: 900;
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	aside
+	> .grid
+	> div:nth-child(2)
+	> span:last-child {
+	display: flex;
+	align-items: center;
+	min-height: 44px;
+	margin-top: 8px;
+	padding: 8px;
+	border: 4px solid var(--ink-1);
+	background: var(--page);
+	color: var(--ink-1);
+	font-weight: 800;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] aside > .border-t {
+	gap: 10px;
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	padding: 14px;
+	box-shadow: var(--shadow);
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] aside > .border-t > span {
+	color: var(--ink-1);
+	font-size: var(--fs-meta);
+	font-weight: 900;
+}
+
+[data-theme="light"] [data-component="settings-devices-page"] aside > .border-t > div {
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	input[data-testid="settings-manual-host-input"]:not([type="checkbox"]):not([type="radio"]) {
+	flex: 1 0 100%;
+	width: 100%;
+	min-height: 48px;
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	color: var(--ink-1);
+	font-family: var(--font-mono);
+	font-weight: 800;
+}
+
+[data-theme="light"]
+	[data-component="settings-devices-page"]
+	input[data-testid="settings-manual-host-input"]::placeholder {
+	color: var(--ink-2);
+	font-weight: 700;
+}
+
+[data-theme="light"] [data-testid="device-revoke-dialog"] > div {
+	border: 4px solid var(--ink-1);
+	border-radius: 0;
+	background: var(--page);
+	box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] [data-testid="device-revoke-dialog"] h2,
+[data-theme="light"] [data-testid="device-revoke-dialog"] p,
+[data-theme="light"] [data-testid="device-revoke-dialog"] .text-ink-2 {
+	color: var(--ink-1);
+}
+
+[data-theme="light"] [data-testid="device-revoke-dialog"] .font-mono {
+	font-weight: 800;
+}
+
+@media (min-width: 1144px) {
+	[data-theme="light"] [data-component="settings-devices-container"] > .grid {
+		grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+	}
+}
+
+@media (max-width: 767px) {
+	[data-theme="light"] [data-component="settings-devices-container"] {
+		padding: 12px 12px 28px;
+	}
+
+	[data-theme="light"] [data-component="settings-devices-container"] > .grid > div.flex.flex-col,
+	[data-theme="light"] [data-component="settings-devices-container"] > .grid > aside {
+		padding: 16px 14px 76px;
+	}
+
+	[data-theme="light"] [data-component="settings-devices-page"] h1 {
+		font-size: 1.6rem;
+	}
+
+	[data-theme="light"] [data-component="settings-devices-page"] aside h2 {
+		font-size: 1.35rem;
+	}
+
+	[data-theme="light"]:has([data-component="settings-devices-page"]) .min-h-screen.bg-page::before,
+	[data-theme="light"]:has([data-component="settings-devices-page"]) .min-h-screen.bg-page::after {
+		width: 28px;
+		height: 28px;
+	}
+}
