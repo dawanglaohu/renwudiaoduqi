@@ -120,6 +120,31 @@ function sameMembers(a: readonly string[], b: readonly string[]): boolean {
 	return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+export function currentMemberEvidence(
+	tasks: readonly TaskRow[],
+	runs: readonly RunRow[],
+	snapshots: Pick<DispatchSnapshotsRepo, 'findById'>,
+): { readonly tasks: readonly TaskRow[]; readonly runs: readonly RunRow[] } {
+	const members = tasks.filter((task) => task.is_removed_from_doc === 0);
+	const byId = new Map(members.map((task) => [task.id, task]));
+	const currentRuns = runs.filter((run) => {
+		if (run.kind !== 'implement' || !run.task_id) return false;
+		const task = byId.get(run.task_id);
+		return task && snapshots.findById(run.snapshot_id)?.contract_hash === task.contract_hash;
+	});
+	const acceptedTaskIds = new Set(
+		currentRuns.filter((run) => run.state === 'landed').map((run) => run.task_id),
+	);
+	return {
+		tasks: members.map((task) =>
+			task.manual_state === 'landed' && !acceptedTaskIds.has(task.id)
+				? { ...task, manual_state: null }
+				: task,
+		),
+		runs: currentRuns,
+	};
+}
+
 function buildPlanFromRows(
 	batches: readonly BatchRow[],
 	tasks: readonly TaskRow[],

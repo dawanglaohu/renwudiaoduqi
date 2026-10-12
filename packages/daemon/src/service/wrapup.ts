@@ -58,6 +58,7 @@ import type { AgentService } from './agents.ts';
 import { createAssignmentReader } from './assignment-reader.ts';
 import type { BatchService } from './batch.ts';
 import type { DocsService } from './docs.ts';
+import { currentMemberEvidence } from './document-execution.ts';
 import { assertSessionRefFree } from './session-guard.ts';
 
 export interface WrapupServiceDeps {
@@ -578,8 +579,14 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			}
 
 			// Check task landed & in_head statuses — 与 tick / getBatch 同一判定（domain/batch-landing.ts）
-			const tasks = deps.tasksRepo.listByBatchId(batchId);
-			const landing = summarizeBatchLanding(tasks, deps.runsRepo.listAll());
+			const memberIds = new Set(executionPlan?.entry.members.map((member) => member.taskId) ?? []);
+			const tasks = deps.tasksRepo
+				.listByBatchId(batchId)
+				.filter((task) => !executionPlan || memberIds.has(task.id));
+			const evidence = executionPlan
+				? currentMemberEvidence(tasks, deps.runsRepo.listAll(), deps.dispatchSnapshotsRepo)
+				: { tasks, runs: deps.runsRepo.listAll() };
+			const landing = summarizeBatchLanding(evidence.tasks, evidence.runs);
 			const notLandedTaskKeys = [...landing.notLandedTaskKeys];
 			const notInHeadTaskKeys = [...landing.notInHeadTaskKeys];
 

@@ -97,16 +97,14 @@ async function setup(
 		instanceLock: { release: () => undefined } as never,
 		clock,
 		agentRegistry: registry,
-		worktreeManager: options.withWrapupWorkspace
-			? ({
-					prepareWrapupWorktree: async () => ({
-						worktreePath: root,
-						branchName: 'wrapup-test',
-						baseRef: 'HEAD',
-					}),
-				} as never)
-			: options.withImplementationProcess
+		worktreeManager:
+			options.withWrapupWorkspace || options.withImplementationProcess
 				? ({
+						prepareWrapupWorktree: async () => ({
+							worktreePath: root,
+							branchName: 'wrapup-test',
+							baseRef: 'HEAD',
+						}),
 						prepareWorktree: async (input: { taskId: string; baseRef?: string }) => ({
 							worktreePath: root,
 							branchName: `task/${input.taskId}`,
@@ -144,10 +142,11 @@ async function setup(
 			: undefined,
 		gitRunner: {
 			run: async () => {
-				if (gitPause) {
-					gitPause.entered();
-					await gitPause.wait;
+				const held = gitPause;
+				if (held) {
 					gitPause = null;
+					held.entered();
+					await held.wait;
 				}
 				return gitAvailable
 					? { exitCode: 0, stdout: `true\n${root}\n`, stderr: '' }
@@ -307,6 +306,7 @@ function seedImplementationRun(
 		attemptNo: number;
 		contractHash: string;
 		createdAt: string;
+		generationId?: number;
 	},
 ): void {
 	const snapshotId = `snapshot-${input.id}`;
@@ -315,7 +315,10 @@ function seedImplementationRun(
 		task_id: input.taskId,
 		contract_hash: input.contractHash,
 		task_paths_json: '[]',
-		launch_spec_json: '{}',
+		launch_spec_json:
+			input.generationId === undefined
+				? '{}'
+				: JSON.stringify({ documentGenerationId: input.generationId }),
 		created_at: input.createdAt,
 	});
 	env.container.repos.runs.insert({
@@ -331,6 +334,52 @@ function seedImplementationRun(
 		ended_at: input.createdAt,
 		is_in_head: 1,
 		in_head_checked_at: input.createdAt,
+	});
+}
+
+function seedQueuedStageRun(
+	env: Awaited<ReturnType<typeof setup>>,
+	input: {
+		readonly id: string;
+		readonly taskId: string;
+		readonly batchId: string;
+		readonly contractHash: string;
+		readonly generationId: number;
+		readonly attemptNo?: number;
+		readonly kind: 'review' | 'bughunt' | 'implement';
+		readonly origin?: 'wrapup-fix';
+		readonly parentRunId?: string;
+		readonly spawnedByRunId?: string;
+		readonly omitOwnGeneration?: boolean;
+	},
+): void {
+	const snapshotId = `snapshot-${input.id}`;
+	env.container.repos.dispatchSnapshots?.insert({
+		id: snapshotId,
+		task_id: input.taskId,
+		contract_hash: input.contractHash,
+		task_paths_json: '["src/"]',
+		launch_spec_json: input.omitOwnGeneration
+			? '{}'
+			: JSON.stringify({ documentGenerationId: input.generationId }),
+		impl_prompt: 'Continue the queued stage',
+		created_at: '2026-10-12T08:00:00.000Z',
+	});
+	env.container.repos.runs.insert({
+		id: input.id,
+		task_id: input.taskId,
+		batch_id: input.batchId,
+		attempt_no: input.attemptNo ?? 1,
+		kind: input.kind,
+		origin: input.origin ?? 'dispatch',
+		parent_run_id: input.parentRunId ?? null,
+		spawned_by_run_id: input.spawnedByRunId ?? null,
+		state: 'queued',
+		agent_id: 'codex',
+		permission_tier: 'workspaceWrite',
+		snapshot_id: snapshotId,
+		queued_reason: 'lane_full',
+		started_at: null,
 	});
 }
 
@@ -2107,6 +2156,480 @@ describe('M8-T12 document execution through the real container', () => {
 			container.repos.documentExecutions.findByDocId(docId)?.plan_json ?? '[]',
 		)[0].generationId;
 		expect(JSON.parse(snapshot?.launch_spec_json ?? '{}').documentGenerationId).toBe(generationId);
+		await server.instance.close();
+	});
+
+	it('R1: revalidates a changed landed contract before current-generation wrapup', async () => {
+		const env = await setup({
+			canDispatch: () => true,
+			withWrapupWorkspace: true,
+			withImplementationProcess: true,
+		});
+		const { server, container, headers, docId, docsPath } = env;
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		if (!batch || !task) return;
+		seedImplementationRun(env, {
+			id: 'r1-old-landed',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		container.repos.tasks.updateManualState(task.id, 'landed');
+		const url = `/api/v1/documents/${docId}/execution`;
+		const start = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(start.statusCode, start.body).toBe(200);
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
+		const refresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refresh.statusCode, refresh.body).toBe(200);
+		const resume = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resume.statusCode, resume.body).toBe(200);
+		const pending = await container.services.dispatch.tick();
+		expect(pending.tasksBlocked).toContainEqual({
+			taskId: task.id,
+			reason: 'doc_changed_pending_confirmation',
+		});
+		container.repos.dispatchSnapshots?.updateTaskChangedFlags(task.id, {
+			hasAcceptChanged: false,
+			hasPromptChanged: false,
+		});
+		const dispatched = await container.services.dispatch.tick();
+		expect(dispatched.runsDispatched).toHaveLength(1);
+		const newRunId = dispatched.runsDispatched[0] ?? '';
+		const newRun = container.repos.runs.findById(newRunId);
+		expect(newRun?.kind).toBe('implement');
+		expect(newRun?.id).not.toBe('r1-old-landed');
+		expect(
+			container.repos.dispatchSnapshots?.findById(newRun?.snapshot_id ?? '')?.contract_hash,
+		).toBe('contract-2');
+		container.repos.runs.updateState({
+			id: newRunId,
+			toState: 'landed',
+			endedAt: '2026-10-12T09:00:00.000Z',
+		});
+		container.repos.runs.updateInHead?.({
+			id: newRunId,
+			isInHead: 1,
+			checkedAt: '2026-10-12T11:00:00.000Z',
+		});
+		const wrapup = await container.services.wrapup?.triggerWrapup({
+			batchId: batch.id,
+			trigger: 'manual',
+		});
+		const wrapupRunId = wrapup?.run.id ?? '';
+		container.repos.runs.updateState({ id: wrapupRunId, toState: 'starting' });
+		container.repos.runs.updateState({ id: wrapupRunId, toState: 'running' });
+		await container.services.wrapup?.recordWrapupResult({
+			runId: wrapupRunId,
+			rawText: readFileSync(
+				join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
+				'utf8',
+			),
+		});
+		container.repos.runs.updateInHead?.({
+			id: wrapupRunId,
+			isInHead: 1,
+			checkedAt: '2026-10-12T11:00:00.000Z',
+		});
+		await container.services.dispatch.tick();
+		expect(container.services.documentExecution.get(docId).execution.state).toBe('completed');
+		expect(container.repos.runs.findById('r1-old-landed')?.state).toBe('landed');
+		await server.instance.close();
+	});
+
+	it('R2: removed unlanded member cannot block current wrapup and next batch', async () => {
+		let available = true;
+		const env = await setup({
+			canDispatch: () => available,
+			withWrapupWorkspace: true,
+		});
+		const { server, container, headers, docId, docsPath } = env;
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2' },
+			{ id: 'M1-T3', hash: 'contract-3', deps: ['M1-T1'] },
+		]);
+		const refresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refresh.statusCode, refresh.body).toBe(200);
+		const batches = container.repos.batches.listByDocId(docId);
+		const first = batches[0];
+		const second = batches[1];
+		const landed = container.repos.tasks
+			.listByDocId(docId)
+			.find((task) => task.task_key === 'M1-T1');
+		const removed = container.repos.tasks
+			.listByDocId(docId)
+			.find((task) => task.task_key === 'M1-T2');
+		if (!first || !second || !landed || !removed) return;
+		seedImplementationRun(env, {
+			id: 'r2-landed',
+			taskId: landed.id,
+			batchId: first.id,
+			attemptNo: 1,
+			contractHash: landed.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		const url = `/api/v1/documents/${docId}/execution`;
+		const start = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(start.statusCode, start.body).toBe(200);
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T3', hash: 'contract-3', deps: ['M1-T1'] },
+		]);
+		const changed = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(changed.statusCode, changed.body).toBe(200);
+		const resume = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resume.statusCode, resume.body).toBe(200);
+		expect(container.repos.tasks.findById(removed.id)?.is_removed_from_doc).toBe(1);
+		const wrapup = await container.services.wrapup?.triggerWrapup({
+			batchId: first.id,
+			trigger: 'manual',
+		});
+		const runId = wrapup?.run.id ?? '';
+		container.repos.runs.updateState({ id: runId, toState: 'starting' });
+		container.repos.runs.updateState({ id: runId, toState: 'running' });
+		await container.services.wrapup?.recordWrapupResult({
+			runId,
+			rawText: readFileSync(
+				join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
+				'utf8',
+			),
+		});
+		available = false;
+		container.repos.runs.updateInHead?.({
+			id: runId,
+			isInHead: 1,
+			checkedAt: '2026-10-12T11:00:00.000Z',
+		});
+		await container.services.dispatch.tick();
+		expect(container.repos.batches.findById(second.id)?.state).toBe('running');
+		expect(container.repos.runs.findById('r2-landed')?.state).toBe('landed');
+		await server.instance.close();
+	});
+
+	it.each([
+		{ label: 'review', kind: 'review' as const },
+		{ label: 'bughunt', kind: 'bughunt' as const },
+		{ label: 'wrapup-fix', kind: 'implement' as const, origin: 'wrapup-fix' as const },
+	])('R3: stale queued $label stays out of the rebuilt generation', async (stage) => {
+		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+		const { server, container, headers, docId, docsPath } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) return;
+		const url = `/api/v1/documents/${docId}/execution`;
+		const start = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(start.statusCode, start.body).toBe(200);
+		const oldGeneration = start.json().execution.wrapupProgress.generationId as number;
+		const queuedId = `r3-old-${stage.label}`;
+		seedQueuedStageRun(env, {
+			id: queuedId,
+			taskId: task.id,
+			batchId: batch.id,
+			contractHash: task.contract_hash,
+			generationId: oldGeneration,
+			kind: stage.kind,
+			origin: 'origin' in stage ? stage.origin : undefined,
+		});
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
+		const refresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refresh.statusCode, refresh.body).toBe(200);
+		const resume = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resume.statusCode, resume.body).toBe(200);
+		const tick = await container.services.dispatch.tick();
+		expect(tick.runsDispatched).not.toContain(queuedId);
+		expect(container.repos.runs.findById(queuedId)).toMatchObject({
+			state: 'failed',
+			queued_reason: 'source_changed',
+		});
+		expect(container.repos.dispatchSnapshots?.findById(`snapshot-${queuedId}`)).not.toBeNull();
+		await server.instance.close();
+	});
+
+	it('R3: same-generation queued review resumes after a user pause', async () => {
+		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+		const { server, container, headers, docId } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) return;
+		const url = `/api/v1/documents/${docId}/execution`;
+		const start = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(start.statusCode, start.body).toBe(200);
+		const generationId = start.json().execution.wrapupProgress.generationId as number;
+		seedQueuedStageRun(env, {
+			id: 'r3-current-review',
+			taskId: task.id,
+			batchId: batch.id,
+			contractHash: task.contract_hash,
+			generationId,
+			kind: 'review',
+		});
+		const pause = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/pause`,
+			headers,
+			payload: { expectedVersion: start.json().execution.version },
+		});
+		expect(pause.statusCode, pause.body).toBe(200);
+		expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(0);
+		const resume = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: pause.json().execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resume.statusCode, resume.body).toBe(200);
+		expect(resume.json().execution.wrapupProgress.generationId).toBe(generationId);
+		const tick = await container.services.dispatch.tick();
+		expect(tick.runsDispatched).toContain('r3-current-review');
+		await server.instance.close();
+	});
+
+	it('R3: queued review inherits durable generation from its implementation parent', async () => {
+		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+		const { server, container, headers, docId, docsPath } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) return;
+		const url = `/api/v1/documents/${docId}/execution`;
+		const start = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(start.statusCode, start.body).toBe(200);
+		const oldGeneration = start.json().execution.wrapupProgress.generationId as number;
+		seedImplementationRun(env, {
+			id: 'r3-parent-impl',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			generationId: oldGeneration,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		seedQueuedStageRun(env, {
+			id: 'r3-parented-review',
+			taskId: task.id,
+			batchId: batch.id,
+			contractHash: task.contract_hash,
+			generationId: oldGeneration,
+			kind: 'review',
+			attemptNo: 2,
+			parentRunId: 'r3-parent-impl',
+			omitOwnGeneration: true,
+		});
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
+		const refresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refresh.statusCode, refresh.body).toBe(200);
+		const resume = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resume.statusCode, resume.body).toBe(200);
+		const tick = await container.services.dispatch.tick();
+		expect(tick.runsDispatched).not.toContain('r3-parented-review');
+		expect(container.repos.runs.findById('r3-parented-review')?.state).toBe('failed');
+		expect(container.repos.runs.findById('r3-parent-impl')?.state).toBe('landed');
+		await server.instance.close();
+	});
+
+	it('R3: queued wrapup-fix follows its current wrapup generation over an older copied snapshot', async () => {
+		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+		const { server, container, headers, docId } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) return;
+		const url = `/api/v1/documents/${docId}/execution`;
+		const start = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(start.statusCode, start.body).toBe(200);
+		const generationId = start.json().execution.wrapupProgress.generationId as number;
+		seedWrapupRun(env, {
+			id: 'r3-current-wrapup',
+			batchId: batch.id,
+			attemptNo: 1,
+			state: 'landed',
+			createdAt: '2026-10-12T07:00:00.000Z',
+			inputText: JSON.stringify({ generationId }),
+		});
+		seedQueuedStageRun(env, {
+			id: 'r3-current-fix',
+			taskId: task.id,
+			batchId: batch.id,
+			contractHash: task.contract_hash,
+			generationId: generationId - 1,
+			kind: 'implement',
+			origin: 'wrapup-fix',
+			spawnedByRunId: 'r3-current-wrapup',
+		});
+		const pause = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/pause`,
+			headers,
+			payload: { expectedVersion: start.json().execution.version },
+		});
+		expect(pause.statusCode, pause.body).toBe(200);
+		const resume = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: pause.json().execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resume.statusCode, resume.body).toBe(200);
+		const tick = await container.services.dispatch.tick();
+		expect(tick.runsDispatched).toContain('r3-current-fix');
+		await server.instance.close();
+	});
+
+	it('R4: a legacy tick observed without a plan cannot admit after start and pause', async () => {
+		const { server, container, headers, docId, pauseNextGitRun, getSpawnedRuns } = await setup({
+			canDispatch: () => true,
+			withImplementationProcess: true,
+		});
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!batch) return;
+		expect(container.repos.documentExecutions.findByDocId(docId)).toBeNull();
+		await container.services.batch?.transitionBatch(batch.id, 'running', 'legacy_start');
+		const gate = pauseNextGitRun();
+		const legacyTick = container.services.dispatch.tick();
+		await gate.entered;
+		const url = `/api/v1/documents/${docId}/execution`;
+		const start = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(start.statusCode, start.body).toBe(200);
+		const pause = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/pause`,
+			headers,
+			payload: { expectedVersion: start.json().execution.version },
+		});
+		expect(pause.statusCode, pause.body).toBe(200);
+		gate.release();
+		const result = await legacyTick;
+		expect(result.runsDispatched).toHaveLength(0);
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		expect(getSpawnedRuns()).toHaveLength(0);
+		expect(container.services.documentExecution.get(docId).execution.state).toBe('paused');
 		await server.instance.close();
 	});
 });

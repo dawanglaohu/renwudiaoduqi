@@ -90,6 +90,7 @@ import type { PrepareWorktreeInput, PrepareWorktreeResult } from '../workspace/w
 import { createAssignmentReader } from './assignment-reader.ts';
 import { type StoredAssignmentDraft, parseAssignmentDraft } from './assignments.ts';
 import { type BatchService, computeBatchSummary, createBatchService, toBatchDto } from './batch.ts';
+import { currentMemberEvidence } from './document-execution.ts';
 import type { LanesService } from './lanes.ts';
 import type { EventEnvelopeInput } from './logstore.ts';
 import { createRerunService } from './rerun.ts';
@@ -500,7 +501,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		observed: ReturnType<DocumentExecutionsRepo['findByDocId']>,
 	): boolean {
 		const current = deps.documentExecutionsRepo?.findByDocId(docId);
-		if (!observed) return !current || current.state === 'idle';
+		if (!observed) return !current;
 		return (
 			current?.state === observed.state &&
 			current.version === observed.version &&
@@ -509,16 +510,33 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		);
 	}
 
-	function runGeneration(run: RunRow): number {
+	function runGeneration(run: RunRow, seen = new Set<string>()): number {
+		if (seen.has(run.id)) return 0;
+		seen.add(run.id);
+		if (run.origin === 'wrapup-fix' && run.spawned_by_run_id) {
+			const wrapup = runsRepo.findById(run.spawned_by_run_id);
+			if (wrapup) return runGeneration(wrapup, seen);
+		}
 		const snapshot = deps.dispatchSnapshotsRepo.findById(run.snapshot_id);
 		try {
 			const launch = JSON.parse(snapshot?.launch_spec_json ?? '{}') as {
 				documentGenerationId?: number;
 			};
-			return launch.documentGenerationId ?? 0;
+			if (typeof launch.documentGenerationId === 'number') return launch.documentGenerationId;
 		} catch {
-			return 0;
+			/* The parent run can still identify this stage's generation. */
 		}
+		if (run.kind === 'wrapup') {
+			try {
+				const frozen = JSON.parse(snapshot?.input_text ?? '{}') as { generationId?: number };
+				if (typeof frozen.generationId === 'number') return frozen.generationId;
+			} catch {
+				/* Legacy wrapups belong to generation zero. */
+			}
+		}
+		const parentId = run.parent_run_id ?? run.spawned_by_run_id;
+		const parent = parentId ? runsRepo.findById(parentId) : null;
+		return parent ? runGeneration(parent, seen) : 0;
 	}
 
 	function hasLivePathClash(task: TaskRow): boolean {
@@ -1499,6 +1517,61 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					continue;
 				}
 				if (planBatch) {
+					const staleQueued = runsRepo.listAll().filter((run) => {
+						if (run.state !== 'queued' || run.kind === 'wrapup' || !run.task_id) return false;
+						const task = deps.tasksRepo.findById(run.task_id);
+						return task?.doc_id === doc.id && runGeneration(run) !== planBatch.generationId;
+					});
+					const changedEvents: EventEnvelope[] = [];
+					const discardStaleQueued = () => {
+						if (!executionStillCurrent(doc.id, documentExecution ?? null)) return;
+						for (const stale of staleQueued) {
+							const run = runsRepo.findById(stale.id);
+							if (!run || run.state !== 'queued' || runGeneration(run) === planBatch.generationId)
+								continue;
+							const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
+							const laneNo = task?.lane_no ?? run.lane_no ?? null;
+							runsRepo.updateState({
+								id: run.id,
+								toState: 'failed',
+								queuedReason: 'source_changed',
+								endedAt: deps.clock.now(),
+							});
+							runsRepo.updateLaneNo?.(run.id, null);
+							if (task?.lane_no !== null && task?.lane_no !== undefined)
+								deps.tasksRepo.clearLaneNo(task.id);
+							if (deps.envelopeFactory) {
+								changedEvents.push(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'run.state_changed',
+										runId: run.id,
+										taskId: run.task_id,
+										payload: { from: 'queued', to: 'failed', reason: 'source_changed' },
+									}),
+								);
+								if (laneNo !== null)
+									changedEvents.push(
+										deps.envelopeFactory.createEnvelope({
+											kind: 'lane.released',
+											payload: {
+												docId: doc.id,
+												laneNo,
+												taskId: run.task_id,
+												runId: run.id,
+												reason: 'failed',
+											},
+										}),
+									);
+							}
+						}
+					};
+					if (staleQueued.length > 0) {
+						if (deps.unitOfWork) deps.unitOfWork.run(discardStaleQueued);
+						else discardStaleQueued();
+						publishPendingEvents(changedEvents, deps);
+					}
+				}
+				if (planBatch) {
 					for (const oldRun of runsRepo.listAll()) {
 						if (
 							oldRun.kind !== 'wrapup' ||
@@ -1555,12 +1628,21 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				);
 
 				for (const batch of activeBatches) {
-					const tasks = deps.tasksRepo.listByBatchId(batch.id);
+					const memberIds = new Set(planBatch?.members.map((member) => member.taskId) ?? []);
+					const batchTasks = deps.tasksRepo.listByBatchId(batch.id);
+					const evidence = planBatch
+						? currentMemberEvidence(
+								batchTasks.filter((task) => memberIds.has(task.id)),
+								runsRepo.listAll(),
+								deps.dispatchSnapshotsRepo,
+							)
+						: { tasks: batchTasks, runs: runsRepo.listAll() };
+					const tasks = evidence.tasks;
 					if (tasks.length === 0) continue;
 
 					// 与 triggerWrapup() / getBatch() 共用同一把尺子（domain/batch-landing.ts）：
 					// 只看 kind='implement' 的最大 attempt，manual_state='landed' 算已验收。
-					const landing = summarizeBatchLanding(tasks, runsRepo.listAll());
+					const landing = summarizeBatchLanding(tasks, evidence.runs);
 
 					if (landing.allLanded) {
 						// 上一轮收口派出的修复运行是否都已落地（M7-T9 R3）
@@ -2035,9 +2117,27 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 				// 可派队列只由 domain/dispatch-candidates.ts 判一次：tick 与泳道快照共用同一份（E-319 / E-326）
 				const activeBatchIdsInDoc = new Set(activeBatchesInDoc.map((b) => b.id));
+				const currentMemberIds = new Set(planBatch?.members.map((member) => member.taskId) ?? []);
+				const currentEvidence = planBatch
+					? currentMemberEvidence(
+							docTasks.filter((task) => currentMemberIds.has(task.id)),
+							allRuns,
+							deps.dispatchSnapshotsRepo,
+						)
+					: null;
+				const currentTasksById = new Map(currentEvidence?.tasks.map((task) => [task.id, task]));
+				const currentRunIds = new Set(currentEvidence?.runs.map((run) => run.id));
+				const candidateRuns = planBatch
+					? allRuns.filter((run) => {
+							if (!run.task_id || !currentMemberIds.has(run.task_id)) return true;
+							return run.kind === 'implement'
+								? currentRunIds.has(run.id)
+								: !isTerminalRunState(run.state as RunState);
+						})
+					: allRuns;
 				const dispatchCandidates = computeDispatchCandidates({
-					tasks: docTasks,
-					runs: allRuns,
+					tasks: docTasks.map((task) => currentTasksById.get(task.id) ?? task),
+					runs: candidateRuns,
 					activeBatchIds: activeBatchIdsInDoc,
 					excludeTaskIds: reworkTasks.map((rw) => rw.task.id),
 				});
@@ -2201,14 +2301,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					.map((item) => item.candidate.task.id);
 
 				const assignAllInTx = () => {
-					const latestExecution = deps.documentExecutionsRepo?.findByDocId(doc.id);
-					if (
-						documentExecution &&
-						(latestExecution?.state !== documentExecution.state ||
-							latestExecution.version !== documentExecution.version ||
-							latestExecution.current_batch_id !== documentExecution.current_batch_id)
-					)
-						return;
+					if (!executionStillCurrent(doc.id, documentExecution ?? null)) return;
 					let newWorkAllowed = true;
 					if (hasNewWork) {
 						try {
@@ -2290,7 +2383,16 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								continue;
 							}
 							// 预检等待期间，手动入口可能已经派发；新任务在事务内仍须没有运行历史。
-							if (runsRepo.listByTaskId(task.id).length > 0) continue;
+							if (
+								planBatch
+									? currentMemberEvidence(
+											[task],
+											runsRepo.listByTaskId(task.id),
+											deps.dispatchSnapshotsRepo,
+										).runs.length > 0
+									: runsRepo.listByTaskId(task.id).length > 0
+							)
+								continue;
 							const idempotencyKey = `auto_${task.id}_${deps.ids.newId()}`;
 							const existingRuns = runsRepo.listByTaskId(task.id);
 							const attemptNo = existingRuns.length + 1;
