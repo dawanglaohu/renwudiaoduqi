@@ -976,5 +976,6 @@ describe('R17-T73118308 real native provider', () => {
 			method: 'public pairing UI saves unused port; normal authenticated first-screen read fails',
 		};
 		await density('connect-failed', 'card');
+		expect(daemonLog).not.toContain('[unhandledRejection]');
 	}, 900_000);
 });

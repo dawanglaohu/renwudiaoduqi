@@ -1282,7 +1282,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				if (assignmentCommitted) {
 					publishPendingEvents(pendingAssignmentEnvelopes, deps);
 					for (const runId of pendingRunsToLaunch) {
-						void launchRun(runId);
+						void launchRun(runId).catch((error) => logFailure(error));
 					}
 					for (const rw of pendingReworksToDispatch) {
 						void deps.reworkService
@@ -1597,7 +1597,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						if (pendingEvent) deps.bus?.publish(pendingEvent);
 
 						runsDispatched.push(wRun.id);
-						void launchRun(wRun.id);
+						void launchRun(wRun.id).catch((error) => logFailure(error));
 					}
 				}
 
