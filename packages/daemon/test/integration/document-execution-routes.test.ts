@@ -75,6 +75,7 @@ async function setup(
 		stop: async () => {},
 		trigger: () => {},
 	};
+	let gitAvailable = true;
 	const container = createContainer({
 		config: { port: 0, bind: '127.0.0.1', dataDir: folder, logLevel: 'error', dev: false },
 		database,
@@ -83,7 +84,12 @@ async function setup(
 		instanceLock: { release: () => undefined } as never,
 		clock,
 		agentRegistry: registry,
-		gitRunner: { run: async () => ({ exitCode: 0, stdout: `true\n${root}\n`, stderr: '' }) },
+		gitRunner: {
+			run: async () =>
+				gitAvailable
+					? { exitCode: 0, stdout: `true\n${root}\n`, stderr: '' }
+					: { exitCode: 1, stdout: '', stderr: 'repository temporarily unavailable' },
+		},
 		// A registered but unavailable agent exercises the accepted waiting-plan path.
 		agentService: {
 			start: async () => {},
@@ -129,7 +135,19 @@ async function setup(
 	});
 	expect(imported.statusCode, imported.body).toBe(200);
 	const docId = imported.json().document.id as string;
-	return { folder, database, container, server, headers, docsPath, docId, registry };
+	return {
+		folder,
+		database,
+		container,
+		server,
+		headers,
+		docsPath,
+		docId,
+		registry,
+		setGitAvailable: (value: boolean) => {
+			gitAvailable = value;
+		},
+	};
 }
 
 function seedWrapupRun(
@@ -237,6 +255,79 @@ function seedImplementationRun(
 }
 
 describe('M8-T12 document execution through the real container', () => {
+	it('E-361: duplicate start reads the committed plan while the repository is unavailable', async () => {
+		const { server, container, headers, docId, setGitAvailable } = await setup();
+		const url = `/api/v1/documents/${docId}/execution/start`;
+		const body = {
+			expectedVersion: 0,
+			expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+		};
+		expect(
+			(await server.instance.inject({ method: 'POST', url, headers, payload: body })).statusCode,
+		).toBe(200);
+		const eventId = container.events.ringBuffer.latest()?.id;
+		setGitAvailable(false);
+		const retried = await server.instance.inject({ method: 'POST', url, headers, payload: body });
+		expect(retried.statusCode, retried.body).toBe(200);
+		expect(retried.json().execution).toMatchObject({ state: 'running', version: 1 });
+		expect(container.events.ringBuffer.latest()?.id).toBe(eventId);
+		await server.instance.close();
+	});
+
+	it('E-361: duplicate resume reads the committed plan while the repository is unavailable', async () => {
+		const { server, container, headers, docId, setGitAvailable } = await setup();
+		const url = `/api/v1/documents/${docId}/execution`;
+		const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
+		expect(
+			(
+				await server.instance.inject({
+					method: 'POST',
+					url: `${url}/start`,
+					headers,
+					payload: {
+						expectedVersion: 0,
+						expectedFingerprint: fingerprint,
+						defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+					},
+				})
+			).statusCode,
+		).toBe(200);
+		expect(
+			(
+				await server.instance.inject({
+					method: 'POST',
+					url: `${url}/pause`,
+					headers,
+					payload: { expectedVersion: 1 },
+				})
+			).statusCode,
+		).toBe(200);
+		const resumeBody = { expectedVersion: 2, expectedFingerprint: fingerprint };
+		expect(
+			(
+				await server.instance.inject({
+					method: 'POST',
+					url: `${url}/resume`,
+					headers,
+					payload: resumeBody,
+				})
+			).statusCode,
+		).toBe(200);
+		const eventId = container.events.ringBuffer.latest()?.id;
+		setGitAvailable(false);
+		const retried = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: resumeBody,
+		});
+		expect(retried.statusCode, retried.body).toBe(200);
+		expect(retried.json().execution).toMatchObject({ state: 'running', version: 3 });
+		expect(container.events.ringBuffer.latest()?.id).toBe(eventId);
+		await server.instance.close();
+	});
+
 	it('E-361: duplicate start returns the committed plan after Agent capability changes', async () => {
 		const { server, container, headers, docId, registry } = await setup();
 		const url = `/api/v1/documents/${docId}/execution/start`;

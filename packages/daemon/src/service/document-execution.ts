@@ -478,29 +478,28 @@ export function createDocumentExecutionService(
 		const initial = requireDocument(docId);
 		assertFingerprint(expectedFingerprint, initial);
 		const previousVersion = deps.executions.findByDocId(docId)?.version ?? 0;
+		const isIdempotentRetry = (row: DocumentExecutionRow | null): boolean =>
+			mode === 'start'
+				? row?.state === 'running' &&
+					row.content_fingerprint === expectedFingerprint &&
+					assignment !== null &&
+					sameAssignment(parseAssignment(row.default_assignment_json), assignment)
+				: row?.state === 'running' && row.version === expectedVersion + 1;
 		try {
+			if (isIdempotentRetry(deps.executions.findByDocId(docId))) {
+				deps.validateSourceAtCommit(docId);
+				return currentResponse(docId);
+			}
 			await deps.validateWorkspace(docId);
 			const observed = deps.executions.findByDocId(docId);
+			if (isIdempotentRetry(observed)) {
+				deps.validateSourceAtCommit(docId);
+				return currentResponse(docId);
+			}
 			if (mode === 'start' && observed?.state === 'running') {
-				if (
-					observed.content_fingerprint === expectedFingerprint &&
-					assignment &&
-					sameAssignment(parseAssignment(observed.default_assignment_json), assignment)
-				) {
-					deps.validateSourceAtCommit(docId);
-					return currentResponse(docId);
-				}
 				throw new AppError('E_VALIDATION', 'Active document execution has different settings.', {
 					details: { execution: currentResponse(docId).execution },
 				});
-			}
-			if (
-				mode === 'resume' &&
-				observed?.state === 'running' &&
-				observed.version === expectedVersion + 1
-			) {
-				deps.validateSourceAtCommit(docId);
-				return currentResponse(docId);
 			}
 			assertVersion(expectedVersion, docId, observed);
 			if (mode === 'start' && (observed?.state ?? 'idle') !== 'idle')
