@@ -409,6 +409,16 @@ select {
 	}
 }
 
+@media (max-width: 639px) {
+	[data-testid="assign-panel-root"] [data-action="refresh-agent-models"] {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: var(--h-btn-lg);
+		min-height: var(--h-btn-lg);
+	}
+}
+
 @media (max-width: 599px) {
 	.app-topbar {
 		gap: var(--sp-2);
