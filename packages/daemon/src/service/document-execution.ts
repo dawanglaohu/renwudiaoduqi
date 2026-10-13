@@ -129,6 +129,7 @@ export function currentMemberEvidence(
 	const byId = new Map(members.map((task) => [task.id, task]));
 	const currentRuns = runs.filter((run) => {
 		if (run.kind !== 'implement' || !run.task_id) return false;
+		if (run.state === 'failed' && run.queued_reason === 'source_changed') return false;
 		const task = byId.get(run.task_id);
 		return task && snapshots.findById(run.snapshot_id)?.contract_hash === task.contract_hash;
 	});

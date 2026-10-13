@@ -1570,7 +1570,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							const run = runsRepo.findById(stale.id);
 							if (!run || !isStaleInactiveRun(run)) continue;
 							const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
-							const laneNo = task?.lane_no ?? run.lane_no ?? null;
+							const laneNo = run.lane_no ?? null;
 							runsRepo.updateState({
 								id: run.id,
 								toState: 'failed',
@@ -1589,8 +1589,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								if (!currentHumanRun) deps.tasksRepo.updateManualState(task.id, null);
 							}
 							runsRepo.updateLaneNo?.(run.id, null);
-							if (task?.lane_no !== null && task?.lane_no !== undefined)
-								deps.tasksRepo.clearLaneNo(task.id);
+							if (laneNo !== null && task?.lane_no === laneNo) deps.tasksRepo.clearLaneNo(task.id);
 							if (deps.envelopeFactory) {
 								changedEvents.push(
 									deps.envelopeFactory.createEnvelope({
@@ -1615,6 +1614,54 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 											},
 										}),
 									);
+							}
+							if ((run.kind === 'review' || run.kind === 'bughunt') && run.parent_run_id) {
+								const parent = runsRepo.findById(run.parent_run_id);
+								if (
+									parent?.kind === 'implement' &&
+									parent.state === 'reviewing' &&
+									parent.task_id === run.task_id &&
+									(runGeneration(parent) !== planBatch.generationId ||
+										parent.batch_id !== planBatch.batchId ||
+										deps.dispatchSnapshotsRepo.findById(parent.snapshot_id)?.contract_hash !==
+											task?.contract_hash)
+								) {
+									const parentLaneNo = parent.lane_no ?? null;
+									runsRepo.updateState({
+										id: parent.id,
+										toState: 'failed',
+										queuedReason: 'source_changed',
+										endedAt: deps.clock.now(),
+									});
+									runsRepo.updateLaneNo?.(parent.id, null);
+									if (parentLaneNo !== null && task?.lane_no === parentLaneNo)
+										deps.tasksRepo.clearLaneNo(task.id);
+									if (deps.envelopeFactory) {
+										changedEvents.push(
+											deps.envelopeFactory.createEnvelope({
+												kind: 'run.state_changed',
+												runId: parent.id,
+												taskId: parent.task_id,
+												payload: { from: 'reviewing', to: 'failed', reason: 'source_changed' },
+											}),
+										);
+										if (parentLaneNo !== null)
+											changedEvents.push(
+												deps.envelopeFactory.createEnvelope({
+													kind: 'lane.released',
+													runId: parent.id,
+													taskId: parent.task_id,
+													payload: {
+														docId: doc.id,
+														laneNo: parentLaneNo,
+														taskId: parent.task_id,
+														runId: parent.id,
+														reason: 'failed',
+													},
+												}),
+											);
+									}
+								}
 							}
 						}
 					};

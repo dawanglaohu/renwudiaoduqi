@@ -2978,6 +2978,98 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('R3: rejecting an old queued bughunt retires its parked implementation parent', async () => {
+		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+		const { server, container, headers, docId, docsPath } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) return;
+		const url = `/api/v1/documents/${docId}/execution`;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const generationId = started.json().execution.wrapupProgress.generationId as number;
+		seedImplementationRun(env, {
+			id: 'r3-parked-parent',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			generationId,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		container.repos.runs.updateState({ id: 'r3-parked-parent', toState: 'reviewing' });
+		container.repos.runs.updateLaneNo?.('r3-parked-parent', 1);
+		container.repos.tasks.assignLaneNo(task.id, 1);
+		seedQueuedStageRun(env, {
+			id: 'r3-old-bughunt-child',
+			taskId: task.id,
+			batchId: batch.id,
+			contractHash: task.contract_hash,
+			generationId,
+			attemptNo: 2,
+			kind: 'bughunt',
+			parentRunId: 'r3-parked-parent',
+		});
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
+		const changed = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(changed.statusCode, changed.body).toBe(200);
+		const resumed = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resumed.statusCode, resumed.body).toBe(200);
+		container.repos.dispatchSnapshots?.updateTaskChangedFlags(task.id, {
+			hasAcceptChanged: false,
+			hasPromptChanged: false,
+		});
+		const beforeReconcile = container.events.ringBuffer.latest()?.id ?? 0;
+		const tick = await container.services.dispatch.tick();
+		expect(container.repos.runs.findById('r3-old-bughunt-child')).toMatchObject({
+			state: 'failed',
+			queued_reason: 'source_changed',
+		});
+		expect(container.repos.runs.findById('r3-parked-parent')).toMatchObject({
+			state: 'failed',
+			queued_reason: 'source_changed',
+			lane_no: null,
+		});
+		const replacement = tick.runsDispatched
+			.map((id) => container.repos.runs.findById(id))
+			.find((run) => run?.task_id === task.id);
+		expect(replacement).toBeDefined();
+		expect(container.repos.tasks.findById(task.id)?.lane_no).toBe(replacement?.lane_no);
+		expect(
+			container.events.ringBuffer
+				.getAll()
+				.some(
+					(event) =>
+						event.id > beforeReconcile &&
+						event.kind === 'lane.released' &&
+						event.runId === 'r3-parked-parent',
+				),
+		).toBe(true);
+		await server.instance.close();
+	});
+
 	it('R3: same-generation queued review resumes after a user pause', async () => {
 		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
 		const { server, container, headers, docId } = env;
