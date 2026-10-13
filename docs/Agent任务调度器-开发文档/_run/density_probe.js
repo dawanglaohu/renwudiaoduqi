@@ -93,14 +93,17 @@ var densityProbe = (function () {
   }
 
   // 一个容器的「最差相邻块净距」（D4）。rects 是参与排布的可见子项矩形。
-  // 竖向堆叠（含换行后的行）按兄弟净距量；换行的行容器按行边界量（见 lineGaps）；
+  // 竖向堆叠按兄弟净距量；换行的行容器按行边界量（见 lineGaps）；
   // 行内间距（rowGap/columnGap）与 grid 的行列间距照常量。
+  // 超过 maxBetween（四分之一屏高）的是 mt-auto / align-content 一类的推挤，不算间距。
   function blockGap(rects, o) {
     var worst = 0;
     if (o.spaced) return 0;
     var rowGap = o.rowGap || 0, colGap = o.colGap || 0;
     if (o.wraps) {
-      lineGaps(rects).forEach(function (g) { worst = Math.max(worst, g); });
+      lineGaps(rects).forEach(function (g) {
+        if (g < o.maxBetween) worst = Math.max(worst, g);
+      });
       worst = Math.max(worst, rowGap);
     } else {
       for (var j = 1; j < rects.length; j++) {

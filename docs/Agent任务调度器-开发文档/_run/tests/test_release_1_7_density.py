@@ -272,11 +272,23 @@ const stacked = p.blockGap([{top: 0, bottom: 40, left: 0, right: 200},
                             {top: 64, bottom: 104, left: 0, right: 200}],
                            {spaced: false, wraps: false, rowFlex: false, isGrid: false,
                             rowGap: 0, colGap: 0, maxBetween: 270});
+// 推挤（align-content: space-between 一类）：行间距超过四分之一屏高时不算间距，两个分支都不算
+const spread = [{top: 0, bottom: 40, left: 0, right: 100},
+                {top: 0, bottom: 40, left: 110, right: 200},
+                {top: 600, bottom: 640, left: 0, right: 200}];
+const spreadWrap = p.blockGap(spread, {spaced: false, wraps: true, rowFlex: true, isGrid: false,
+                                       rowGap: 0, colGap: 0, maxBetween: 270});
+const spreadStacked = p.blockGap([{top: 0, bottom: 40, left: 0, right: 200},
+                                  {top: 600, bottom: 640, left: 0, right: 200}],
+                                 {spaced: false, wraps: false, rowFlex: false, isGrid: false,
+                                  rowGap: 0, colGap: 0, maxBetween: 270});
 process.stdout.write(JSON.stringify({
   lines: p.lineGaps(measured),
   measured: wrap(measured),
   overflowing: wrap(overflowing),
   stacked: stacked,
+  spreadWrap: spreadWrap,
+  spreadStacked: spreadStacked,
   limit: c.gap * 1.5
 }));
 """ % json.dumps(str(PROBE))
@@ -293,6 +305,9 @@ process.stdout.write(JSON.stringify({
         self.assertGreater(out['overflowing'], out['limit'])
         # 竖向堆叠分支不受影响：兄弟净距 24 照旧量出来
         self.assertEqual(out['stacked'], 24)
+        # 推挤（> 四分之一屏高）不算间距：换行与堆叠两个分支都要排除，别只在一边过滤
+        self.assertEqual(out['spreadWrap'], 0)
+        self.assertEqual(out['spreadStacked'], 0)
 
     def test_cli_usage_and_missing_playwright_exit_2(self):
         result = self.node(None, args=[str(PROBE)])
