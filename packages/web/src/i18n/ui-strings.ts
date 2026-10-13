@@ -5,6 +5,13 @@
  */
 
 export const UI_STRINGS = {
+	titlebar: {
+		appTitle: 'Desktop Shell',
+		minimize: '最小化',
+		maximize: '最大化',
+		restore: '还原',
+		close: '关闭',
+	},
 	appearance: {
 		label: '主题',
 		choose: '选择界面主题',

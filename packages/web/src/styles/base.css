@@ -1,4 +1,6 @@
 @import "./memphis.css";
+@import "./memphis-dark.css";
+@import "./titlebar.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

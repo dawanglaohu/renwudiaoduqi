@@ -4,6 +4,8 @@ import { App } from './app/app.tsx';
 import { bootstrap } from './app/bootstrap.ts';
 import { ThemeProvider } from './app/theme-provider.tsx';
 import { ConnectionStatusBanner } from './features/run-deck/use-connection-state.ts';
+import { DesktopTitlebar } from './shell/desktop-titlebar.tsx';
+import { SHELL } from './shell/detect-shell.ts';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/fonts.css';
@@ -21,6 +23,7 @@ async function start(): Promise<void> {
 		createRoot(rootElement).render(
 			<React.StrictMode>
 				<ThemeProvider>
+					{SHELL.platform === 'tauri' ? <DesktopTitlebar /> : null}
 					<App renderTopbar={() => <ConnectionStatusBanner />} />
 				</ThemeProvider>
 			</React.StrictMode>,

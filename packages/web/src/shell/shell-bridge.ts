@@ -401,6 +401,16 @@ export function createPlatformShellAdapter(
 }
 
 /**
+ * Tauri window-command invoker for the desktop title bar (undefined outside the Tauri shell).
+ * Kept here so native globals stay inside the two shell boundary files.
+ */
+export function getTauriWindowInvoke(): TauriInvoke | undefined {
+	if (typeof window === 'undefined') return undefined;
+	const invoke = (window as unknown as ShellGlobals).__TAURI_INTERNALS__?.invoke;
+	return typeof invoke === 'function' ? invoke : undefined;
+}
+
+/**
  * The unified shell bridge instance.
  */
 export const shellBridge: ShellBridge = {
