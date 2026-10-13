@@ -9071,14 +9071,15 @@
     "compiler": "eeddd07520a3431c9e3a6f44609ca79790d7653a1082674d6ca4e1c3f7107607",
     "contractHash": "b3f6d6b578b8fd4896d777d80b9f1452867cd0c4f3498f43bd948c96a80807da",
     "evidence": [
-      "本回执仅登记任务契约语义复核。逐项对照 13/17/19 节、当前返工源围栏、M8-T13/M9-T23/M9-T28 前置实现与 API/展示层分工，六项验收及 E-108/E-145/E-319/E-356 保持原样。",
-      "canonical repair contract 来自 _run/batches/batch-19-20261013.md:43-57；build_docs.py:4191 用 paths 生成 supportPaths，handoff_contract.py:179-182 禁止 root task-contracts.json 重复定义返工 ID。补丁仅在该围栏 paths 行追加 AC6 必需的 _run/tool-version.json。",
-      "补丁不修改第 19 批 open 裁定、B3 事实、原任务状态、任务集合、stable-key、产出与验收、任何边界；sync 只报告本任务受影响，未新增已落地任务复验标记。",
-      "已读取其他开放 PR 的实际文件列表：tool-version.json 无路径冲突。此文件 diff 仅更新 density_probe.js 的 LF 归一 SHA256，其余指纹保持原值；本轮 214/215 个完整生成器测试通过，pnpm -w check 253 文件、3302 passed/3 既有 skipped。",
-      "任务只改变已装配甲板主题 CSS 与密度测量工具及其回归，不新增注册表/服务/路由贡献。H12/H13 的“服务”命中来自真实服务验收文字，生产入口沿用 run-deck-view → empty-onboarding 与 memphis 样式；无需新增服务接线。",
-      "Jev jev-1.13.0 复审全部实施候选并补入实际 diff：两处间距 pick=A(high 0.97)，指纹 pick=A(high 1.00)，canonical 源补齐 pick=A(high 1.00)，均 adopt=take(A)，对应动作已在代码或源围栏落实。"
+      "仅登记任务契约语义复核，最终代码验收待真实模型录像；六项验收、全部边界、前置、视觉方向与架构分层不变。",
+      "canonical 返工定义来自 batch-19-20261013.md:43-57；build_docs.py:4191 从 paths 派生支持路径，handoff_contract.py:179-182 拒绝 root 配置重复返工 ID。最终补丁只追加 AC6 必需的 tool-version.json，保留 open 历史裁定、B3、stable-key、任务与批次集合。",
+      "指纹 diff 仅 density_probe.js 一行，LF 归一 SHA256匹配；其他开放 PR 无该文件冲突。手机 view 已有 emptyConsole 装配(716-720)，无需新增支持路径或依赖 PR209；曾加的 view 路径已撤回。",
+      "完整检查通过：pnpm -w check --maxWorkers=4 --minWorkers=1 253 files/3302 passed/3既有skipped；初次超时用例单独5 passed且全量复跑成功，不改超时或断言。完整 _run/tests 前214/后215 OK，各1既有skip。",
+      "真实浏览器基线两桌面均20px批次树及24px导入误报；新 E2E红3failed/1passed，修复后4passed。两主题两尺寸D1-D6/overflow全通过。真实触屏390任务列表入口导入及刷新200、idle/0runs、批次选中成功；默认stream的错误探测已纠正，不作为产品缺陷。",
+      "Jev jev-1.13.0：复用实施全部候选并加入diff事实，间距A(high0.97)、指纹A(high1.00)、canonical源A(high1.00)。手机复审补入完整源码和真实任务栏成功证据，在保留既有入口验证/改变默认栏/改全局位置之间选A(high1.00)，adopt=take(A)，实际动作是正确入口验收且撤回多余范围。",
+      "无新增服务、路由、注册点。接线启发式“服务”来源于真实服务验收文字；实际入口沿用甲板、EmptyOnboarding与样式，展示层仍不取数或计算业务判定。"
     ],
-    "reviewed": "2026-10-13T15:47:45.952980+00:00",
+    "reviewed": "2026-10-13T16:34:47.393010+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
