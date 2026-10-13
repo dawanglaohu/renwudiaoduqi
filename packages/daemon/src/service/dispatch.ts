@@ -1580,7 +1580,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								queuedReason: 'source_changed',
 								endedAt: deps.clock.now(),
 							});
-							if (run.kind === 'wrapup' && run.state === 'awaiting_human')
+							if (run.state === 'awaiting_human')
 								deps.gatesRepo?.supersedePendingByRunIds?.([run.id], deps.clock.now());
 							if (run.state === 'awaiting_human' && task?.manual_state === 'awaiting_human') {
 								const currentHumanRun = runsRepo

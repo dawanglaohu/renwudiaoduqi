@@ -2900,6 +2900,14 @@ describe('M8-T12 document execution through the real container', () => {
 		});
 		container.repos.runs.updateState({ id: 'r1-obsolete-human', toState: 'awaiting_human' });
 		container.repos.tasks.updateManualState(task.id, 'awaiting_human');
+		container.repos.gates?.create({
+			id: 'gate-r1-obsolete-human',
+			task_id: task.id,
+			run_id: 'r1-obsolete-human',
+			kind: 'review',
+			state: 'waiting',
+			created_at: '2026-10-12T07:00:00.000Z',
+		});
 		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
 		const changed = await server.instance.inject({
 			method: 'POST',
@@ -2930,6 +2938,19 @@ describe('M8-T12 document execution through the real container', () => {
 		const tick = await container.services.dispatch.tick();
 		expect(container.repos.runs.findById('r1-obsolete-human')?.state).toBe('failed');
 		expect(container.repos.tasks.findById(task.id)?.manual_state).toBeNull();
+		expect(container.repos.gates?.findById('gate-r1-obsolete-human')).toMatchObject({
+			state: 'decided',
+			decision: null,
+			comment: 'superseded',
+		});
+		await expect(
+			container.services.gates?.decideGate({
+				gateId: 'gate-r1-obsolete-human',
+				decision: 'reject',
+				comment: 'Late old gate',
+				actorDeviceId: 'dev-1',
+			}),
+		).rejects.toMatchObject({ code: 'E_GATE_ALREADY_DECIDED' });
 		expect(
 			tick.runsDispatched.some((id) => container.repos.runs.findById(id)?.task_id === task.id),
 		).toBe(true);
