@@ -941,26 +941,48 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					details: { docId: doc.id },
 				});
 			}
+			const sortedMembers = (rows: readonly TaskRow[]) =>
+				rows
+					.filter((task) => task.is_removed_from_doc === 0)
+					.map((task) => ({
+						taskId: task.id,
+						taskKey: task.task_key,
+						contractHash: task.contract_hash,
+					}))
+					.sort((a, b) => a.taskKey.localeCompare(b.taskKey));
+			const frozenMembers = sortedMembers(tasks);
+			if (
+				JSON.stringify(sortedMembers(deps.tasksRepo.listByBatchId(batchId))) !==
+				JSON.stringify(frozenMembers)
+			)
+				throw new AppError(
+					'E_VALIDATION',
+					'Document batch members changed before wrapup admission.',
+				);
 			// 工作树与差异读取会等待；落库前再次同步检查，失败标记不随派发事务回滚。
 			deps.validateSourceAtCommit?.(doc.id);
 
 			// 7. Transaction: insert snapshot, insert wrapup run (queued), transitionBatch(->wrapping) (08 节, AC 1, AC 2, AC 7)
 			deps.unitOfWork.run(() => {
 				const currentExecutionPlan = currentPlanBatch(batchId, batch.doc_id);
+				const currentDocument = deps.documentsRepo.findById(batch.doc_id);
+				if (
+					currentDocument?.is_source_readable !== 1 ||
+					currentDocument.content_fingerprint !== currentDoc?.content_fingerprint
+				)
+					throw new AppError('E_VALIDATION', 'Document source changed before wrapup admission.');
 				if (
 					(currentExecutionPlan?.execution.version ?? null) !==
 					(executionPlan?.execution.version ?? null)
 				)
 					throw new AppError('E_VALIDATION', 'Document execution changed before wrapup admission.');
+				const members = sortedMembers(deps.tasksRepo.listByBatchId(batchId));
+				if (JSON.stringify(members) !== JSON.stringify(frozenMembers))
+					throw new AppError(
+						'E_VALIDATION',
+						'Document batch members changed before wrapup admission.',
+					);
 				if (currentExecutionPlan) {
-					const members = tasks
-						.filter((task) => task.is_removed_from_doc === 0)
-						.map((task) => ({
-							taskId: task.id,
-							taskKey: task.task_key,
-							contractHash: task.contract_hash,
-						}))
-						.sort((a, b) => a.taskKey.localeCompare(b.taskKey));
 					if (JSON.stringify(members) !== JSON.stringify(currentExecutionPlan.entry.members))
 						throw new AppError(
 							'E_VALIDATION',

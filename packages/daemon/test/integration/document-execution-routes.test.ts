@@ -1742,6 +1742,71 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('E-369: a refresh during wrapup preflight cannot freeze obsolete batch members', async () => {
+		const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
+		const { server, container, headers, docId, docsPath, pauseNextGitRun } = env;
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2' },
+		]);
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!batch) return;
+		for (const task of container.repos.tasks.listByBatchId(batch.id))
+			seedImplementationRun(env, {
+				id: `landed-${task.task_key}`,
+				taskId: task.id,
+				batchId: batch.id,
+				attemptNo: 1,
+				contractHash: task.contract_hash,
+				createdAt: '2026-10-12T07:00:00.000Z',
+			});
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const observed = container.repos.documentExecutions.findByDocId(docId);
+		const gate = pauseNextGitRun();
+		const triggering = container.services.wrapup?.triggerWrapup({
+			batchId: batch.id,
+			trigger: 'manual',
+		});
+		await gate.entered;
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2', deps: ['M1-T1'] },
+		]);
+		const moved = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(moved.statusCode, moved.body).toBe(200);
+		expect(container.repos.documentExecutions.findByDocId(docId)?.version).toBe(observed?.version);
+		gate.release();
+		await expect(triggering).rejects.toMatchObject({ code: 'E_VALIDATION' });
+		expect(
+			container.repos.runs
+				.listAll()
+				.filter((run) => run.batch_id === batch.id && run.kind === 'wrapup'),
+		).toHaveLength(0);
+		await server.instance.close();
+	});
+
 	it.each([{ inHead: true }, { inHead: false }])(
 		'E-367: a clean wrapup completed during pause is adopted on resume (inHead=$inHead)',
 		async ({ inHead }) => {
