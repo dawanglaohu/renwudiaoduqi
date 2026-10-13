@@ -1,0 +1,1057 @@
+{
+  "scope": "batch-wrapup",
+  "batch": 19,
+  "tasks": [
+    "M8-T13"
+  ],
+  "date": "2026-10-13",
+  "verdict": "open",
+  "tests": "fail",
+  "baseHead": "d4e389d862fbc32ceba7f9b94b7b5e9a0cf79c89",
+  "backendFixCommit": "8a95a91",
+  "contractHash": "64be0b929c83372fe0b29ded96b1292d7fa932c94180c965ddebe39170f28baa",
+  "baselineCheck": {
+    "passedFiles": 253,
+    "passed": 3300,
+    "skipped": 3
+  },
+  "afterBackendCheck": {
+    "passedFiles": 253,
+    "passed": 3302,
+    "skipped": 3,
+    "seconds": 428.03
+  },
+  "realContainer": {
+    "passed": 78,
+    "redControls": 2,
+    "redGenerationDto": 1,
+    "focusedPassed": 8
+  },
+  "windowsE2e": {
+    "failedSuites": 4,
+    "skipped": 41,
+    "reason": "preexisting machine-global daemon.lock ACL"
+  },
+  "wslWholeE2eBeforeB4": {
+    "failedSuites": 3,
+    "passedSuites": 1,
+    "failed": 4,
+    "passed": 17,
+    "skipped": 20,
+    "seconds": 427.32
+  },
+  "wslBatch13": {
+    "passed": 13
+  },
+  "wslCompositionAfterB4": {
+    "passed": 8,
+    "seconds": 185.02,
+    "mode": "normal registered fixture Agent, real process/Git/SQLite/bootstrap/Web/Chromium/SSE-DOM"
+  },
+  "browser": {
+    "bootstrap": {
+      "pid": 27,
+      "node": "22.17.0",
+      "platform": "linux",
+      "readyMs": 64358
+    },
+    "import": {
+      "docId": "req_9cf595d47736",
+      "executionState": "idle",
+      "runs": 0,
+      "usedUiPairing": true,
+      "usedUiImport": true
+    },
+    "controls": [
+      {
+        "action": "start",
+        "status": 200,
+        "state": "running"
+      },
+      {
+        "action": "current-version-pause",
+        "status": 200,
+        "state": "paused"
+      },
+      {
+        "action": "current-version-resume",
+        "status": 200,
+        "state": "running"
+      },
+      {
+        "action": "stale-resume",
+        "status": 400,
+        "actualState": "paused"
+      }
+    ],
+    "styles": {
+      "fontFamily": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+      "rootBackground": "rgb(254, 249, 239)",
+      "pageToken": "#fef9ef",
+      "hasFlex": true
+    },
+    "density": [
+      {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:40869/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1920,
+            "width": 1920
+          },
+          "contentFound": true,
+          "fill": 0.986,
+          "leftGap": 10,
+          "rightGap": 16,
+          "interiorBand": {
+            "px": 3.2,
+            "ratio": 0.002
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [
+            {
+              "path": "div.relative.flex-1.flex > div.deck-desktop-layout.flex.flex-row > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0 > div.deck-batch-tree.flex.flex-col",
+              "gap": 20,
+              "limit": 18
+            },
+            {
+              "path": "div.flex.flex-col.gap-[var(--sp-3)] > section.flex.min-w-0.flex-col > div.flex.flex-col.gap-2 > div.flex.flex-wrap.gap-2",
+              "gap": 24,
+              "limit": 18
+            }
+          ],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 2,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "fail",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": false
+          }
+        }
+      },
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "result": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:40869/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": null,
+          "avail": {
+            "left": 0,
+            "right": 1440,
+            "width": 1440
+          },
+          "contentFound": true,
+          "fill": 0.963,
+          "leftGap": 22,
+          "rightGap": 32,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.008
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [
+            {
+              "path": "div.relative.flex-1.flex > div.deck-desktop-layout.flex.flex-row > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0 > div.deck-batch-tree.flex.flex-col",
+              "gap": 20,
+              "limit": 18
+            },
+            {
+              "path": "div.flex.flex-col.gap-[var(--sp-3)] > section.flex.min-w-0.flex-col > div.flex.flex-col.gap-2 > div.flex.flex-wrap.gap-2",
+              "gap": 24,
+              "limit": 18
+            }
+          ],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 2,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "fail",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": false
+          }
+        }
+      }
+    ],
+    "pageErrors": [],
+    "layoutDetails": [
+      {
+        "className": "deck-batch-tree flex flex-col gap-3",
+        "gap": "12px",
+        "children": [
+          {
+            "text": "批次与任务",
+            "className": "font-ui text-dense font-semibold text-[var(--ink-1)] px-1",
+            "margin": "0px 0px 8px",
+            "padding": "4px 12px",
+            "top": 208,
+            "bottom": 240.84375
+          },
+          {
+            "text": "第 1 批已落地 0/1 · 在跑 0 · 等你 0第 2 批已落地 0/1 · 在跑 0 · 等你 0",
+            "className": "flex flex-col gap-1 w-full select-none m-0 p-0",
+            "margin": "0px",
+            "padding": "0px",
+            "top": 260.84375,
+            "bottom": 336.84375
+          }
+        ]
+      },
+      {
+        "className": "flex flex-wrap items-center gap-2",
+        "gap": "8px",
+        "children": [
+          {
+            "text": "Workbench Console",
+            "className": "font-mono text-micro uppercase tracking-wider text-ink-3",
+            "margin": "0px",
+            "padding": "0px",
+            "top": 409.46875,
+            "bottom": 425.40625
+          },
+          {
+            "text": "/",
+            "className": "text-ink-3",
+            "margin": "0px",
+            "padding": "0px",
+            "top": 405.84375,
+            "bottom": 429.03125
+          },
+          {
+            "text": "零运行调度向导",
+            "className": "font-mono text-micro text-needs",
+            "margin": "0px",
+            "padding": "4px 10px",
+            "top": 437.03125,
+            "bottom": 466.96875
+          }
+        ]
+      },
+      {
+        "className": "flex flex-wrap items-center justify-between gap-2 min-w-0",
+        "gap": "8px",
+        "children": [
+          {
+            "text": "第一步：选择调度目标需求开发文档选择后系统将根据文档中的模块规划与任务图谱准备批次清单。",
+            "className": "",
+            "margin": "0px",
+            "padding": "0px",
+            "top": 951.125,
+            "bottom": 1040.984375
+          }
+        ]
+      },
+      {
+        "className": "flex flex-wrap gap-2",
+        "gap": "8px",
+        "children": [
+          {
+            "text": "",
+            "className": "min-w-0 flex-1 rounded border border-border bg-panel-2 px-3 text-ink-1",
+            "margin": "0px",
+            "padding": "0px 12px",
+            "top": 1052.984375,
+            "bottom": 1100.984375
+          },
+          {
+            "text": "导入文档",
+            "className": "h-btn rounded-sm bg-needs px-4 text-on-needs disabled:opacity-50",
+            "margin": "0px",
+            "padding": "0px 16px",
+            "top": 1052.984375,
+            "bottom": 1084.984375
+          },
+          {
+            "text": "更新当前文档",
+            "className": "h-btn rounded-sm border border-border px-4 text-ink-1 disabled:opacity-50",
+            "margin": "0px",
+            "padding": "0px 16px",
+            "top": 1108.984375,
+            "bottom": 1140.984375
+          },
+          {
+            "text": "",
+            "className": "w-full rounded border border-border bg-panel-2 px-3 text-ink-1",
+            "margin": "0px",
+            "padding": "0px 12px",
+            "top": 1148.984375,
+            "bottom": 1196.984375
+          }
+        ]
+      },
+      {
+        "className": "flex flex-wrap items-center justify-between gap-2 min-w-0 p-3 rounded border text-left cursor-pointer transition-colors w-full border-needs bg-panel-2",
+        "gap": "8px",
+        "children": [
+          {
+            "text": "E2E 冒烟测试文档/mnt/d/xiangmu/.codex-plans/agent-scheduler-batch-19/browser-red-detai",
+            "className": "flex flex-col min-w-0",
+            "margin": "0px",
+            "padding": "0px",
+            "top": 1219.984375,
+            "bottom": 1334.453125
+          },
+          {
+            "text": "✓",
+            "className": "flex items-center gap-3 text-micro text-ink-2 font-mono",
+            "margin": "0px",
+            "padding": "0px",
+            "top": 1342.453125,
+            "bottom": 1358.453125
+          }
+        ]
+      }
+    ],
+    "passed": false,
+    "error": "AssertionError [ERR_ASSERTION]: [{\"D1\":\"pass\",\"D2\":\"pass\",\"D3\":\"pass\",\"D4\":\"fail\",\"D5\":\"pass\",\"D6\":\"pass\",\"overflow\":\"pass\",\"pass\":false},{\"D1\":\"pass\",\"D2\":\"pass\",\"D3\":\"pass\",\"D4\":\"fail\",\"D5\":\"pass\",\"D6\":\"pass\",\"overflow\":\"pass\",\"pass\":false}]\n    at file:///mnt/d/xiangmu/.codex-plans/agent-scheduler-batch-19/browser-density.mjs:158:10\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)"
+  },
+  "nativeGuiEvidence": {
+    "claude": {
+      "version": "1.0.67",
+      "exitCode": 1,
+      "result": "Invalid API key"
+    },
+    "codex": {
+      "version": "0.157.1",
+      "versionExit": 0,
+      "loginExit": 1,
+      "loggedIn": false
+    },
+    "realModelGif": false
+  },
+  "unresolved": [
+    {
+      "id": "B3",
+      "severity": "S3",
+      "stableKey": "batch19-deck-density-gaps",
+      "sourceTasks": [
+        "M8-T13"
+      ],
+      "reason": "D4 fails both required desktop viewports; no genuine model-backed GUI repair evidence",
+      "affectedTasks": [
+        "M9-T28",
+        "M9-T23"
+      ],
+      "repairTaskId": "R19-T23428016"
+    }
+  ],
+  "scopeLimit": "M9-T30 UI and M1-T12 complete document sequencing are still unlanded; no claim of full product delivery.",
+  "judgments": [
+    {
+      "ts": "2026-10-13T16:11:10",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "fef1c27d60b0cd2f",
+      "label": "batch-19:wrapup",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.95,
+          "band": "high",
+          "probabilities": {
+            "A": 0.97,
+            "B": 0.03,
+            "C": 0.0
+          }
+        },
+        "spec_change": {
+          "p": 0.13,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.21,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.08,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.69,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1186,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T16:13:27",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "84102da8ea45e36c",
+      "label": "batch-19:wrapup",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.37,
+          "band": "low",
+          "probabilities": {
+            "A": 0.58,
+            "B": 0.29,
+            "C": 0.13
+          }
+        },
+        "spec_change": {
+          "p": 0.2,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.23,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.1,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.76,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "low",
+          "why": "Jev 选 A（low）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1564,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T16:16:18",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "d66e9abf02fb472d",
+      "label": "batch-19:wrapup",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.95,
+          "band": "high",
+          "probabilities": {
+            "A": 0.97,
+            "B": 0.03,
+            "C": 0.0
+          }
+        },
+        "spec_change": {
+          "p": 0.09,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.07,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.05,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.84,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1223,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T16:37:17",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "932f129b723664fd",
+      "label": "batch-19:wrapup",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.95,
+          "band": "high",
+          "probabilities": {
+            "A": 0.97,
+            "B": 0.03,
+            "C": 0.0
+          }
+        },
+        "spec_change": {
+          "p": 0.12,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.2,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.06,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.85,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1146,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T16:43:38",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "4c938a2835e084f2",
+      "label": "batch-19:wrapup",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.64,
+          "band": "medium",
+          "probabilities": {
+            "A": 0.76,
+            "B": 0.05,
+            "C": 0.19
+          }
+        },
+        "spec_change": {
+          "p": 0.12,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.14,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.17,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.77,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "medium",
+          "why": "Jev 选 A（medium）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1299,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T16:54:06",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "c0554ad99a2a26ab",
+      "label": "batch-19:wrapup",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.2,
+          "band": "low",
+          "probabilities": {
+            "A": 0.6,
+            "B": 0.4
+          }
+        },
+        "spec_change": {
+          "p": 0.14,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.37,
+          "verdict": "unsure"
+        },
+        "needs_owner": {
+          "p": 0.11,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.75,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "low",
+          "why": "Jev 选 A（low）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1291,
+        "output_tokens": 101
+      }
+    },
+    {
+      "ts": "2026-10-13T17:07:53",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "171421e52833fe1b",
+      "label": "batch-19:wrapup",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.88,
+          "band": "high",
+          "probabilities": {
+            "A": 0.92,
+            "B": 0.07,
+            "C": 0.01
+          }
+        },
+        "spec_change": {
+          "p": 0.11,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.09,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.04,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.87,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1153,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T18:07:30",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "3dd5a995c4bca38b",
+      "label": "batch-19:review",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.95,
+          "band": "high",
+          "probabilities": {
+            "A": 0.97,
+            "B": 0.03,
+            "C": 0.0
+          }
+        },
+        "spec_change": {
+          "p": 0.14,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.16,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.09,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.7,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1289,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T18:07:31",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "01331d49c62541ee",
+      "label": "batch-19:review",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.34,
+          "band": "low",
+          "probabilities": {
+            "A": 0.5599999999999999,
+            "B": 0.29,
+            "C": 0.15
+          }
+        },
+        "spec_change": {
+          "p": 0.17,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.21,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.09,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.77,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "low",
+          "why": "Jev 选 A（low）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1704,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T18:07:32",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "89043642393f4f36",
+      "label": "batch-19:review",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.98,
+          "band": "high",
+          "probabilities": {
+            "A": 0.99,
+            "B": 0.01,
+            "C": 0.0
+          }
+        },
+        "spec_change": {
+          "p": 0.08,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.07,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.04,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.84,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1325,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T18:07:33",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "6da807a477c597d4",
+      "label": "batch-19:review",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.95,
+          "band": "high",
+          "probabilities": {
+            "A": 0.97,
+            "B": 0.02,
+            "C": 0.01
+          }
+        },
+        "spec_change": {
+          "p": 0.12,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.2,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.06,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.86,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1253,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T18:07:34",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "5e80fc6151129115",
+      "label": "batch-19:review",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.25,
+          "band": "low",
+          "probabilities": {
+            "A": 0.5,
+            "B": 0.04,
+            "C": 0.46
+          }
+        },
+        "spec_change": {
+          "p": 0.12,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.14,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.16,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.75,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "low",
+          "why": "Jev 选 A（low）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1413,
+        "output_tokens": 108
+      }
+    },
+    {
+      "ts": "2026-10-13T18:07:35",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "eeef7ad7041f5acf",
+      "label": "batch-19:review",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.0,
+          "band": "low",
+          "probabilities": {
+            "A": 0.5,
+            "B": 0.5
+          }
+        },
+        "spec_change": {
+          "p": 0.12,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.38,
+          "verdict": "unsure"
+        },
+        "needs_owner": {
+          "p": 0.1,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.83,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "low",
+          "why": "Jev 选 A（low）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1425,
+        "output_tokens": 101
+      }
+    },
+    {
+      "ts": "2026-10-13T18:07:36",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "state_sha256": "604a18d72c0d434d",
+      "label": "batch-19:review",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.88,
+          "band": "high",
+          "probabilities": {
+            "A": 0.92,
+            "B": 0.07,
+            "C": 0.01
+          }
+        },
+        "spec_change": {
+          "p": 0.11,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.09,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.04,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.9,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "usage": {
+        "input_tokens": 1268,
+        "output_tokens": 108
+      }
+    }
+  ],
+  "logs": {
+    "baseline-check.log": " ✓ packages/web/test/empty-onboarding.test.tsx (2 tests) 156ms\n ✓ packages/web/test/model-refresh-http.test.ts (2 tests) 29ms\n\n Test Files  253 passed (253)\n      Tests  3300 passed | 3 skipped (3303)\n   Start at  16:04:03\n   Duration  482.59s (transform 10.36s, setup 0ms, collect 69.73s, tests 745.66s, environment 37.37s, prepare 40.45s)\n",
+    "final-check.log": " ✓ packages/web/test/empty-onboarding.test.tsx (2 tests) 117ms\n ✓ packages/web/test/model-refresh-http.test.ts (2 tests) 25ms\n\n Test Files  253 passed (253)\n      Tests  3302 passed | 3 skipped (3305)\n   Start at  16:18:23\n   Duration  428.03s (transform 8.60s, setup 0ms, collect 63.68s, tests 655.07s, environment 35.43s, prepare 37.58s)\n",
+    "red-controls.log": "+ 400\n\n ❯ packages/daemon/test/integration/document-execution-routes.test.ts:418:47\n    416|     ...(action === 'resume' ? { expectedFingerprint } : {}),\n    417|    });\n    418|    expect(response.statusCode, response.body).toBe(200);\n       |                                               ^\n    419|    expect(response.json().execution).toMatchObject({ state: before?.st…\n    420|    expect(container.repos.documentExecutions.findByDocId(docId)).toEqu…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: repeating resume with the observed current version is read-only\nAssertionError: {\"error\":{\"code\":\"E_NOT_A_GIT_REPO\",\"message\":\"无法访问 Git 仓库目录：D:\\\\xiangmu\\\\agent-scheduler-batch-19。请指定有效的仓库目录。\",\"requestId\":\"req_802d12268cb3\",\"details\":{\"docsPath\":\"C:\\\\Users\\\\admin\\\\AppData\\\\Local\\\\Temp\\\\agsched-document-plan-ypnqPr\\\\docs-data.js\",\"repoPath\":\"D:\\\\xiangmu\\\\agent-scheduler-batch-19\",\"reason\":\"Target directory is not a git repository; parallel worktrees unavailable, forcing serial execution\"}}}: expected 409 to be 200 // Object.is equality\n\n- Expected\n+ Received\n\n- 200\n+ 409\n\n ❯ packages/daemon/test/integration/document-execution-routes.test.ts:418:47\n    416|     ...(action === 'resume' ? { expectedFingerprint } : {}),\n    417|    });\n    418|    expect(response.statusCode, response.body).toBe(200);\n       |                                               ^\n    419|    expect(response.json().execution).toMatchObject({ state: before?.st…\n    420|    expect(container.repos.documentExecutions.findByDocId(docId)).toEqu…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n Test Files  1 failed (1)\n      Tests  2 failed | 76 skipped (78)\n   Start at  16:10:40\n   Duration  11.56s (transform 2.17s, setup 0ms, collect 3.39s, tests 7.49s, environment 0ms, prepare 179ms)\n",
+    "red-generation-dto.log": "  Object {\n    \"batchId\": \"req_f78bcea68d87\",\n    \"code\": \"source_runs_pending\",\n    \"taskIds\": Array [\n      \"req_8aa0c43cbb78\",\n    ],\n  },\n]\n\n ❯ packages/daemon/test/integration/document-execution-routes.test.ts:4266:51\n    4264|   const execution = await server.instance.inject({ method: 'GET', url,…\n    4265|   expect(execution.statusCode, execution.body).toBe(200);\n    4266|   expect(execution.json().execution.blockers).not.toContainEqual(\n       |                                                   ^\n    4267|    expect.objectContaining({ code: 'source_runs_pending' }),\n    4268|   );\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n Test Files  1 failed (1)\n      Tests  1 failed | 77 skipped (78)\n   Start at  16:15:16\n   Duration  7.61s (transform 2.13s, setup 0ms, collect 3.38s, tests 3.62s, environment 0ms, prepare 206ms)\n",
+    "green-fixes-focused.log": "   ✓ M8-T12 document execution through the real container > R3: queued review inherits durable generation from its implementation parent 3085ms\n   ✓ M8-T12 document execution through the real container > R3: queued wrapup-fix follows its current wrapup generation over an older copied snapshot 3176ms\n\n Test Files  1 passed (1)\n      Tests  8 passed | 70 skipped (78)\n   Start at  16:17:03\n   Duration  29.77s (transform 2.13s, setup 0ms, collect 3.35s, tests 25.82s, environment 0ms, prepare 200ms)\n",
+    "green-e2e-composition.log": "   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 3: 真实子进程派发、SSE 到 DOM 与界面参照条逐阶段显示同一指派来源 (AC 1, AC 2, M8-T9, E-347, E-10) 3726ms\n   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 4: 审查阶段覆盖、跨家映射与查 bug 阶段链 (AC 1, AC 2, M8-T9, E-341, E-342, E-347, E-323) 9375ms\n   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 5: 真实 spawn 零产出退出转人工、审批卡呈现与多流并置 (AC 2, E-348, E-106, E-157) 551ms\n   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74) 44717ms\n   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 7: 收口失败后的半成品工作区、转人工与解析失败呈现 (AC 3, E-295, E-297) 2246ms\n   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 8: 真实浏览器状态驱动 GIF 录制完成与发布门禁架构断言 (AC 4, E-265) 18742ms\n\n Test Files  1 passed (1)\n      Tests  8 passed (8)\n   Start at  17:09:27\n   Duration  185.02s (transform 809ms, setup 0ms, collect 3.82s, tests 164.94s, environment 0ms, prepare 11.40s)\n"
+  },
+  "e2eFixCommit": "28451a4",
+  "independentVerification": {
+    "focusedPassed": 20,
+    "filtered": 58,
+    "seconds": 65.57,
+    "lintFiles": 3,
+    "metadataCorrections": [
+      "repair provenance separated from affected UI tasks",
+      "E-366 accurate admission/commit anchors"
+    ]
+  }
+}
