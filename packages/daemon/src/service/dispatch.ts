@@ -1517,18 +1517,32 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					continue;
 				}
 				if (planBatch) {
-					const staleQueued = runsRepo.listAll().filter((run) => {
-						if (run.state !== 'queued' || run.kind === 'wrapup' || !run.task_id) return false;
+					const isStaleInactiveRun = (run: RunRow): boolean => {
+						if (run.state === 'queued' && run.kind === 'wrapup') {
+							const batch = run.batch_id ? deps.batchesRepo.findById(run.batch_id) : null;
+							return batch?.doc_id === doc.id && !planBatch.wrapupRunIds.includes(run.id);
+						}
+						if (!run.task_id || (run.state !== 'queued' && run.state !== 'reworking')) return false;
 						const task = deps.tasksRepo.findById(run.task_id);
-						return task?.doc_id === doc.id && runGeneration(run) !== planBatch.generationId;
-					});
+						if (task?.doc_id !== doc.id) return false;
+						if (run.state === 'reworking') {
+							const member = planBatch.members.find((item) => item.taskId === run.task_id);
+							return (
+								run.kind === 'implement' &&
+								!!member &&
+								deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
+									member.contractHash
+							);
+						}
+						return runGeneration(run) !== planBatch.generationId;
+					};
+					const staleInactive = runsRepo.listAll().filter(isStaleInactiveRun);
 					const changedEvents: EventEnvelope[] = [];
-					const discardStaleQueued = () => {
+					const discardStaleInactive = () => {
 						if (!executionStillCurrent(doc.id, documentExecution ?? null)) return;
-						for (const stale of staleQueued) {
+						for (const stale of staleInactive) {
 							const run = runsRepo.findById(stale.id);
-							if (!run || run.state !== 'queued' || runGeneration(run) === planBatch.generationId)
-								continue;
+							if (!run || !isStaleInactiveRun(run)) continue;
 							const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
 							const laneNo = task?.lane_no ?? run.lane_no ?? null;
 							runsRepo.updateState({
@@ -1546,13 +1560,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 										kind: 'run.state_changed',
 										runId: run.id,
 										taskId: run.task_id,
-										payload: { from: 'queued', to: 'failed', reason: 'source_changed' },
+										payload: { from: run.state, to: 'failed', reason: 'source_changed' },
 									}),
 								);
 								if (laneNo !== null)
 									changedEvents.push(
 										deps.envelopeFactory.createEnvelope({
 											kind: 'lane.released',
+											runId: run.id,
+											taskId: run.task_id,
 											payload: {
 												docId: doc.id,
 												laneNo,
@@ -1565,34 +1581,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							}
 						}
 					};
-					if (staleQueued.length > 0) {
-						if (deps.unitOfWork) deps.unitOfWork.run(discardStaleQueued);
-						else discardStaleQueued();
+					if (staleInactive.length > 0) {
+						if (deps.unitOfWork) deps.unitOfWork.run(discardStaleInactive);
+						else discardStaleInactive();
 						publishPendingEvents(changedEvents, deps);
-					}
-				}
-				if (planBatch) {
-					for (const oldRun of runsRepo.listAll()) {
-						if (
-							oldRun.kind !== 'wrapup' ||
-							oldRun.state !== 'queued' ||
-							oldRun.batch_id !== planBatch.batchId ||
-							planBatch.wrapupRunIds.includes(oldRun.id)
-						)
-							continue;
-						const discard = () => {
-							if (!executionStillCurrent(doc.id, documentExecution ?? null)) return;
-							if (runsRepo.findById(oldRun.id)?.state !== 'queued') return;
-							runsRepo.updateState({
-								id: oldRun.id,
-								toState: 'failed',
-								queuedReason: 'source_changed',
-								endedAt: deps.clock.now(),
-							});
-							runsRepo.updateLaneNo?.(oldRun.id, null);
-						};
-						if (deps.unitOfWork) deps.unitOfWork.run(discard);
-						else discard();
 					}
 				}
 				const pendingTaskIds = new Set<string>();

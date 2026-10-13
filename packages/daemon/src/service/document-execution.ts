@@ -352,6 +352,10 @@ export function createDocumentExecutionService(
 		const currentTasks = current
 			? tasks.filter((task) => task.batch_id === current.batchId && task.is_removed_from_doc === 0)
 			: [];
+		const currentEvidence = current
+			? currentMemberEvidence(currentTasks, runs, deps.snapshots)
+			: { tasks: currentTasks, runs };
+		const currentLanding = summarizeBatchLanding(currentEvidence.tasks, currentEvidence.runs);
 		const blockers: DocumentExecutionBlocker[] = [];
 		const currentBatch = current ? byId.get(current.batchId) : null;
 		if (currentBatch?.state === 'awaiting_landing' || currentBatch?.state === 'done')
@@ -365,8 +369,8 @@ export function createDocumentExecutionService(
 				batchId: current?.batchId ?? null,
 				taskIds: gateTasks.map((task) => task.id),
 			});
-		const failedTasks = currentTasks.filter((task) => {
-			const latest = runs
+		const failedTasks = currentEvidence.tasks.filter((task) => {
+			const latest = currentEvidence.runs
 				.filter((run) => run.task_id === task.id && run.kind === 'implement')
 				.sort((a, b) => b.attempt_no - a.attempt_no)[0];
 			return latest && ['failed', 'aborted', 'interrupted', 'orphaned'].includes(latest.state);
@@ -379,8 +383,8 @@ export function createDocumentExecutionService(
 			});
 		if (
 			currentBatch?.state === 'running' &&
-			currentTasks.length > 0 &&
-			summarizeBatchLanding(currentTasks, runs).allInHead &&
+			currentEvidence.tasks.length > 0 &&
+			currentLanding.allInHead &&
 			parsePipelineSettings(deps.settings?.get('pipeline')?.value_json).wrapupMode === 'manual'
 		)
 			blockers.push({ code: 'wrapup_manual', batchId: current?.batchId ?? null, taskIds: [] });
@@ -444,8 +448,8 @@ export function createDocumentExecutionService(
 			blockers.push({ code: 'legacy_batches_active', batchId: null, taskIds: [] });
 		const assignment = row ? parseAssignment(row.default_assignment_json) : null;
 		if (assignment) {
-			const pendingTaskKeys = new Set(summarizeBatchLanding(currentTasks, runs).notLandedTaskKeys);
-			const affected = currentTasks
+			const pendingTaskKeys = new Set(currentLanding.notLandedTaskKeys);
+			const affected = currentEvidence.tasks
 				.filter((task) => pendingTaskKeys.has(task.task_key))
 				.filter((task) => {
 					const agentId =

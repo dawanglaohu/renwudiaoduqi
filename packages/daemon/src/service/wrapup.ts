@@ -504,8 +504,6 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			if (!batch) {
 				throw new AppError('E_NOT_FOUND', `Batch not found: ${batchId}`);
 			}
-			const executionPlan = currentPlanBatch(batchId, batch.doc_id);
-
 			// Idempotency check: duplicate idempotencyKey returns 409 E_RUN_ALREADY_EXISTS with details.run (AC 5, 10 节)
 			if (idempotencyKey && idempotencyKey.trim().length > 0) {
 				const existingRun = deps.runsRepo.findByIdempotencyKey(idempotencyKey.trim());
@@ -519,6 +517,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					);
 				}
 			}
+			const executionPlan = currentPlanBatch(batchId, batch.doc_id);
 
 			// Mode validation (AC 6, E-312, E-318):
 			// triggerWrapup({trigger:'auto'}) in manual mode throws E_PIPELINE_STAGE_DISABLED{stage:'wrapup'}。

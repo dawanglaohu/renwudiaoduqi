@@ -1852,6 +1852,7 @@ describe('M8-T12 document execution through the real container', () => {
 		});
 		const oldRunId = old?.run.id ?? '';
 		expect(container.repos.runs.findById(oldRunId)?.state).toBe('queued');
+		container.repos.runs.updateLaneNo?.(oldRunId, 1);
 		writeTasksDocsData(docsPath, [
 			{ id: 'M1-T1', hash: 'contract-1' },
 			{ id: 'M1-T2', hash: 'contract-2' },
@@ -1874,11 +1875,17 @@ describe('M8-T12 document execution through the real container', () => {
 			},
 		});
 		expect(resume.statusCode, resume.body).toBe(200);
+		const beforeReconcile = container.events.ringBuffer.latest()?.id ?? 0;
 		await container.services.dispatch.tick();
 		expect(container.repos.runs.findById(oldRunId)).toMatchObject({
 			state: 'failed',
 			queued_reason: 'source_changed',
 		});
+		const reconciliationEvents = container.events.ringBuffer
+			.getAll()
+			.filter((event) => event.id > beforeReconcile && event.runId === oldRunId);
+		expect(reconciliationEvents.some((event) => event.kind === 'run.state_changed')).toBe(true);
+		expect(reconciliationEvents.some((event) => event.kind === 'lane.released')).toBe(true);
 		expect(container.repos.batches.findById(batch.id)?.state).toBe('running');
 		await server.instance.close();
 	});
@@ -2261,6 +2268,122 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('R1: changed-contract work reports an unavailable Agent despite old landed history', async () => {
+		let available = true;
+		const env = await setup({ canDispatch: () => available });
+		const { server, container, headers, docId, docsPath } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) return;
+		seedImplementationRun(env, {
+			id: 'r1-availability-old-landed',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		const url = `/api/v1/documents/${docId}/execution`;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
+		const refreshed = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refreshed.statusCode, refreshed.body).toBe(200);
+		available = false;
+		const resumed = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resumed.statusCode, resumed.body).toBe(200);
+		expect(resumed.json().execution.blockers).toContainEqual({
+			code: 'agent_unavailable',
+			batchId: batch.id,
+			taskIds: [task.id],
+		});
+		expect(container.repos.runs.findById('r1-availability-old-landed')?.state).toBe('landed');
+		await server.instance.close();
+	});
+
+	it('R1: stale reworking implementation cannot replace the changed contract', async () => {
+		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+		const { server, container, headers, docId, docsPath } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) return;
+		seedImplementationRun(env, {
+			id: 'r1-stale-rework',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		container.repos.runs.updateState({ id: 'r1-stale-rework', toState: 'reworking' });
+		const url = `/api/v1/documents/${docId}/execution`;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
+		const refreshed = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refreshed.statusCode, refreshed.body).toBe(200);
+		const resumed = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resumed.statusCode, resumed.body).toBe(200);
+		container.repos.dispatchSnapshots?.updateTaskChangedFlags(task.id, {
+			hasAcceptChanged: false,
+			hasPromptChanged: false,
+		});
+		const tick = await container.services.dispatch.tick();
+		expect(tick.runsDispatched).toHaveLength(1);
+		const next = container.repos.runs.findById(tick.runsDispatched[0] ?? '');
+		expect(next?.kind).toBe('implement');
+		expect(next?.id).not.toBe('r1-stale-rework');
+		expect(
+			container.repos.dispatchSnapshots?.findById(next?.snapshot_id ?? '')?.contract_hash,
+		).toBe('contract-2');
+		expect(container.repos.runs.findById('r1-stale-rework')?.state).toBe('failed');
+		await server.instance.close();
+	});
+
 	it('R2: removed unlanded member cannot block current wrapup and next batch', async () => {
 		let available = true;
 		const env = await setup({
@@ -2355,6 +2478,133 @@ describe('M8-T12 document execution through the real container', () => {
 		await container.services.dispatch.tick();
 		expect(container.repos.batches.findById(second.id)?.state).toBe('running');
 		expect(container.repos.runs.findById('r2-landed')?.state).toBe('landed');
+		await server.instance.close();
+	});
+
+	it('R3: a queued wrapup from a removed batch releases its lane and publishes its failure', async () => {
+		let available = true;
+		const env = await setup({ canDispatch: () => available, withWrapupWorkspace: true });
+		const { server, container, headers, docId, docsPath } = env;
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2', deps: ['M1-T1'] },
+			{ id: 'M1-T3', hash: 'contract-3', deps: ['M1-T2'] },
+		]);
+		const refresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refresh.statusCode, refresh.body).toBe(200);
+		const [first, second] = container.repos.batches.listByDocId(docId);
+		const firstTask = container.repos.tasks.listByDocId(docId).find((t) => t.task_key === 'M1-T1');
+		const secondTask = container.repos.tasks.listByDocId(docId).find((t) => t.task_key === 'M1-T2');
+		if (!first || !second || !firstTask || !secondTask) return;
+		container.repos.documents.updateLaneCount(docId, 1);
+		seedImplementationRun(env, {
+			id: 'r3-first-landed',
+			taskId: firstTask.id,
+			batchId: first.id,
+			attemptNo: 1,
+			contractHash: firstTask.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		const firstFingerprint = membershipFingerprint(
+			[{ taskKey: firstTask.task_key, contractHash: firstTask.contract_hash }],
+			(value) => createHash('sha256').update(value, 'utf8').digest('hex'),
+		);
+		seedWrapupRun(env, {
+			id: 'r3-first-wrapup',
+			batchId: first.id,
+			attemptNo: 1,
+			state: 'landed',
+			inputText: JSON.stringify({
+				generationId: 0,
+				membershipFingerprint: firstFingerprint,
+				members: [{ task_key: firstTask.task_key, contractHash: firstTask.contract_hash }],
+			}),
+			contractHash: firstFingerprint,
+			createdAt: '2026-10-12T08:00:00.000Z',
+		});
+		seedWrapupVerdict(env, {
+			id: 'r3-first-clean',
+			batchId: first.id,
+			runId: 'r3-first-wrapup',
+			round: 1,
+			verdict: 'clean',
+			createdAt: '2026-10-12T08:00:00.000Z',
+		});
+		await container.services.batch?.transitionBatch(first.id, 'running', 'legacy_start');
+		await container.services.batch?.transitionBatch(first.id, 'wrapping', 'legacy_wrapup');
+		await container.services.batch?.transitionBatch(first.id, 'done', 'legacy_clean');
+		seedImplementationRun(env, {
+			id: 'r3-second-landed',
+			taskId: secondTask.id,
+			batchId: second.id,
+			attemptNo: 1,
+			contractHash: secondTask.contract_hash,
+			createdAt: '2026-10-12T09:00:00.000Z',
+		});
+		const url = `/api/v1/documents/${docId}/execution`;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		expect(started.json().execution.currentBatchId).toBe(second.id);
+		const oldWrapup = await container.services.wrapup?.triggerWrapup({
+			batchId: second.id,
+			trigger: 'manual',
+		});
+		const oldRunId = oldWrapup?.run.id ?? '';
+		expect(container.repos.runs.findById(oldRunId)?.state).toBe('queued');
+		container.repos.runs.updateLaneNo?.(oldRunId, 1);
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T3', hash: 'contract-3' },
+		]);
+		const changed = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(changed.statusCode, changed.body).toBe(200);
+		available = false;
+		const resumed = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resumed.statusCode, resumed.body).toBe(200);
+		expect(resumed.json().execution.currentBatchId).toBe(first.id);
+		const beforeReconcile = container.events.ringBuffer.latest()?.id ?? 0;
+		await container.services.dispatch.tick();
+		expect(container.repos.runs.findById(oldRunId)).toMatchObject({
+			state: 'failed',
+			queued_reason: 'source_changed',
+			lane_no: null,
+		});
+		const events = container.events.ringBuffer
+			.getAll()
+			.filter((event) => event.id > beforeReconcile);
+		expect(
+			events.some((event) => event.kind === 'run.state_changed' && event.runId === oldRunId),
+		).toBe(true);
+		expect(events.some((event) => event.kind === 'lane.released' && event.runId === oldRunId)).toBe(
+			true,
+		);
 		await server.instance.close();
 	});
 
@@ -2630,6 +2880,60 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(container.repos.runs.listAll()).toHaveLength(0);
 		expect(getSpawnedRuns()).toHaveLength(0);
 		expect(container.services.documentExecution.get(docId).execution.state).toBe('paused');
+		await server.instance.close();
+	});
+
+	it('E-361: a lost manual-wrapup response remains discoverable after document pause', async () => {
+		const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
+		const { server, container, headers, docId } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) return;
+		seedImplementationRun(env, {
+			id: 'manual-wrapup-task',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		const url = `/api/v1/documents/${docId}/execution`;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const first = await container.services.wrapup?.triggerWrapup({
+			batchId: batch.id,
+			trigger: 'manual',
+			idempotencyKey: 'wrapup-lost-response',
+		});
+		const pause = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/pause`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+			},
+		});
+		expect(pause.statusCode, pause.body).toBe(200);
+		await expect(
+			container.services.wrapup?.triggerWrapup({
+				batchId: batch.id,
+				trigger: 'manual',
+				idempotencyKey: 'wrapup-lost-response',
+			}),
+		).rejects.toMatchObject({
+			code: 'E_RUN_ALREADY_EXISTS',
+			details: { run: { id: first?.run.id } },
+		});
+		expect(container.repos.runs.listWrapupsByBatchId?.(batch.id)).toHaveLength(1);
 		await server.instance.close();
 	});
 });
