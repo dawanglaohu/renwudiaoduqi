@@ -168,11 +168,13 @@ describe('M8-T3 Dispatch & Batch Progression Contract', () => {
 
 	function seedSnapshot(taskId: string): string {
 		const id = `snap_${idCounter++}`;
+		const task = tasksRepo.findById(taskId);
+		expect(task).not.toBeNull();
 		dispatchSnapshotsRepo.insert({
 			id,
 			task_id: taskId,
-			contract_hash: 'hash-test',
-			task_paths_json: '[]',
+			contract_hash: task?.contract_hash ?? 'hash-test',
+			task_paths_json: task?.task_paths_json ?? '[]',
 			launch_spec_json: '{}',
 			created_at: testTime,
 		});

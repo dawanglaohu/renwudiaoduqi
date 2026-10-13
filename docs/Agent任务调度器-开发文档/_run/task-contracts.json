@@ -1801,6 +1801,7 @@
         "packages/daemon/src/repo/document-executions.ts",
         "packages/daemon/src/repo/batches.ts",
         "packages/daemon/src/repo/tasks.ts",
+        "packages/daemon/src/repo/batch-wrapups.ts",
         "packages/daemon/src/service/run.ts",
         "packages/daemon/src/http/routes/snapshot.ts",
         "packages/daemon/src/http/routes/batches.ts",

@@ -429,6 +429,7 @@ export function createContainer(input: {
 
 	if (input.bootstrapPairing !== false) pairingService.bootstrapIfNeeded();
 
+	const documentExecutionHolder: { current?: DocumentExecutionService } = {};
 	const docsService =
 		input.docsService ??
 		createDocsService({
@@ -438,6 +439,8 @@ export function createContainer(input: {
 			tasksRepo: tasks,
 			batchesRepo: batches,
 			dispatchSnapshotsRepo: dispatchSnapshots,
+			reopenCompletedExecutionInTx: (docId) =>
+				documentExecutionHolder.current?.reopenCompletedOnRefreshInTx(docId),
 			db: input.database,
 			unitOfWork,
 			clock: input.clock,
@@ -626,6 +629,9 @@ export function createContainer(input: {
 	const wrapupService =
 		input.wrapupService ??
 		createWrapupService({
+			documentExecutionsRepo: documentExecutions,
+			publishDocumentExecutionChange: (docId, previousVersion) =>
+				documentExecutionHolder.current?.publishIfVersionChanged(docId, previousVersion),
 			batchesRepo: batches,
 			tasksRepo: tasks,
 			runsRepo: runs,
@@ -928,12 +934,12 @@ export function createContainer(input: {
 			throw error;
 		}
 	}
-	const documentExecutionHolder: { current?: DocumentExecutionService } = {};
 
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
 			documentExecutionsRepo: documentExecutions,
+			advanceDocumentExecution: (docId) => documentExecutionHolder.current?.advanceRunning(docId),
 			listDocumentExecutions: () => documentExecutionHolder.current?.list() ?? [],
 			validateWorkspace: (docId, taskIds) => docsService.validateWorkspace(docId, taskIds),
 			validateSourceAtCommit: (docId, taskIds) =>
@@ -1051,6 +1057,7 @@ export function createContainer(input: {
 		input.documentExecutionService ??
 		createDocumentExecutionService({
 			executions: documentExecutions,
+			settings,
 			documents,
 			batches,
 			tasks,

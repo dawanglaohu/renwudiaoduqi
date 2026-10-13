@@ -18,6 +18,7 @@ import {
 	sameAssignment,
 } from '../domain/document-execution.ts';
 import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
+import { parsePipelineSettings } from '../domain/pipeline-settings.ts';
 import { AppError } from '../errors/app-error.ts';
 import type { EventBus } from '../events/bus.ts';
 import type { EnvelopeFactory } from '../events/envelope.ts';
@@ -27,6 +28,7 @@ import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentExecutionRow, DocumentExecutionsRepo } from '../repo/document-executions.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { RunRow, RunsRepo } from '../repo/runs.ts';
+import type { SettingsRepo } from '../repo/settings.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
 import { parseAssignmentDraft } from './assignments.ts';
 import type { BatchService, TransitionBatchInTxResult } from './batch.ts';
@@ -39,6 +41,7 @@ export interface DocumentExecutionDeps {
 	readonly runs: RunsRepo;
 	readonly snapshots: DispatchSnapshotsRepo;
 	readonly wrapups: BatchWrapupsRepo;
+	readonly settings?: SettingsRepo;
 	readonly batchService: BatchService;
 	readonly unitOfWork: UnitOfWork;
 	readonly clock: { readonly now: () => string };
@@ -77,6 +80,8 @@ export interface DocumentExecutionService {
 		actorDeviceId?: string | null,
 	) => Promise<DocumentExecutionResponse>;
 	readonly pauseRunningOnRestart: () => void;
+	readonly reopenCompletedOnRefreshInTx: (docId: string) => void;
+	readonly advanceRunning: (docId: string) => void;
 	readonly publishIfVersionChanged: (
 		docId: string,
 		previousVersion: number,
@@ -116,6 +121,62 @@ function sameMembers(a: readonly string[], b: readonly string[]): boolean {
 	return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+export function currentMemberEvidence(
+	tasks: readonly TaskRow[],
+	runs: readonly RunRow[],
+	snapshots: Pick<DispatchSnapshotsRepo, 'findById'>,
+): { readonly tasks: readonly TaskRow[]; readonly runs: readonly RunRow[] } {
+	const members = tasks.filter((task) => task.is_removed_from_doc === 0);
+	const byId = new Map(members.map((task) => [task.id, task]));
+	const currentRuns = runs.filter((run) => {
+		if (run.kind !== 'implement' || !run.task_id) return false;
+		if (run.state === 'failed' && run.queued_reason === 'source_changed') return false;
+		const task = byId.get(run.task_id);
+		if (!task) return false;
+		if (
+			run.batch_id !== task.batch_id &&
+			['failed', 'aborted', 'interrupted', 'orphaned'].includes(run.state)
+		)
+			return false;
+		return snapshots.findById(run.snapshot_id)?.contract_hash === task.contract_hash;
+	});
+	const acceptedTaskIds = new Set(
+		currentRuns.filter((run) => run.state === 'landed').map((run) => run.task_id),
+	);
+	const currentHumanTaskIds = new Set(
+		currentRuns
+			.filter(
+				(run) =>
+					run.state === 'awaiting_human' &&
+					run.task_id &&
+					run.batch_id === byId.get(run.task_id)?.batch_id,
+			)
+			.map((run) => run.task_id),
+	);
+	const staleHumanTaskIds = new Set<string>();
+	for (const run of runs) {
+		if (run.kind !== 'implement' || run.state !== 'awaiting_human' || !run.task_id) continue;
+		const member = byId.get(run.task_id);
+		if (
+			member &&
+			(run.batch_id !== member.batch_id ||
+				snapshots.findById(run.snapshot_id)?.contract_hash !== member.contract_hash)
+		)
+			staleHumanTaskIds.add(run.task_id);
+	}
+	return {
+		tasks: members.map((task) =>
+			(task.manual_state === 'landed' && !acceptedTaskIds.has(task.id)) ||
+			(task.manual_state === 'awaiting_human' &&
+				staleHumanTaskIds.has(task.id) &&
+				!currentHumanTaskIds.has(task.id))
+				? { ...task, manual_state: null }
+				: task,
+		),
+		runs: currentRuns,
+	};
+}
+
 function buildPlanFromRows(
 	batches: readonly BatchRow[],
 	tasks: readonly TaskRow[],
@@ -147,7 +208,7 @@ export function createDocumentExecutionService(
 		return doc;
 	}
 
-	function evidenceIsValid(
+	function completionMatchesMembers(
 		entry: DocumentPlanBatch,
 		batch: BatchRow,
 		tasks: readonly TaskRow[],
@@ -175,11 +236,33 @@ export function createDocumentExecutionService(
 		}
 		const taskKeys = tasks.map((task) => task.task_key).sort();
 		if (!Array.isArray(covered) || !sameMembers(covered, taskKeys)) return false;
-		if (!summarizeBatchLanding(tasks, runs).allInHead) return false;
-		const wrapupRun = deps.runs.findById(wrapup.run_id);
+		const evidence = currentMemberEvidence(tasks, runs, deps.snapshots);
+		if (!summarizeBatchLanding(evidence.tasks, evidence.runs).allLanded) return false;
+		return evidence.tasks.every((task) =>
+			evidence.runs.some(
+				(run) =>
+					run.task_id === task.id &&
+					run.kind === 'implement' &&
+					run.state === 'landed' &&
+					deps.snapshots.findById(run.snapshot_id)?.contract_hash === task.contract_hash,
+			),
+		);
+	}
+
+	function evidenceIsValid(
+		entry: DocumentPlanBatch,
+		batch: BatchRow,
+		tasks: readonly TaskRow[],
+		runs: readonly RunRow[],
+	): boolean {
+		if (!completionMatchesMembers(entry, batch, tasks, runs)) return false;
+		const evidence = currentMemberEvidence(tasks, runs, deps.snapshots);
+		if (!summarizeBatchLanding(evidence.tasks, evidence.runs).allInHead) return false;
+		const wrapup = deps.wrapups.findById(entry.completion?.wrapupId ?? '');
+		const wrapupRun = wrapup ? deps.runs.findById(wrapup.run_id) : null;
 		if (!wrapupRun || wrapupRun.is_in_head !== 1) return false;
-		return tasks.every((task) =>
-			runs.some((run) => {
+		return evidence.tasks.every((task) =>
+			evidence.runs.some((run) => {
 				if (
 					run.task_id !== task.id ||
 					run.kind !== 'implement' ||
@@ -191,6 +274,42 @@ export function createDocumentExecutionService(
 				return snapshot?.contract_hash === task.contract_hash;
 			}),
 		);
+	}
+
+	function adoptCurrentCompletion(
+		entry: DocumentPlanBatch,
+		batch: BatchRow,
+		tasks: readonly TaskRow[],
+		runs: readonly RunRow[],
+	): DocumentPlanBatch {
+		if (batch.state !== 'done' || entry.completion) return entry;
+		const latest = deps.wrapups
+			.listByBatchId(batch.id)
+			.filter((record) => entry.wrapupRunIds.includes(record.run_id))
+			.at(-1);
+		if (!latest || (latest.verdict !== 'clean' && latest.verdict !== 'fixed')) return entry;
+		const wrapupRun = deps.runs.findById(latest.run_id);
+		const snapshot = wrapupRun ? deps.snapshots.findById(wrapupRun.snapshot_id) : null;
+		let frozen: { generationId?: number; membershipFingerprint?: string } | null = null;
+		try {
+			frozen = JSON.parse(snapshot?.input_text ?? 'null');
+		} catch {
+			return entry;
+		}
+		if (
+			frozen?.generationId !== entry.generationId ||
+			frozen.membershipFingerprint !== entry.membershipFingerprint ||
+			snapshot?.contract_hash !== entry.membershipFingerprint
+		)
+			return entry;
+		const candidate = {
+			...entry,
+			completion: {
+				wrapupId: latest.id,
+				completionFingerprint: frozen.membershipFingerprint,
+			},
+		};
+		return completionMatchesMembers(candidate, batch, tasks, runs) ? candidate : entry;
 	}
 
 	function adoptLegacyEvidence(
@@ -323,7 +442,75 @@ export function createDocumentExecutionService(
 		const currentTasks = current
 			? tasks.filter((task) => task.batch_id === current.batchId && task.is_removed_from_doc === 0)
 			: [];
+		const currentEvidence = current
+			? currentMemberEvidence(currentTasks, runs, deps.snapshots)
+			: { tasks: currentTasks, runs };
+		const currentLanding = summarizeBatchLanding(currentEvidence.tasks, currentEvidence.runs);
 		const blockers: DocumentExecutionBlocker[] = [];
+		const currentBatch = current ? byId.get(current.batchId) : null;
+		if (currentBatch?.state === 'awaiting_landing' || currentBatch?.state === 'done')
+			blockers.push({ code: 'awaiting_landing', batchId: current?.batchId ?? null, taskIds: [] });
+		if (currentBatch?.state === 'needs_attention')
+			blockers.push({ code: 'wrapup_attention', batchId: current?.batchId ?? null, taskIds: [] });
+		const gateTasks = currentEvidence.tasks.filter(
+			(task) => task.manual_state === 'awaiting_human',
+		);
+		if (gateTasks.length)
+			blockers.push({
+				code: 'gate_waiting',
+				batchId: current?.batchId ?? null,
+				taskIds: gateTasks.map((task) => task.id),
+			});
+		const failedTasks = currentEvidence.tasks.filter((task) => {
+			const latest = currentEvidence.runs
+				.filter((run) => run.task_id === task.id && run.kind === 'implement')
+				.sort((a, b) => b.attempt_no - a.attempt_no)[0];
+			return latest && ['failed', 'aborted', 'interrupted', 'orphaned'].includes(latest.state);
+		});
+		if (failedTasks.length)
+			blockers.push({
+				code: 'task_failed',
+				batchId: current?.batchId ?? null,
+				taskIds: failedTasks.map((task) => task.id),
+			});
+		if (
+			currentBatch?.state === 'running' &&
+			currentEvidence.tasks.length > 0 &&
+			currentLanding.allInHead &&
+			parsePipelineSettings(deps.settings?.get('pipeline')?.value_json).wrapupMode === 'manual'
+		)
+			blockers.push({ code: 'wrapup_manual', batchId: current?.batchId ?? null, taskIds: [] });
+		if (current) {
+			const oldSourceRuns = runs
+				.filter(
+					(run) =>
+						((run.batch_id && deps.batches.findById(run.batch_id)?.doc_id === doc.id) ||
+							(run.task_id && deps.tasks.findById(run.task_id)?.doc_id === doc.id)) &&
+						(run.state === 'starting' || run.state === 'running'),
+				)
+				.filter((run) => {
+					if (run.batch_id !== current.batchId) return true;
+					if (run.kind === 'wrapup') return !current.wrapupRunIds.includes(run.id);
+					const snapshot = deps.snapshots.findById(run.snapshot_id);
+					try {
+						const launch = JSON.parse(snapshot?.launch_spec_json ?? '{}') as {
+							documentGenerationId?: number;
+						};
+						return (launch.documentGenerationId ?? 0) !== current.generationId;
+					} catch {
+						return current.generationId !== 0;
+					}
+				});
+			const sourceRunIds = oldSourceRuns
+				.map((run) => run.task_id)
+				.filter((taskId): taskId is string => taskId !== null);
+			if (oldSourceRuns.length)
+				blockers.push({
+					code: 'source_runs_pending',
+					batchId: current.batchId,
+					taskIds: sourceRunIds,
+				});
+		}
 		if (doc.is_source_readable !== 1)
 			blockers.push({ code: 'source_unreadable', batchId: current?.batchId ?? null, taskIds: [] });
 		if (row?.state === 'paused' && row.pause_reason === 'doc_changed')
@@ -355,8 +542,8 @@ export function createDocumentExecutionService(
 			blockers.push({ code: 'legacy_batches_active', batchId: null, taskIds: [] });
 		const assignment = row ? parseAssignment(row.default_assignment_json) : null;
 		if (assignment) {
-			const pendingTaskKeys = new Set(summarizeBatchLanding(currentTasks, runs).notLandedTaskKeys);
-			const affected = currentTasks
+			const pendingTaskKeys = new Set(currentLanding.notLandedTaskKeys);
+			const affected = currentEvidence.tasks
 				.filter((task) => pendingTaskKeys.has(task.task_key))
 				.filter((task) => {
 					const agentId =
@@ -405,6 +592,154 @@ export function createDocumentExecutionService(
 	function currentResponse(docId: string): DocumentExecutionResponse {
 		const doc = requireDocument(docId);
 		return { execution: toDto(doc, deps.executions.findByDocId(docId)) };
+	}
+
+	function reopenCompletedOnRefreshInTx(docId: string): void {
+		const row = deps.executions.findByDocId(docId);
+		if (row?.state !== 'completed') return;
+		const stored = parsePlan(row.plan_json);
+		const observed = buildPlanFromRows(
+			deps.batches.listByDocId(docId),
+			deps.tasks.listByDocId(docId),
+			row.version,
+			stored,
+		);
+		if (
+			observed.length === stored.length &&
+			observed.every(
+				(entry, index) =>
+					entry.batchId === stored[index]?.batchId &&
+					entry.membershipFingerprint === stored[index]?.membershipFingerprint,
+			)
+		)
+			return;
+		deps.executions.save({
+			...row,
+			state: 'idle',
+			version: row.version + 1,
+			pause_reason: 'doc_changed',
+			current_batch_id: null,
+			completed_at: null,
+			updated_at: deps.clock.now(),
+		});
+	}
+
+	function advanceRunning(docId: string): void {
+		const beforeSourceCheck = deps.executions.findByDocId(docId);
+		if (beforeSourceCheck?.state !== 'running') return;
+		try {
+			deps.validateSourceAtCommit(docId);
+		} catch (error) {
+			if (
+				!(error instanceof AppError) ||
+				(error.code !== 'E_DOC_SOURCE_UNREADABLE' && error.code !== 'E_SNAPSHOT_STALE')
+			)
+				throw error;
+			deps.unitOfWork.run(() => {
+				const row = deps.executions.findByDocId(docId);
+				if (row?.state !== 'running') return;
+				deps.executions.save({
+					...row,
+					state: 'paused',
+					pause_reason:
+						error.code === 'E_DOC_SOURCE_UNREADABLE' ? 'source_unreadable' : 'doc_changed',
+					version: row.version + 1,
+					updated_at: deps.clock.now(),
+				});
+			});
+			publishIfVersionChanged(docId, beforeSourceCheck.version);
+			return;
+		}
+		const batchEvents: TransitionBatchInTxResult[] = [];
+		let changed = false;
+		deps.unitOfWork.run(() => {
+			const row = deps.executions.findByDocId(docId);
+			if (row?.state !== 'running') return;
+			const doc = requireDocument(docId);
+			if (doc.is_source_readable !== 1 || doc.content_fingerprint !== row.content_fingerprint) {
+				deps.executions.save({
+					...row,
+					state: 'paused',
+					pause_reason: doc.is_source_readable === 1 ? 'doc_changed' : 'source_unreadable',
+					version: row.version + 1,
+					updated_at: deps.clock.now(),
+				});
+				changed = true;
+				return;
+			}
+			const batches = deps.batches.listByDocId(docId);
+			const tasks = deps.tasks.listByDocId(docId);
+			const runs = deps.runs.listAll();
+			const stored = parsePlan(row.plan_json);
+			const observed = buildPlanFromRows(batches, tasks, row.version, stored);
+			if (
+				observed.length !== stored.length ||
+				observed.some(
+					(entry, index) =>
+						entry.batchId !== stored[index]?.batchId ||
+						entry.membershipFingerprint !== stored[index]?.membershipFingerprint,
+				)
+			) {
+				deps.executions.save({
+					...row,
+					state: 'paused',
+					pause_reason: 'doc_changed',
+					version: row.version + 1,
+					updated_at: deps.clock.now(),
+				});
+				changed = true;
+				return;
+			}
+			const byId = new Map(batches.map((batch) => [batch.id, batch]));
+			const plan = stored.map((entry) => {
+				const batch = byId.get(entry.batchId);
+				return batch
+					? adoptCurrentCompletion(
+							entry,
+							batch,
+							tasks.filter((task) => task.batch_id === batch.id && task.is_removed_from_doc === 0),
+							runs,
+						)
+					: entry;
+			});
+			const earliest = plan.find((entry) => {
+				const batch = byId.get(entry.batchId);
+				return (
+					!batch ||
+					!evidenceIsValid(
+						entry,
+						batch,
+						tasks.filter((task) => task.batch_id === batch.id && task.is_removed_from_doc === 0),
+						runs,
+					)
+				);
+			});
+			const nextBatch = earliest ? byId.get(earliest.batchId) : null;
+			if (nextBatch?.state === 'idle' || nextBatch?.state === 'paused') {
+				batchEvents.push(
+					deps.batchService.transitionBatchInTx(nextBatch.id, 'running', 'document_execution'),
+				);
+			}
+			if (
+				plan.some((entry, index) => entry.completion !== stored[index]?.completion) ||
+				row.current_batch_id !== (earliest?.batchId ?? null) ||
+				!earliest ||
+				batchEvents.length > 0
+			) {
+				const now = deps.clock.now();
+				deps.executions.save({
+					...row,
+					state: earliest ? 'running' : 'completed',
+					version: row.version + 1,
+					plan_json: JSON.stringify(plan),
+					current_batch_id: earliest?.batchId ?? null,
+					updated_at: now,
+					completed_at: earliest ? null : now,
+				});
+				changed = true;
+			}
+		});
+		if (changed) publishChanged(docId, batchEvents);
 	}
 
 	function assertVersion(
@@ -573,14 +908,13 @@ export function createDocumentExecutionService(
 			const oldPlan = row ? parsePlan(row.plan_json) : [];
 			let plan = buildPlanFromRows(batches, tasks, expectedVersion + 1, oldPlan).map((entry) => {
 				const batch = batches.find((item) => item.id === entry.batchId);
-				return batch && !oldPlan.some((item) => item.batchId === entry.batchId)
-					? adoptLegacyEvidence(
-							adoptLegacyGeneration(entry, batch, runs),
-							batch,
-							tasks.filter((task) => task.batch_id === batch.id && task.is_removed_from_doc === 0),
-							runs,
-						)
-					: entry;
+				if (!batch) return entry;
+				const members = tasks.filter(
+					(task) => task.batch_id === batch.id && task.is_removed_from_doc === 0,
+				);
+				return !oldPlan.some((item) => item.batchId === entry.batchId)
+					? adoptLegacyEvidence(adoptLegacyGeneration(entry, batch, runs), batch, members, runs)
+					: adoptCurrentCompletion(entry, batch, members, runs);
 			});
 			const active = batches.filter((batch) => ACTIVE_BATCH_STATES.has(batch.state));
 			if (active.length > 1)
@@ -614,7 +948,7 @@ export function createDocumentExecutionService(
 				);
 				const old = oldById.get(batch.id);
 				const changedMembers = !!old && old.membershipFingerprint !== entry.membershipFingerprint;
-				const valid = evidenceIsValid(entry, batch, members, runs);
+				const valid = completionMatchesMembers(entry, batch, members, runs);
 				if (
 					(batch.state === 'done' && !valid) ||
 					(ACTIVE_BATCH_STATES.has(batch.state) && changedMembers)
@@ -738,6 +1072,8 @@ export function createDocumentExecutionService(
 			});
 			for (const id of ids) publishChanged(id, []);
 		},
+		reopenCompletedOnRefreshInTx,
+		advanceRunning,
 		publishIfVersionChanged,
 	});
 }
