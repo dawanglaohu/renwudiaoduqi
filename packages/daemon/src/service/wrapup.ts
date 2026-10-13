@@ -1198,7 +1198,14 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			if (execution?.state !== 'running' || !execution.current_batch_id) return;
 			const batch = deps.batchesRepo.findById(execution.current_batch_id);
 			if (batch?.state !== 'running') return;
-			const report = deps.batchWrapupsRepo.findLatestByBatchId(batch.id);
+			const entry = (JSON.parse(execution.plan_json) as DocumentPlan).find(
+				(item) => item.batchId === batch.id,
+			);
+			if (!entry) return;
+			const report = deps.batchWrapupsRepo
+				.listByBatchId(batch.id)
+				.filter((item) => entry.wrapupRunIds.includes(item.run_id))
+				.at(-1);
 			if (report?.verdict !== 'open' || report.fix_run_ids_json !== '[]') return;
 			const run = deps.runsRepo.findById(report.run_id);
 			if (run?.state !== 'landed' || !isCurrentGeneration(run)) return;

@@ -65,9 +65,9 @@ import { publishCompletionEvents } from '../events/publish-completion.ts';
 import { publishPendingEvents } from '../events/publish-pending.ts';
 import type { LaunchSpec, ManagedProcess, SpawnManagedOptions } from '../proc/spawn.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
-import type { BatchesRepo } from '../repo/batches.ts';
+import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
-import type { DocumentExecutionsRepo } from '../repo/document-executions.ts';
+import type { DocumentExecutionRow, DocumentExecutionsRepo } from '../repo/document-executions.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
 import type { EventSeqRepo } from '../repo/event-seq-repo.ts';
 import type { GatesRepo } from '../repo/gates.ts';
@@ -345,6 +345,53 @@ function resolveConstraintConflict(
 	return fallback();
 }
 
+export function isExecutionStillCurrent(
+	observed: DocumentExecutionRow | null,
+	current: DocumentExecutionRow | null,
+	doc: DocumentRow | null,
+	batches: readonly BatchRow[],
+	tasks: readonly TaskRow[],
+): boolean {
+	if (!observed) return !current;
+	if (
+		current?.state !== observed.state ||
+		current.version !== observed.version ||
+		current.current_batch_id !== observed.current_batch_id ||
+		(current.state !== 'running' && current.state !== 'idle')
+	)
+		return false;
+	if (current.state !== 'running') return true;
+	if (doc?.is_source_readable !== 1 || doc.content_fingerprint !== current.content_fingerprint)
+		return false;
+	let plan: readonly DocumentPlanBatch[];
+	try {
+		const parsed: unknown = JSON.parse(current.plan_json);
+		if (!Array.isArray(parsed)) return false;
+		plan = parsed as readonly DocumentPlanBatch[];
+	} catch {
+		return false;
+	}
+	const members = tasks.filter((task) => task.is_removed_from_doc === 0 && task.batch_id);
+	const batchIds = new Set(members.map((task) => task.batch_id));
+	if (plan.length !== batchIds.size) return false;
+	return plan.every((entry) => {
+		const batch = batches.find((item) => item.id === entry.batchId);
+		if (!batch || batch.batch_no !== entry.batchNo) return false;
+		const currentMembers = members.filter((task) => task.batch_id === batch.id);
+		return (
+			currentMembers.length === entry.members.length &&
+			currentMembers.every((task) =>
+				entry.members.some(
+					(member) =>
+						member.taskId === task.id &&
+						member.taskKey === task.task_key &&
+						member.contractHash === task.contract_hash,
+				),
+			)
+		);
+	});
+}
+
 export function createDispatchService(deps: DispatchServiceDeps): DispatchService {
 	const logFailure = deps.logFailure ?? (() => undefined);
 	const runsRepo = deps.runsRepo;
@@ -500,13 +547,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		docId: string,
 		observed: ReturnType<DocumentExecutionsRepo['findByDocId']>,
 	): boolean {
-		const current = deps.documentExecutionsRepo?.findByDocId(docId);
-		if (!observed) return !current;
-		return (
-			current?.state === observed.state &&
-			current.version === observed.version &&
-			current.current_batch_id === observed.current_batch_id &&
-			(current.state === 'running' || current.state === 'idle')
+		return isExecutionStillCurrent(
+			observed,
+			deps.documentExecutionsRepo?.findByDocId(docId) ?? null,
+			deps.documentsRepo.findById(docId),
+			deps.batchesRepo.listByDocId(docId),
+			deps.tasksRepo.listByDocId(docId),
 		);
 	}
 
