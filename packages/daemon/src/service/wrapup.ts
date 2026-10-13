@@ -864,8 +864,8 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			}
 
 			// 6. Assemble wrapup prompt (AC 3, E-285, E-296)
-			const latestImplRunByTaskId = latestImplementationRunByTaskId(deps.runsRepo.listAll());
-			const taskItems: WrapupTaskItem[] = tasks.map((t) => {
+			const latestImplRunByTaskId = latestImplementationRunByTaskId(evidence.runs);
+			const taskItems: WrapupTaskItem[] = evidence.tasks.map((t) => {
 				const run = latestImplRunByTaskId.get(t.id);
 				return {
 					taskId: t.id,
@@ -1427,26 +1427,30 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			const effectiveVerdict = parsed.verdict;
 			const nextValidRound = deps.batchWrapupsRepo.getMaxRound(batchId) + 1;
 			const execution = deps.documentExecutionsRepo?.findByDocId(batch.doc_id);
+			const planEntry =
+				execution && execution.state !== 'idle'
+					? (JSON.parse(execution.plan_json) as DocumentPlan).find(
+							(item) => item.batchId === batchId,
+						)
+					: null;
 			let generationRound = nextValidRound;
-			if (execution && execution.state !== 'idle') {
-				const plan = JSON.parse(execution.plan_json) as DocumentPlan;
-				const entry = plan.find((item) => item.batchId === batchId);
-				if (entry) {
-					generationRound =
-						new Set(
-							deps.batchWrapupsRepo
-								.listByBatchId(batchId)
-								.filter((record) => entry.wrapupRunIds.includes(record.run_id))
-								.map((record) => record.round),
-						).size + 1;
-				}
+			if (planEntry) {
+				generationRound =
+					new Set(
+						deps.batchWrapupsRepo
+							.listByBatchId(batchId)
+							.filter((record) => planEntry.wrapupRunIds.includes(record.run_id))
+							.map((record) => record.round),
+					).size + 1;
 			}
 			const wrapupRecordId = `wrapup_${deps.ids.newId().slice(0, 16)}`;
 			const tasks = deps.tasksRepo.listByBatchId(batchId);
-			const taskKeys = tasks
-				.filter((task) => task.is_removed_from_doc === 0)
-				.map((task) => task.task_key)
-				.sort();
+			const taskKeys = planEntry
+				? planEntry.members.map((member) => member.taskKey).sort()
+				: tasks
+						.filter((task) => task.is_removed_from_doc === 0)
+						.map((task) => task.task_key)
+						.sort();
 			const allFindings = [...parsed.bugs, ...parsed.notFixed];
 
 			const fixRunIds: string[] = [];
@@ -1464,7 +1468,15 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				} else {
 					// Round 1 open -> plan wrapup fixes (AC 1, AC 3, E-275, E-280, E-290)
 					const allDocTasks = deps.tasksRepo.listByDocId(batch.doc_id);
-					const knownTaskKeys = new Set(allDocTasks.map((t) => t.task_key));
+					const docEvidence = planEntry
+						? currentMemberEvidence(
+								allDocTasks,
+								deps.runsRepo.listAll(),
+								deps.dispatchSnapshotsRepo,
+							)
+						: null;
+					const fixTasks = docEvidence?.tasks ?? allDocTasks;
+					const knownTaskKeys = new Set(fixTasks.map((t) => t.task_key));
 					const planned = planWrapupFixes(parsed, { knownTaskKeys });
 					finalUnassigned = [...planned.unassigned];
 
@@ -1481,7 +1493,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					}> = [];
 
 					for (const group of planned.groups) {
-						const task = allDocTasks.find((t) => t.task_key === group.taskKey);
+						const task = fixTasks.find((t) => t.task_key === group.taskKey);
 						if (!task) {
 							for (const item of group.items) {
 								finalUnassigned.push(item.raw);
@@ -1490,7 +1502,9 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						}
 
 						const taskRuns = deps.runsRepo.listByTaskId(task.id);
-						const implRuns = taskRuns.filter((r) => r.kind === 'implement');
+						const implRuns = docEvidence
+							? docEvidence.runs.filter((r) => r.task_id === task.id)
+							: taskRuns.filter((r) => r.kind === 'implement');
 						const latestImplRun =
 							implRuns.length > 0
 								? implRuns.reduce((max, r) => (r.attempt_no > max.attempt_no ? r : max))
