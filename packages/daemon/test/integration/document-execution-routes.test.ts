@@ -3725,6 +3725,92 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it.each([
+		{ kind: 'review' as const, moved: true },
+		{ kind: 'bughunt' as const, moved: true },
+		{ kind: 'review' as const, moved: false },
+	])(
+		'E-369: $kind human stage gate follows current membership (moved=$moved)',
+		async ({ kind, moved }) => {
+			const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+			const { server, container, headers, docId, docsPath } = env;
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			const batch = container.repos.batches.listByDocId(docId)[0];
+			if (!task || !batch) return;
+			const url = `/api/v1/documents/${docId}/execution`;
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			const runId = `stage-human-${kind}`;
+			seedQueuedStageRun(env, {
+				id: runId,
+				taskId: task.id,
+				batchId: batch.id,
+				contractHash: task.contract_hash,
+				generationId: started.json().execution.wrapupProgress.generationId,
+				kind,
+			});
+			container.repos.runs.updateState({ id: runId, toState: 'awaiting_human' });
+			container.repos.tasks.updateManualState(task.id, 'awaiting_human');
+			const gateId = `gate-${runId}`;
+			container.repos.gates?.create({
+				id: gateId,
+				task_id: task.id,
+				run_id: runId,
+				kind: 'review',
+				state: 'waiting',
+				created_at: '2026-10-12T07:00:00.000Z',
+			});
+			if (moved) {
+				writeTasksDocsData(docsPath, [
+					{ id: 'M1-T2', hash: 'contract-2' },
+					{ id: 'M1-T1', hash: 'contract-1', deps: ['M1-T2'] },
+				]);
+				const refreshed = await server.instance.inject({
+					method: 'POST',
+					url: `/api/v1/documents/${docId}/refresh`,
+					headers,
+					payload: {},
+				});
+				expect(refreshed.statusCode, refreshed.body).toBe(200);
+				expect(container.repos.tasks.findById(task.id)?.batch_id).not.toBe(batch.id);
+				const resumed = await server.instance.inject({
+					method: 'POST',
+					url: `${url}/resume`,
+					headers,
+					payload: {
+						expectedVersion: container.services.documentExecution.get(docId).execution.version,
+						expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					},
+				});
+				expect(resumed.statusCode, resumed.body).toBe(200);
+			}
+			await container.services.dispatch.tick();
+			expect(container.repos.runs.findById(runId)?.state).toBe(moved ? 'failed' : 'awaiting_human');
+			expect(container.repos.gates?.findById(gateId)?.state).toBe(moved ? 'decided' : 'waiting');
+			if (moved) {
+				expect(container.repos.tasks.findById(task.id)?.manual_state).toBeNull();
+				await expect(
+					container.services.gates?.decideGate({
+						gateId,
+						decision: 'reject',
+						comment: 'Obsolete stage',
+						actorDeviceId: 'dev-1',
+					}),
+				).rejects.toMatchObject({ code: 'E_GATE_ALREADY_DECIDED' });
+			}
+			await server.instance.close();
+		},
+	);
+
 	it('R3: same-generation queued review resumes after a user pause', async () => {
 		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
 		const { server, container, headers, docId } = env;

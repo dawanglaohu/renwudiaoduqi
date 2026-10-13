@@ -1558,13 +1558,17 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 										member.contractHash)
 							);
 						}
-						if (run.state === 'awaiting_human')
+						if (run.state === 'awaiting_human') {
+							const member = planBatch.members.find((item) => item.taskId === run.task_id);
 							return (
-								run.kind === 'implement' &&
-								(run.batch_id !== task.batch_id ||
+								run.batch_id !== task.batch_id ||
+								!member ||
+								runGeneration(run) !== planBatch.generationId ||
+								(run.kind === 'implement' &&
 									deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
-										task.contract_hash)
+										member.contractHash)
 							);
+						}
 						return runGeneration(run) !== planBatch.generationId;
 					};
 					const staleInactive = runsRepo.listAll().filter(isStaleInactiveRun);
