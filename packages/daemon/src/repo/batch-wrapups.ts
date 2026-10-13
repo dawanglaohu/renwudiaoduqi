@@ -48,6 +48,7 @@ export interface BatchWrapupInsertRow {
 
 export interface BatchWrapupsRepo {
 	readonly insert: (row: BatchWrapupInsertRow) => void;
+	readonly updateFixPlan: (id: string, fixRunIdsJson: string, unassignedJson: string) => void;
 	readonly findById: (id: string) => BatchWrapupRow | null;
 	readonly findByRunId: (runId: string) => BatchWrapupRow | null;
 	readonly listByBatchId: (batchId: string) => readonly BatchWrapupRow[];
@@ -87,6 +88,10 @@ SELECT * FROM batch_wrapups WHERE batch_id = ? ORDER BY round DESC, created_at D
 
 const SELECT_MAX_ROUND_SQL = `
 SELECT COALESCE(MAX(round), 0) as max_round FROM batch_wrapups WHERE batch_id = ?
+`;
+
+const UPDATE_FIX_PLAN_SQL = `
+UPDATE batch_wrapups SET fix_run_ids_json = ?, unassigned_json = ? WHERE id = ?
 `;
 
 function freezeRow(row: BatchWrapupRow): BatchWrapupRow {
@@ -161,8 +166,16 @@ export function createBatchWrapupsRepo(db: DatabaseConnection): BatchWrapupsRepo
 	const selectByBatchIdStmt = db.prepare(SELECT_BY_BATCH_ID_SQL);
 	const selectLatestByBatchIdStmt = db.prepare(SELECT_LATEST_BY_BATCH_ID_SQL);
 	const selectMaxRoundStmt = db.prepare(SELECT_MAX_ROUND_SQL);
+	const updateFixPlanStmt = db.prepare(UPDATE_FIX_PLAN_SQL);
 
 	return Object.freeze({
+		updateFixPlan(id: string, fixRunIdsJson: string, unassignedJson: string): void {
+			try {
+				updateFixPlanStmt.run(fixRunIdsJson, unassignedJson, id);
+			} catch (cause) {
+				throw toDatabaseError(cause, `Failed to update batch_wrapup fix plan: id=${id}`);
+			}
+		},
 		insert(row: BatchWrapupInsertRow): void {
 			try {
 				insertStmt.run({

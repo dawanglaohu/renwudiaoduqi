@@ -1502,6 +1502,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					(documentExecution.state === 'paused' || documentExecution.state === 'completed')
 				)
 					continue;
+				if (documentExecution?.state === 'running')
+					await deps.wrapupService?.resumeDeferredFixes(doc.id);
 				const documentAssignment: DocumentDefaultAssignment | null =
 					documentExecution?.state === 'running' && documentExecution.default_assignment_json
 						? (JSON.parse(documentExecution.default_assignment_json) as DocumentDefaultAssignment)

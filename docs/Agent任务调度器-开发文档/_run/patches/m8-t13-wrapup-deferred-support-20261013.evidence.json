@@ -1,0 +1,29 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M8-T13": {
+      "contractHash": "64be0b929c83372fe0b29ded96b1292d7fa932c94180c965ddebe39170f28baa",
+      "verdict": "pass",
+      "evidence": [
+        "本补丁只把 packages/daemon/src/repo/batch-wrapups.ts 纳入 M8-T13 的 supportPaths；任务标题、八条验收、E-360 至 E-370 边界、前置与生产接线未降低或改写。",
+        "E-367 暂停后的开放收口须先保存报告、继续后只建一次修复运行。写入 fix_run_ids_json 与 unassigned_json 必须由 repo 层执行绑定 SQL，service 只在 unitOfWork 事务内调用；该文件是必要的精确支持路径。",
+        "真实容器回归先复现暂停后立即生成修复运行，再验证暂停时零新增、继续后一次且重复 tick 幂等；另两项暂停后 clean 收口证据与旧代人工闸门回归均为修复前失败、修复后通过。定向 document-execution 与 batch-wrapup 集成测试 102/102 通过。",
+        "任务笔记代码位置和实施沉淀已回填；本条仅复核契约与范围，代码最终落地仍以完整检查、精确提交 CI 和 PR 合并状态为准。"
+      ]
+    },
+    "M9-T30": {
+      "contractHash": "8069ee9cd5e2f0f64caec194db6c7a24889cd53fe44e33e0625e357df653660e",
+      "verdict": "pass",
+      "evidence": [
+        "M9-T30 自身任务定义、有效路径、验收和边界未变；哈希仅因前置 M8-T13 的精确支持路径传播。该任务仍为 todo，仍负责文档执行 UI 和 SSE 展示，不在本 PR 提前落地。"
+      ]
+    },
+    "M1-T12": {
+      "contractHash": "61c8d66dc2a702217e97acf5e89931e1225cd123605a14589af38b2a436b2126",
+      "verdict": "pass",
+      "evidence": [
+        "M1-T12 自身任务定义、有效路径、验收和边界未变；哈希仅因前置 M8-T13 的精确支持路径传播。该任务仍为 todo，真实浏览器与完整端到端验收仍由它承担。"
+      ]
+    }
+  }
+}

@@ -1741,6 +1741,172 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it.each([{ inHead: true }, { inHead: false }])(
+		'E-367: a clean wrapup completed during pause is adopted on resume (inHead=$inHead)',
+		async ({ inHead }) => {
+			const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
+			const { server, container, headers, docId } = env;
+			const batch = container.repos.batches.listByDocId(docId)[0];
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!batch || !task) return;
+			seedImplementationRun(env, {
+				id: 'landed-before-paused-wrapup',
+				taskId: task.id,
+				batchId: batch.id,
+				attemptNo: 1,
+				contractHash: task.contract_hash,
+				createdAt: '2026-10-12T07:00:00.000Z',
+			});
+			const url = `/api/v1/documents/${docId}/execution`;
+			const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			const wrapup = await container.services.wrapup?.triggerWrapup({
+				batchId: batch.id,
+				trigger: 'manual',
+			});
+			const runId = wrapup?.run.id ?? '';
+			container.repos.runs.updateState({ id: runId, toState: 'starting' });
+			container.repos.runs.updateState({ id: runId, toState: 'running' });
+			const paused = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/pause`,
+				headers,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				},
+			});
+			expect(paused.statusCode, paused.body).toBe(200);
+			await container.services.wrapup?.recordWrapupResult({
+				runId,
+				rawText: readFileSync(
+					join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
+					'utf8',
+				),
+			});
+			container.repos.runs.updateInHead?.({
+				id: runId,
+				isInHead: inHead ? 1 : 0,
+				checkedAt: '2026-10-12T11:00:00.000Z',
+			});
+			expect(container.repos.batches.findById(batch.id)?.state).toBe('done');
+			const resumed = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/resume`,
+				headers,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+					expectedFingerprint: fingerprint,
+				},
+			});
+			expect(resumed.statusCode, resumed.body).toBe(200);
+			expect(container.services.documentExecution.get(docId).execution.state).toBe(
+				inHead ? 'completed' : 'running',
+			);
+			expect(container.repos.batches.findById(batch.id)?.state).toBe('done');
+			if (!inHead) {
+				await container.services.dispatch.tick();
+				expect(container.repos.batches.findById(batch.id)?.state).toBe('done');
+				container.repos.runs.updateInHead?.({
+					id: runId,
+					isInHead: 1,
+					checkedAt: '2026-10-12T11:30:00.000Z',
+				});
+				await container.services.dispatch.tick();
+				expect(container.services.documentExecution.get(docId).execution.state).toBe('completed');
+			}
+			expect(
+				container.repos.runs
+					.listAll()
+					.filter((run) => run.batch_id === batch.id && run.kind === 'wrapup'),
+			).toHaveLength(1);
+			await server.instance.close();
+		},
+	);
+
+	it('E-367: an open wrapup saves its report during pause and plans fixes once on resume', async () => {
+		const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
+		const { server, container, headers, docId } = env;
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		if (!batch || !task) return;
+		seedImplementationRun(env, {
+			id: 'landed-before-paused-open',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		const url = `/api/v1/documents/${docId}/execution`;
+		const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const wrapup = await container.services.wrapup?.triggerWrapup({
+			batchId: batch.id,
+			trigger: 'manual',
+		});
+		const runId = wrapup?.run.id ?? '';
+		container.repos.runs.updateState({ id: runId, toState: 'starting' });
+		container.repos.runs.updateState({ id: runId, toState: 'running' });
+		const paused = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/pause`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+			},
+		});
+		expect(paused.statusCode, paused.body).toBe(200);
+		const report = readFileSync(
+			join(root, 'packages/daemon/test/fixtures/wrapup/open-not-fixed.md'),
+			'utf8',
+		).replace('M4-T7', task.task_key);
+		await container.services.wrapup?.recordWrapupResult({ runId, rawText: report });
+		expect(container.repos.batchWrapups?.findLatestByBatchId(batch.id)?.verdict).toBe('open');
+		expect(
+			container.repos.runs.listByTaskId(task.id).filter((run) => run.origin === 'wrapup-fix'),
+		).toHaveLength(0);
+		const resumed = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: fingerprint,
+			},
+		});
+		expect(resumed.statusCode, resumed.body).toBe(200);
+		await container.services.dispatch.tick();
+		expect(
+			container.repos.runs.listByTaskId(task.id).filter((run) => run.origin === 'wrapup-fix'),
+		).toHaveLength(1);
+		await container.services.dispatch.tick();
+		expect(
+			container.repos.runs.listByTaskId(task.id).filter((run) => run.origin === 'wrapup-fix'),
+		).toHaveLength(1);
+		expect(container.repos.batchWrapups?.listByBatchId(batch.id)).toHaveLength(1);
+		await server.instance.close();
+	});
+
 	it.each([
 		{ label: 'active', terminal: null },
 		{ label: 'aborted', terminal: 'aborted' as const },
@@ -1986,6 +2152,14 @@ describe('M8-T12 document execution through the real container', () => {
 			},
 		});
 		expect(resumed.statusCode, resumed.body).toBe(200);
+		await container.services.wrapup?.recordWrapupResult({
+			runId: oldRunId,
+			rawText: readFileSync(
+				join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
+				'utf8',
+			),
+		});
+		expect(container.repos.gates?.findById(gate?.id ?? '')?.state).toBe('decided');
 		await container.services.dispatch.tick();
 		expect(container.repos.gates?.findById(gate?.id ?? '')).toMatchObject({
 			state: 'decided',
@@ -1993,8 +2167,7 @@ describe('M8-T12 document execution through the real container', () => {
 			comment: 'superseded',
 		});
 		expect(container.repos.runs.findById(oldRunId)).toMatchObject({
-			state: 'failed',
-			queued_reason: 'source_changed',
+			state: 'landed',
 		});
 		await expect(
 			container.services.gates?.decideGate({

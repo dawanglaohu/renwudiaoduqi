@@ -208,7 +208,7 @@ export function createDocumentExecutionService(
 		return doc;
 	}
 
-	function evidenceIsValid(
+	function completionMatchesMembers(
 		entry: DocumentPlanBatch,
 		batch: BatchRow,
 		tasks: readonly TaskRow[],
@@ -237,8 +237,29 @@ export function createDocumentExecutionService(
 		const taskKeys = tasks.map((task) => task.task_key).sort();
 		if (!Array.isArray(covered) || !sameMembers(covered, taskKeys)) return false;
 		const evidence = currentMemberEvidence(tasks, runs, deps.snapshots);
+		if (!summarizeBatchLanding(evidence.tasks, evidence.runs).allLanded) return false;
+		return evidence.tasks.every((task) =>
+			evidence.runs.some(
+				(run) =>
+					run.task_id === task.id &&
+					run.kind === 'implement' &&
+					run.state === 'landed' &&
+					deps.snapshots.findById(run.snapshot_id)?.contract_hash === task.contract_hash,
+			),
+		);
+	}
+
+	function evidenceIsValid(
+		entry: DocumentPlanBatch,
+		batch: BatchRow,
+		tasks: readonly TaskRow[],
+		runs: readonly RunRow[],
+	): boolean {
+		if (!completionMatchesMembers(entry, batch, tasks, runs)) return false;
+		const evidence = currentMemberEvidence(tasks, runs, deps.snapshots);
 		if (!summarizeBatchLanding(evidence.tasks, evidence.runs).allInHead) return false;
-		const wrapupRun = deps.runs.findById(wrapup.run_id);
+		const wrapup = deps.wrapups.findById(entry.completion?.wrapupId ?? '');
+		const wrapupRun = wrapup ? deps.runs.findById(wrapup.run_id) : null;
 		if (!wrapupRun || wrapupRun.is_in_head !== 1) return false;
 		return evidence.tasks.every((task) =>
 			evidence.runs.some((run) => {
@@ -253,6 +274,42 @@ export function createDocumentExecutionService(
 				return snapshot?.contract_hash === task.contract_hash;
 			}),
 		);
+	}
+
+	function adoptCurrentCompletion(
+		entry: DocumentPlanBatch,
+		batch: BatchRow,
+		tasks: readonly TaskRow[],
+		runs: readonly RunRow[],
+	): DocumentPlanBatch {
+		if (batch.state !== 'done' || entry.completion) return entry;
+		const latest = deps.wrapups
+			.listByBatchId(batch.id)
+			.filter((record) => entry.wrapupRunIds.includes(record.run_id))
+			.at(-1);
+		if (!latest || (latest.verdict !== 'clean' && latest.verdict !== 'fixed')) return entry;
+		const wrapupRun = deps.runs.findById(latest.run_id);
+		const snapshot = wrapupRun ? deps.snapshots.findById(wrapupRun.snapshot_id) : null;
+		let frozen: { generationId?: number; membershipFingerprint?: string } | null = null;
+		try {
+			frozen = JSON.parse(snapshot?.input_text ?? 'null');
+		} catch {
+			return entry;
+		}
+		if (
+			frozen?.generationId !== entry.generationId ||
+			frozen.membershipFingerprint !== entry.membershipFingerprint ||
+			snapshot?.contract_hash !== entry.membershipFingerprint
+		)
+			return entry;
+		const candidate = {
+			...entry,
+			completion: {
+				wrapupId: latest.id,
+				completionFingerprint: frozen.membershipFingerprint,
+			},
+		};
+		return completionMatchesMembers(candidate, batch, tasks, runs) ? candidate : entry;
 	}
 
 	function adoptLegacyEvidence(
@@ -636,40 +693,13 @@ export function createDocumentExecutionService(
 			const byId = new Map(batches.map((batch) => [batch.id, batch]));
 			const plan = stored.map((entry) => {
 				const batch = byId.get(entry.batchId);
-				if (!batch || batch.state !== 'done' || entry.completion) return entry;
-				const latest = deps.wrapups
-					.listByBatchId(batch.id)
-					.filter((record) => entry.wrapupRunIds.includes(record.run_id))
-					.at(-1);
-				if (!latest || (latest.verdict !== 'clean' && latest.verdict !== 'fixed')) return entry;
-				const wrapupRun = deps.runs.findById(latest.run_id);
-				const snapshot = wrapupRun ? deps.snapshots.findById(wrapupRun.snapshot_id) : null;
-				let frozen: { generationId?: number; membershipFingerprint?: string } | null = null;
-				try {
-					frozen = JSON.parse(snapshot?.input_text ?? 'null');
-				} catch {
-					return entry;
-				}
-				if (
-					frozen?.generationId !== entry.generationId ||
-					frozen.membershipFingerprint !== entry.membershipFingerprint ||
-					snapshot?.contract_hash !== entry.membershipFingerprint
-				)
-					return entry;
-				const candidate = {
-					...entry,
-					completion: {
-						wrapupId: latest.id,
-						completionFingerprint: frozen.membershipFingerprint,
-					},
-				};
-				return evidenceIsValid(
-					candidate,
-					batch,
-					tasks.filter((task) => task.batch_id === batch.id && task.is_removed_from_doc === 0),
-					runs,
-				)
-					? candidate
+				return batch
+					? adoptCurrentCompletion(
+							entry,
+							batch,
+							tasks.filter((task) => task.batch_id === batch.id && task.is_removed_from_doc === 0),
+							runs,
+						)
 					: entry;
 			});
 			const earliest = plan.find((entry) => {
@@ -878,14 +908,13 @@ export function createDocumentExecutionService(
 			const oldPlan = row ? parsePlan(row.plan_json) : [];
 			let plan = buildPlanFromRows(batches, tasks, expectedVersion + 1, oldPlan).map((entry) => {
 				const batch = batches.find((item) => item.id === entry.batchId);
-				return batch && !oldPlan.some((item) => item.batchId === entry.batchId)
-					? adoptLegacyEvidence(
-							adoptLegacyGeneration(entry, batch, runs),
-							batch,
-							tasks.filter((task) => task.batch_id === batch.id && task.is_removed_from_doc === 0),
-							runs,
-						)
-					: entry;
+				if (!batch) return entry;
+				const members = tasks.filter(
+					(task) => task.batch_id === batch.id && task.is_removed_from_doc === 0,
+				);
+				return !oldPlan.some((item) => item.batchId === entry.batchId)
+					? adoptLegacyEvidence(adoptLegacyGeneration(entry, batch, runs), batch, members, runs)
+					: adoptCurrentCompletion(entry, batch, members, runs);
 			});
 			const active = batches.filter((batch) => ACTIVE_BATCH_STATES.has(batch.state));
 			if (active.length > 1)
@@ -919,7 +948,7 @@ export function createDocumentExecutionService(
 				);
 				const old = oldById.get(batch.id);
 				const changedMembers = !!old && old.membershipFingerprint !== entry.membershipFingerprint;
-				const valid = evidenceIsValid(entry, batch, members, runs);
+				const valid = completionMatchesMembers(entry, batch, members, runs);
 				if (
 					(batch.state === 'done' && !valid) ||
 					(ACTIVE_BATCH_STATES.has(batch.state) && changedMembers)

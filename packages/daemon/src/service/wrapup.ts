@@ -182,6 +182,7 @@ export interface WrapupService {
 		input: TriggerWrapupInput,
 	) => Promise<{ readonly run: RunDto; readonly batch: BatchDto }>;
 	readonly recordWrapupResult: (input: RecordWrapupResultInput) => Promise<void>;
+	readonly resumeDeferredFixes: (docId: string) => Promise<void>;
 	readonly listWrapups: (batchId: string) => Promise<readonly BatchWrapupDto[]>;
 	readonly recallTask: (input: RecallTaskInput) => Promise<RecallTaskResponse>;
 }
@@ -255,6 +256,8 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			if (!isTerminalRunState(current.state as RunState)) {
 				previousState = current.state as RunState;
 				terminalState = parsed?.ok ? 'landed' : 'failed';
+				if (current.state === 'awaiting_human')
+					deps.gatesRepo.supersedePendingByRunIds?.([run.id], now);
 				deps.runsRepo.updateState({
 					id: run.id,
 					toState: terminalState,
@@ -1190,6 +1193,18 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			};
 		},
 
+		async resumeDeferredFixes(docId: string): Promise<void> {
+			const execution = deps.documentExecutionsRepo?.findByDocId(docId);
+			if (execution?.state !== 'running' || !execution.current_batch_id) return;
+			const batch = deps.batchesRepo.findById(execution.current_batch_id);
+			if (batch?.state !== 'running') return;
+			const report = deps.batchWrapupsRepo.findLatestByBatchId(batch.id);
+			if (report?.verdict !== 'open' || report.fix_run_ids_json !== '[]') return;
+			const run = deps.runsRepo.findById(report.run_id);
+			if (run?.state !== 'landed' || !isCurrentGeneration(run)) return;
+			await this.recordWrapupResult({ runId: run.id, rawText: report.report_text });
+		},
+
 		async recordWrapupResult(input: RecordWrapupResultInput): Promise<void> {
 			const { runId, exitCode = 0 } = input;
 			const run = deps.runsRepo.findById(runId);
@@ -1202,9 +1217,18 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			if (!batch) {
 				throw new AppError('E_NOT_FOUND', `Batch not found: ${batchId}`);
 			}
+			const priorReport = deps.batchWrapupsRepo.findByRunId(runId);
+			const executionAtEntry = deps.documentExecutionsRepo?.findByDocId(batch.doc_id);
+			const replayDeferred =
+				priorReport?.verdict === 'open' &&
+				priorReport.fix_run_ids_json === '[]' &&
+				batch.state === 'running' &&
+				executionAtEntry?.state === 'running' &&
+				run.state === 'landed';
+			if (priorReport && !replayDeferred) return;
 
 			// DSH reports use normalized stdout only; raw logs also contain stderr reasoning.
-			let rawText = input.rawText ?? '';
+			let rawText = input.rawText ?? priorReport?.report_text ?? '';
 			if (!rawText && deps.logstorePaths && deps.logFs) {
 				rawText = await readWrapupReportText(deps.logstorePaths, deps.logFs, runId, {
 					allowRawFallback: run.agent_id !== 'dsh',
@@ -1425,7 +1449,9 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 
 			// Case 3: Parse succeeded! Insert batch_wrapups, transition run to landed, transition batch (AC 4, E-294)
 			const effectiveVerdict = parsed.verdict;
-			const nextValidRound = deps.batchWrapupsRepo.getMaxRound(batchId) + 1;
+			const nextValidRound = replayDeferred
+				? priorReport.round
+				: deps.batchWrapupsRepo.getMaxRound(batchId) + 1;
 			const execution = deps.documentExecutionsRepo?.findByDocId(batch.doc_id);
 			const planEntry =
 				execution && execution.state !== 'idle'
@@ -1441,9 +1467,11 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							.listByBatchId(batchId)
 							.filter((record) => planEntry.wrapupRunIds.includes(record.run_id))
 							.map((record) => record.round),
-					).size + 1;
+					).size + (replayDeferred ? 0 : 1);
 			}
-			const wrapupRecordId = `wrapup_${deps.ids.newId().slice(0, 16)}`;
+			const wrapupRecordId = replayDeferred
+				? priorReport.id
+				: `wrapup_${deps.ids.newId().slice(0, 16)}`;
 			const tasks = deps.tasksRepo.listByBatchId(batchId);
 			const taskKeys = planEntry
 				? planEntry.members.map((member) => member.taskKey).sort()
@@ -1453,12 +1481,98 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						.sort();
 			const allFindings = [...parsed.bugs, ...parsed.notFixed];
 
+			const deferOpenReport = async (): Promise<boolean> => {
+				if (effectiveVerdict !== 'open' || replayDeferred) return false;
+				const pendingEnvelopes: CreateEnvelopeInput[] = [];
+				const batchEnvelopes: EventEnvelope[] = [];
+				const deferred = await retryEventAdmission(deps.envelopeFactory, () => {
+					pendingEnvelopes.length = 0;
+					batchEnvelopes.length = 0;
+					return deps.unitOfWork.run(() => {
+						if (!isCurrentGeneration(run) || deps.batchWrapupsRepo.findByRunId(runId)) return false;
+						if (deps.documentExecutionsRepo?.findByDocId(batch.doc_id)?.state !== 'paused')
+							return false;
+						const currentRun = deps.runsRepo.findById(runId);
+						if (!currentRun || isTerminalRunState(currentRun.state as RunState)) return false;
+						deps.batchWrapupsRepo.insert({
+							id: wrapupRecordId,
+							batch_id: batchId,
+							batch_no: batch.batch_no,
+							tasks_json: JSON.stringify(taskKeys),
+							round: nextValidRound,
+							run_id: runId,
+							verdict: 'open',
+							declared_verdict: parsed.declaredVerdict ?? null,
+							is_human_verdict: 0,
+							prompt_source: (run.prompt_source as 'docs' | 'builtin') ?? 'docs',
+							tests_json: JSON.stringify(parsed.tests),
+							summary_text: parsed.summaryText,
+							findings_json: JSON.stringify(allFindings),
+							unassigned_json: JSON.stringify(parsed.unassigned),
+							fix_run_ids_json: '[]',
+							report_text: rawText,
+							created_at: now,
+						});
+						deps.runsRepo.updateState({ id: runId, toState: 'landed', endedAt: now });
+						const trans = deps.batchService.transitionBatchInTx(
+							batchId,
+							'running',
+							'wrapup_fixes_pending',
+						);
+						batchEnvelopes.push(trans.envelope);
+						pendingEnvelopes.push({
+							kind: 'run.state_changed',
+							runId,
+							taskId: null,
+							payload: { from: currentRun.state, to: 'landed', reason: 'wrapup_report_parsed' },
+						});
+						if (typeof currentRun.lane_no === 'number')
+							pendingEnvelopes.push({
+								kind: 'lane.released',
+								actorDeviceId: null,
+								payload: {
+									docId: batch.doc_id,
+									laneNo: currentRun.lane_no,
+									taskId: null,
+									runId,
+									reason: 'landed',
+								},
+							});
+						pendingEnvelopes.push({
+							kind: 'batch.wrapup_finished',
+							payload: {
+								batchId,
+								batchNo: batch.batch_no,
+								runId,
+								round: nextValidRound,
+								wrapupId: wrapupRecordId,
+								verdict: 'open',
+								declaredVerdict: parsed.declaredVerdict,
+								fixRunIds: [],
+								unassignedCount: parsed.unassigned.length,
+								batchState: 'running',
+								isHumanVerdict: false,
+							},
+						});
+						return true;
+					});
+				});
+				if (!deferred) return false;
+				publishPendingEvents(batchEnvelopes, deps);
+				await publishCompletionEvents(pendingEnvelopes, deps);
+				return true;
+			};
+			if (execution?.state === 'paused' && (await deferOpenReport())) return;
+
 			const fixRunIds: string[] = [];
 			let finalUnassigned: string[] = [...parsed.unassigned];
 			const fixRunsToInsert: Array<{
 				runRow: Parameters<typeof deps.runsRepo.insert>[0];
 				taskId: string;
 			}> = [];
+			const fixSnapshotsToInsert: Array<Parameters<typeof deps.dispatchSnapshotsRepo.insert>[0]> =
+				[];
+			const mergedFixSnapshotUpdates: Array<{ runId: string; snapshotId: string }> = [];
 			let openShouldNeedAttention = false;
 
 			if (effectiveVerdict === 'open') {
@@ -1570,7 +1684,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							const mergedPrompt = `${existingPrompt}\n\n## 补充修复要求（重复判修）\n${additionalRItemsText}\n`;
 							if (deps.dispatchSnapshotsRepo) {
 								const mergedSnapshotId = `snap_${deps.ids.newId().slice(0, 16)}`;
-								deps.dispatchSnapshotsRepo.insert({
+								fixSnapshotsToInsert.push({
 									id: mergedSnapshotId,
 									task_id: task.id,
 									batch_id: null,
@@ -1586,7 +1700,10 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									assignmentJson: assignmentReader.getRawAssignmentJson(existingSnapshot),
 									created_at: now,
 								});
-								deps.runsRepo.updateSnapshotId?.(inFlightFix.id, mergedSnapshotId);
+								mergedFixSnapshotUpdates.push({
+									runId: inFlightFix.id,
+									snapshotId: mergedSnapshotId,
+								});
 							}
 							fixRunIds.push(inFlightFix.id);
 							continue;
@@ -1651,7 +1768,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 									targetWorktreePath: run.worktree_path,
 									preferredBranchName: run.branch_name,
 								};
-								deps.dispatchSnapshotsRepo.insert({
+								fixSnapshotsToInsert.push({
 									id: fixSnapshotId,
 									task_id: candidate.task.id,
 									batch_id: null, // dispatch_snapshots CHECK ((task_id IS NOT NULL) <> (batch_id IS NOT NULL))
@@ -1749,38 +1866,66 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				pendingEnvelopes.length = 0;
 				batchEnvelopes.length = 0;
 				const current = deps.runsRepo.findById(runId);
-				if (!current || current.session_archived_at || current.state === 'landed') return false;
+				if (
+					!current ||
+					(current.session_archived_at && !replayDeferred) ||
+					(current.state === 'landed' && !replayDeferred)
+				)
+					return false;
 				return deps.unitOfWork.run(() => {
 					if (!isCurrentGeneration(run)) return false;
+					if (
+						effectiveVerdict === 'open' &&
+						deps.documentExecutionsRepo?.findByDocId(batch.doc_id)?.state === 'paused'
+					)
+						return false;
+					const storedReport = deps.batchWrapupsRepo.findByRunId(runId);
+					if (replayDeferred) {
+						if (storedReport?.id !== wrapupRecordId || storedReport.fix_run_ids_json !== '[]')
+							return false;
+					} else if (storedReport) return false;
 					// insert batch_wrapups
-					deps.batchWrapupsRepo.insert({
-						id: wrapupRecordId,
-						batch_id: batchId,
-						batch_no: batch.batch_no,
-						tasks_json: JSON.stringify(taskKeys),
-						round: nextValidRound,
-						run_id: runId,
-						verdict: effectiveVerdict,
-						declared_verdict: parsed.declaredVerdict ?? null,
-						is_human_verdict: 0,
-						prompt_source: (run.prompt_source as 'docs' | 'builtin') ?? 'docs',
-						tests_json: JSON.stringify(parsed.tests),
-						summary_text: parsed.summaryText,
-						findings_json: JSON.stringify(allFindings),
-						unassigned_json: JSON.stringify(finalUnassigned),
-						fix_run_ids_json: JSON.stringify(fixRunIds),
-						report_text: rawText,
-						created_at: now,
-					});
+					if (replayDeferred)
+						deps.batchWrapupsRepo.updateFixPlan(
+							wrapupRecordId,
+							JSON.stringify(fixRunIds),
+							JSON.stringify(finalUnassigned),
+						);
+					else
+						deps.batchWrapupsRepo.insert({
+							id: wrapupRecordId,
+							batch_id: batchId,
+							batch_no: batch.batch_no,
+							tasks_json: JSON.stringify(taskKeys),
+							round: nextValidRound,
+							run_id: runId,
+							verdict: effectiveVerdict,
+							declared_verdict: parsed.declaredVerdict ?? null,
+							is_human_verdict: 0,
+							prompt_source: (run.prompt_source as 'docs' | 'builtin') ?? 'docs',
+							tests_json: JSON.stringify(parsed.tests),
+							summary_text: parsed.summaryText,
+							findings_json: JSON.stringify(allFindings),
+							unassigned_json: JSON.stringify(finalUnassigned),
+							fix_run_ids_json: JSON.stringify(fixRunIds),
+							report_text: rawText,
+							created_at: now,
+						});
 
 					// Transition wrapup run to landed (09 节 运行状态机: reviewing -> landed 收口运行八段解析成功)
-					deps.runsRepo.updateState({
-						id: runId,
-						toState: 'landed',
-						endedAt: now,
-					});
+					if (!replayDeferred)
+						deps.runsRepo.updateState({
+							id: runId,
+							toState: 'landed',
+							endedAt: now,
+						});
 
-					if (run.lane_no !== null && run.lane_no !== undefined && deps.envelopeFactory) {
+					if (
+						!replayDeferred &&
+						run.lane_no !== null &&
+						run.lane_no !== undefined &&
+						deps.envelopeFactory
+					) {
 						pendingEnvelopes.push({
 							kind: 'lane.released',
 							actorDeviceId: null,
@@ -1794,7 +1939,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						} satisfies CreateEnvelopeInput);
 					}
 
-					if (deps.bus && deps.envelopeFactory) {
+					if (!replayDeferred && deps.bus && deps.envelopeFactory) {
 						pendingEnvelopes.push({
 							kind: 'run.state_changed',
 							runId,
@@ -1807,6 +1952,9 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 						} satisfies CreateEnvelopeInput);
 					}
 
+					for (const snapshot of fixSnapshotsToInsert) deps.dispatchSnapshotsRepo.insert(snapshot);
+					for (const update of mergedFixSnapshotUpdates)
+						deps.runsRepo.updateSnapshotId?.(update.runId, update.snapshotId);
 					// Insert planned fix runs into runs table (AC 1)
 					for (const fixItem of fixRunsToInsert) {
 						assertSessionRefFree(
@@ -1864,13 +2012,15 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 							});
 						} else {
 							// Round 1 open with dispatched fixes -> batch returns to running
-							const transRes = deps.batchService.transitionBatchInTx(
-								batchId,
-								'running',
-								'wrapup_fixes_pending',
-							);
-							batchEnvelopes.push(transRes.envelope);
-							finalBatchState = transRes.updatedBatch.state;
+							if (!replayDeferred) {
+								const transRes = deps.batchService.transitionBatchInTx(
+									batchId,
+									'running',
+									'wrapup_fixes_pending',
+								);
+								batchEnvelopes.push(transRes.envelope);
+								finalBatchState = transRes.updatedBatch.state;
+							}
 						}
 					}
 
@@ -1897,6 +2047,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			});
 			if (!applied) {
 				if (!isCurrentGeneration(run)) recordStaleWrapup(run, rawText, exitCode);
+				else if (effectiveVerdict === 'open') await deferOpenReport();
 				return;
 			}
 
