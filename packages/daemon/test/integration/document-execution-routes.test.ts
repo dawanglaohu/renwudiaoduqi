@@ -232,7 +232,7 @@ function seedWrapupRun(
 		id: string;
 		batchId: string;
 		attemptNo: number;
-		state: 'failed' | 'landed';
+		state: 'failed' | 'landed' | 'starting';
 		inputText?: string | null;
 		createdAt: string;
 		contractHash?: string;
@@ -260,7 +260,7 @@ function seedWrapupRun(
 		permission_tier: 'workspaceWrite',
 		snapshot_id: snapshotId,
 		started_at: input.createdAt,
-		ended_at: input.createdAt,
+		ended_at: input.state === 'starting' ? null : input.createdAt,
 		is_in_head: input.state === 'landed' ? 1 : 0,
 	});
 }
@@ -1736,86 +1736,111 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
-	it('keeps a late old-generation wrapup as history while new members wait', async () => {
-		let available = true;
-		const env = await setup({
-			canDispatch: () => available,
-			withWrapupWorkspace: true,
-		});
-		const { server, container, headers, docId, docsPath } = env;
-		const batch = container.repos.batches.listByDocId(docId)[0];
-		const task = container.repos.tasks.listByDocId(docId)[0];
-		if (!batch || !task) return;
-		seedImplementationRun(env, {
-			id: 'old-landed',
-			taskId: task.id,
-			batchId: batch.id,
-			attemptNo: 1,
-			contractHash: task.contract_hash,
-			createdAt: '2026-10-12T07:00:00.000Z',
-		});
-		const url = `/api/v1/documents/${docId}/execution`;
-		const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
-		const start = await server.instance.inject({
-			method: 'POST',
-			url: `${url}/start`,
-			headers,
-			payload: {
-				expectedVersion: 0,
-				expectedFingerprint: fingerprint,
-				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
-			},
-		});
-		expect(start.statusCode, start.body).toBe(200);
-		const old = await container.services.wrapup?.triggerWrapup({
-			batchId: batch.id,
-			trigger: 'manual',
-		});
-		const oldRunId = old?.run.id ?? '';
-		container.repos.runs.updateState({ id: oldRunId, toState: 'starting' });
-		writeTasksDocsData(docsPath, [
-			{ id: 'M1-T1', hash: 'contract-1' },
-			{ id: 'M1-T2', hash: 'contract-2' },
-		]);
-		const refresh = await server.instance.inject({
-			method: 'POST',
-			url: `/api/v1/documents/${docId}/refresh`,
-			headers,
-			payload: {},
-		});
-		expect(refresh.statusCode, refresh.body).toBe(200);
-		const paused = container.services.documentExecution.get(docId).execution;
-		available = false;
-		const resume = await server.instance.inject({
-			method: 'POST',
-			url: `${url}/resume`,
-			headers,
-			payload: {
-				expectedVersion: paused.version,
-				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
-			},
-		});
-		expect(resume.statusCode, resume.body).toBe(200);
-		expect(resume.json().execution.blockers).toContainEqual({
-			code: 'source_runs_pending',
-			batchId: batch.id,
-			taskIds: [],
-		});
-		expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(0);
-		const cleanReport = readFileSync(
-			join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
-			'utf8',
-		);
-		await container.services.wrapup?.recordWrapupResult({ runId: oldRunId, rawText: cleanReport });
-		expect(container.repos.batches.findById(batch.id)?.state).toBe('running');
-		expect(container.repos.batchWrapups?.listByBatchId(batch.id).at(-1)?.run_id).toBe(oldRunId);
-		expect(container.services.documentExecution.get(docId).execution.blockers).not.toContainEqual({
-			code: 'source_runs_pending',
-			batchId: batch.id,
-			taskIds: [],
-		});
-		await server.instance.close();
-	});
+	it.each([
+		{ label: 'active', terminal: null },
+		{ label: 'aborted', terminal: 'aborted' as const },
+		{ label: 'interrupted', terminal: 'interrupted' as const },
+	])(
+		'keeps a late old-generation wrapup as history while new members wait ($label)',
+		async ({ terminal }) => {
+			let available = true;
+			const env = await setup({
+				canDispatch: () => available,
+				withWrapupWorkspace: true,
+			});
+			const { server, container, headers, docId, docsPath } = env;
+			const batch = container.repos.batches.listByDocId(docId)[0];
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!batch || !task) return;
+			seedImplementationRun(env, {
+				id: 'old-landed',
+				taskId: task.id,
+				batchId: batch.id,
+				attemptNo: 1,
+				contractHash: task.contract_hash,
+				createdAt: '2026-10-12T07:00:00.000Z',
+			});
+			const url = `/api/v1/documents/${docId}/execution`;
+			const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
+			const start = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(start.statusCode, start.body).toBe(200);
+			const old = await container.services.wrapup?.triggerWrapup({
+				batchId: batch.id,
+				trigger: 'manual',
+			});
+			const oldRunId = old?.run.id ?? '';
+			container.repos.runs.updateState({ id: oldRunId, toState: 'starting' });
+			container.repos.runs.updateLaneNo?.(oldRunId, 1);
+			writeTasksDocsData(docsPath, [
+				{ id: 'M1-T1', hash: 'contract-1' },
+				{ id: 'M1-T2', hash: 'contract-2' },
+			]);
+			const refresh = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/refresh`,
+				headers,
+				payload: {},
+			});
+			expect(refresh.statusCode, refresh.body).toBe(200);
+			const paused = container.services.documentExecution.get(docId).execution;
+			available = false;
+			const resume = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/resume`,
+				headers,
+				payload: {
+					expectedVersion: paused.version,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				},
+			});
+			expect(resume.statusCode, resume.body).toBe(200);
+			expect(resume.json().execution.blockers).toContainEqual({
+				code: 'source_runs_pending',
+				batchId: batch.id,
+				taskIds: [],
+			});
+			expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(0);
+			const cleanReport = readFileSync(
+				join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
+				'utf8',
+			);
+			if (terminal) container.repos.runs.updateState({ id: oldRunId, toState: terminal });
+			const beforeCallback = container.events.ringBuffer.latest()?.id ?? 0;
+			await container.services.wrapup?.recordWrapupResult({
+				runId: oldRunId,
+				rawText: cleanReport,
+			});
+			expect(container.repos.runs.findById(oldRunId)?.state).toBe(terminal ?? 'landed');
+			expect(container.repos.batches.findById(batch.id)?.state).toBe('running');
+			expect(container.repos.batchWrapups?.listByBatchId(batch.id).at(-1)?.run_id).toBe(oldRunId);
+			const callbackEvents = container.events.ringBuffer
+				.getAll()
+				.filter((event) => event.id > beforeCallback && event.runId === oldRunId);
+			if (terminal) {
+				expect(callbackEvents.some((event) => event.kind === 'run.state_changed')).toBe(false);
+			} else {
+				expect(container.repos.runs.findById(oldRunId)?.lane_no).toBeNull();
+				expect(callbackEvents.some((event) => event.kind === 'lane.released')).toBe(true);
+			}
+			expect(container.services.documentExecution.get(docId).execution.blockers).not.toContainEqual(
+				{
+					code: 'source_runs_pending',
+					batchId: batch.id,
+					taskIds: [],
+				},
+			);
+			await server.instance.close();
+		},
+	);
 
 	it('fails an unstarted old-generation wrapup before dispatching the new generation', async () => {
 		let available = true;
@@ -2605,6 +2630,39 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(events.some((event) => event.kind === 'lane.released' && event.runId === oldRunId)).toBe(
 			true,
 		);
+		seedWrapupRun(env, {
+			id: 'r3-old-running-wrapup',
+			batchId: second.id,
+			attemptNo: 3,
+			state: 'starting',
+			createdAt: '2026-10-12T10:00:00.000Z',
+		});
+		container.repos.runs.updateLaneNo?.('r3-old-running-wrapup', 1);
+		const moved = container.repos.tasks
+			.listByDocId(docId)
+			.find((task) => task.task_key === 'M1-T3');
+		if (!moved) return;
+		container.repos.dispatchSnapshots?.updateTaskChangedFlags(moved.id, {
+			hasAcceptChanged: false,
+			hasPromptChanged: false,
+		});
+		available = true;
+		expect(container.services.documentExecution.get(docId).execution.blockers).toContainEqual({
+			code: 'source_runs_pending',
+			batchId: first.id,
+			taskIds: [],
+		});
+		const held = await container.services.dispatch.tick();
+		expect(held.runsDispatched).toHaveLength(0);
+		expect(container.repos.runs.listByTaskId(moved.id)).toHaveLength(0);
+		container.repos.runs.updateState({ id: 'r3-old-running-wrapup', toState: 'failed' });
+		container.repos.runs.updateLaneNo?.('r3-old-running-wrapup', null);
+		const resumedTick = await container.services.dispatch.tick();
+		expect(
+			resumedTick.runsDispatched.some(
+				(id) => container.repos.runs.findById(id)?.task_id === moved.id,
+			),
+		).toBe(true);
 		await server.instance.close();
 	});
 

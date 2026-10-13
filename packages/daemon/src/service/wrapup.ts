@@ -246,17 +246,26 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 		if (!batch) return;
 		const now = deps.clock.now();
 		let terminalState: 'landed' | 'failed' | null = null;
+		let previousState: RunState | null = null;
+		let releasedLaneNo: number | null = null;
 		deps.unitOfWork.run(() => {
 			if (isCurrentGeneration(run)) return;
 			const current = deps.runsRepo.findById(run.id);
-			if (!current || current.state === 'landed' || current.state === 'failed') return;
-			terminalState = parsed?.ok ? 'landed' : 'failed';
-			deps.runsRepo.updateState({
-				id: run.id,
-				toState: terminalState,
-				queuedReason: parsed?.ok ? null : 'source_changed',
-				endedAt: now,
-			});
+			if (!current) return;
+			if (!isTerminalRunState(current.state as RunState)) {
+				previousState = current.state as RunState;
+				terminalState = parsed?.ok ? 'landed' : 'failed';
+				deps.runsRepo.updateState({
+					id: run.id,
+					toState: terminalState,
+					queuedReason: parsed?.ok ? null : 'source_changed',
+					endedAt: now,
+				});
+				if (typeof current.lane_no === 'number') {
+					releasedLaneNo = current.lane_no;
+					deps.runsRepo.updateLaneNo?.(run.id, null);
+				}
+			}
 			if (!parsed?.ok) return;
 			if (deps.batchWrapupsRepo.listByBatchId(batchId).some((record) => record.run_id === run.id))
 				return;
@@ -287,7 +296,26 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 					kind: 'run.state_changed',
 					runId: run.id,
 					taskId: null,
-					payload: { from: run.state, to: terminalState, reason: 'source_changed' },
+					payload: {
+						from: previousState ?? run.state,
+						to: terminalState,
+						reason: 'source_changed',
+					},
+				}),
+			);
+		if (releasedLaneNo !== null && terminalState && deps.bus && deps.envelopeFactory)
+			deps.bus.publish(
+				deps.envelopeFactory.createEnvelope({
+					kind: 'lane.released',
+					runId: run.id,
+					taskId: null,
+					payload: {
+						docId: batch.doc_id,
+						laneNo: releasedLaneNo,
+						taskId: null,
+						runId: run.id,
+						reason: terminalState,
+					},
 				}),
 			);
 	}

@@ -1505,11 +1505,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						.listAll()
 						.some(
 							(run) =>
-								run.batch_id === planBatch.batchId &&
+								((run.batch_id && deps.batchesRepo.findById(run.batch_id)?.doc_id === doc.id) ||
+									(run.task_id && deps.tasksRepo.findById(run.task_id)?.doc_id === doc.id)) &&
 								(run.state === 'starting' || run.state === 'running') &&
-								(run.kind === 'wrapup'
-									? !planBatch.wrapupRunIds.includes(run.id)
-									: runGeneration(run) !== planBatch.generationId),
+								(run.batch_id !== planBatch.batchId ||
+									(run.kind === 'wrapup'
+										? !planBatch.wrapupRunIds.includes(run.id)
+										: runGeneration(run) !== planBatch.generationId)),
 						);
 				if (sourceRunsPending) {
 					for (const task of deps.tasksRepo.listByBatchId(planBatch.batchId))

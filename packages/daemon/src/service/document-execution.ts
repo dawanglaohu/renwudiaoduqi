@@ -392,10 +392,12 @@ export function createDocumentExecutionService(
 			const oldSourceRuns = runs
 				.filter(
 					(run) =>
-						run.batch_id === current.batchId &&
+						((run.batch_id && deps.batches.findById(run.batch_id)?.doc_id === doc.id) ||
+							(run.task_id && deps.tasks.findById(run.task_id)?.doc_id === doc.id)) &&
 						(run.state === 'starting' || run.state === 'running'),
 				)
 				.filter((run) => {
+					if (run.batch_id !== current.batchId) return true;
 					if (run.kind === 'wrapup') return !current.wrapupRunIds.includes(run.id);
 					const snapshot = deps.snapshots.findById(run.snapshot_id);
 					try {
