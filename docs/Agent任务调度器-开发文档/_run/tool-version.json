@@ -4,7 +4,7 @@
     "build_vault.py": "d627d6e278e8c920b47a3a75693c90662a7b13b6ce8f0a835b439a66b6336a65",
     "check_stale.py": "88d2ed43b826c35e249ea7503c92ed16cfe9f4f11b3c7e09b98ec16d4684310d",
     "compile_prompts.js": "cf52dd3065904b092f1357ced88d41f79f1c7ff43778ab406fd9a0a9e5317c8b",
-    "density_probe.js": "6517899ae44e5681cc67396afd149cdf7e83e46f8ba459748db11c3d76eb92e1",
+    "density_probe.js": "34bb23157e1626ee5dd466ee5d882514bbfed54be5fee0c5efc82a68481f7e9e",
     "handoff-manual.md": "167f05cef0a5b4680b6297a1f4f7696fa323ac5e33bab98904322f21b7ca3936",
     "handoff_contract.py": "2bfd942ca77075a3dda0a34f42d124e4e411c22720ec5c069d6692d8a489179e",
     "install_project.py": "c5508c857b30b70564c8cd624e98fa63178404ddc1fd0c54db1e2129fdec02d0",

@@ -101,10 +101,11 @@ var densityProbe = (function () {
     if (o.spaced) return 0;
     var rowGap = o.rowGap || 0, colGap = o.colGap || 0;
     if (o.wraps) {
-      lineGaps(rects).forEach(function (g) {
+      var gaps = lineGaps(rects);
+      gaps.forEach(function (g) {
         if (g < o.maxBetween) worst = Math.max(worst, g);
       });
-      worst = Math.max(worst, rowGap);
+      if (gaps.length) worst = Math.max(worst, rowGap);
     } else {
       for (var j = 1; j < rects.length; j++) {
         var a = rects[j - 1], b = rects[j];

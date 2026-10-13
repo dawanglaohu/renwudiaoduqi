@@ -267,6 +267,8 @@ const overflowing = [{top: 0, bottom: 48, left: 0, right: 100},
                      {top: 128, bottom: 176, left: 0, right: 200}];
 const wrap = (rects) => p.blockGap(rects, {spaced: false, wraps: true, rowFlex: true, isGrid: false,
                                            rowGap: 8, colGap: 8, maxBetween: 270});
+const singleLine = p.blockGap(measured.slice(0, 2), {spaced: false, wraps: true, rowFlex: true,
+                           isGrid: false, rowGap: 40, colGap: 8, maxBetween: 270});
 // 非换行容器仍按兄弟净距：同形状不能因为改了分支就漏判
 const stacked = p.blockGap([{top: 0, bottom: 40, left: 0, right: 200},
                             {top: 64, bottom: 104, left: 0, right: 200}],
@@ -285,6 +287,7 @@ const spreadStacked = p.blockGap([{top: 0, bottom: 40, left: 0, right: 200},
 process.stdout.write(JSON.stringify({
   lines: p.lineGaps(measured),
   measured: wrap(measured),
+  singleLine: singleLine,
   overflowing: wrap(overflowing),
   stacked: stacked,
   spreadWrap: spreadWrap,
@@ -300,6 +303,8 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out['lines'], [8, 8])
         self.assertEqual(out['measured'], 8)
         self.assertLessEqual(out['measured'], out['limit'])
+        # 只有一行时，未生效的 rowGap 不产生行间净距，仍检查列间距。
+        self.assertEqual(out['singleLine'], 8)
         # 负控：真实超限的行间距仍然失败，改算法没有把超限一起放过去
         self.assertEqual(out['overflowing'], 40)
         self.assertGreater(out['overflowing'], out['limit'])

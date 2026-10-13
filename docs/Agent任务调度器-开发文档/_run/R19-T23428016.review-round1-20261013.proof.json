@@ -61,6 +61,13 @@
         "Ran 215 tests in 155.290s",
         "OK (skipped=1)"
       ]
+    },
+    "afterReviewerFix": {
+      "exitCode": 0,
+      "summary": [
+        "Ran 215 tests in 145.926s",
+        "OK (skipped=1)"
+      ]
     }
   },
   "workspaceCheck": {
@@ -83,7 +90,7 @@
       "result": {
         "probe": "density",
         "version": 2,
-        "url": "http://127.0.0.1:34553/#/",
+        "url": "http://127.0.0.1:43567/#/",
         "type": "work",
         "contract": {
           "density": 8,
@@ -148,7 +155,7 @@
       "result": {
         "probe": "density",
         "version": 2,
-        "url": "http://127.0.0.1:34553/#/",
+        "url": "http://127.0.0.1:43567/#/",
         "type": "work",
         "contract": {
           "density": 8,
@@ -213,7 +220,7 @@
       "result": {
         "probe": "density",
         "version": 2,
-        "url": "http://127.0.0.1:34553/#/",
+        "url": "http://127.0.0.1:43567/#/",
         "type": "work",
         "contract": {
           "density": 8,
@@ -278,7 +285,7 @@
       "result": {
         "probe": "density",
         "version": 2,
-        "url": "http://127.0.0.1:34553/#/",
+        "url": "http://127.0.0.1:43567/#/",
         "type": "work",
         "contract": {
           "density": 8,
@@ -532,6 +539,17 @@
       "deltaJoinedMatches": true,
       "completedMatches": true,
       "guiCopies": 2
+    }
+  ],
+  "reviewerFixes": [
+    {
+      "issue": "A single visual row with unused rowGap40 was falsely measured40 instead of active column gap8.",
+      "source": "_run/density_probe.js:104-108",
+      "red": "Owning density suite: 16 tests, one new assertion fails 40 != 8 before repair.",
+      "repair": "Include explicit rowGap only when lineGaps contains a visual break; preserve multirow negative controls and threshold18.",
+      "green": "Full generator suite 215 OK (1 existing skipped); real-browser R19 suite 4 passed / 8 other tests filtered.",
+      "fingerprint": "34bb23157e1626ee5dd466ee5d882514bbfed54be5fee0c5efc82a68481f7e9e",
+      "jev": "jev-1.13.0 / adjudicate: pick=A(high 1.00) spec_change=no(0.09) outside_stack=no(0.06) needs_owner=no(0.04) reversible=yes(0.90) adopt=take(A)"
     }
   ]
 }
