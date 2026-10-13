@@ -132,7 +132,13 @@ export function currentMemberEvidence(
 		if (run.kind !== 'implement' || !run.task_id) return false;
 		if (run.state === 'failed' && run.queued_reason === 'source_changed') return false;
 		const task = byId.get(run.task_id);
-		return task && snapshots.findById(run.snapshot_id)?.contract_hash === task.contract_hash;
+		if (!task) return false;
+		if (
+			run.batch_id !== task.batch_id &&
+			['failed', 'aborted', 'interrupted', 'orphaned'].includes(run.state)
+		)
+			return false;
+		return snapshots.findById(run.snapshot_id)?.contract_hash === task.contract_hash;
 	});
 	const acceptedTaskIds = new Set(
 		currentRuns.filter((run) => run.state === 'landed').map((run) => run.task_id),

@@ -3018,6 +3018,130 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('E-369: a moved task retries in its new batch after an old-batch failure', async () => {
+		const env = await setup({
+			canDispatch: () => true,
+			withWrapupWorkspace: true,
+			withImplementationProcess: true,
+		});
+		const { server, container, headers, docId, docsPath } = env;
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2' },
+		]);
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const [first] = container.repos.batches.listByDocId(docId);
+		const landedTask = container.repos.tasks
+			.listByDocId(docId)
+			.find((task) => task.task_key === 'M1-T1');
+		const movedTask = container.repos.tasks
+			.listByDocId(docId)
+			.find((task) => task.task_key === 'M1-T2');
+		if (!first || !landedTask || !movedTask) return;
+		seedImplementationRun(env, {
+			id: 'moved-prior-landed',
+			taskId: landedTask.id,
+			batchId: first.id,
+			attemptNo: 1,
+			contractHash: landedTask.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		seedImplementationRun(env, {
+			id: 'moved-prior-failed',
+			taskId: movedTask.id,
+			batchId: first.id,
+			attemptNo: 1,
+			contractHash: movedTask.contract_hash,
+			createdAt: '2026-10-12T07:30:00.000Z',
+		});
+		container.repos.runs.updateState({ id: 'moved-prior-failed', toState: 'failed' });
+		const url = `/api/v1/documents/${docId}/execution`;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2', deps: ['M1-T1'] },
+		]);
+		const moved = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(moved.statusCode, moved.body).toBe(200);
+		await container.services.dispatch.tick();
+		expect(container.services.documentExecution.get(docId).execution.state).toBe('paused');
+		const resumed = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resumed.statusCode, resumed.body).toBe(200);
+		const second = container.repos.batches
+			.listByDocId(docId)
+			.find((batch) => batch.id !== first.id);
+		expect(second).toBeDefined();
+		const wrapup = await container.services.wrapup?.triggerWrapup({
+			batchId: first.id,
+			trigger: 'manual',
+		});
+		const wrapupId = wrapup?.run.id ?? '';
+		container.repos.runs.updateState({ id: wrapupId, toState: 'starting' });
+		container.repos.runs.updateState({ id: wrapupId, toState: 'running' });
+		await container.services.wrapup?.recordWrapupResult({
+			runId: wrapupId,
+			rawText: readFileSync(
+				join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
+				'utf8',
+			),
+		});
+		container.repos.runs.updateInHead?.({
+			id: wrapupId,
+			isInHead: 1,
+			checkedAt: '2026-10-12T11:00:00.000Z',
+		});
+		await container.services.dispatch.tick();
+		expect(container.services.documentExecution.get(docId).execution.currentBatchId).toBe(
+			second?.id,
+		);
+		const blocked = await container.services.dispatch.tick();
+		expect(blocked.tasksBlocked).toContainEqual({
+			taskId: movedTask.id,
+			reason: 'doc_changed_pending_confirmation',
+		});
+		container.repos.dispatchSnapshots?.updateTaskChangedFlags(movedTask.id, {
+			hasAcceptChanged: false,
+			hasPromptChanged: false,
+		});
+		const next = await container.services.dispatch.tick();
+		expect(
+			next.runsDispatched.some((id) => container.repos.runs.findById(id)?.task_id === movedTask.id),
+		).toBe(true);
+		expect(container.repos.runs.listByTaskId(landedTask.id)).toHaveLength(1);
+		expect(container.repos.runs.findById('moved-prior-landed')?.state).toBe('landed');
+		expect(container.repos.runs.findById('moved-prior-failed')?.state).toBe('failed');
+		await server.instance.close();
+	});
+
 	it('R2: removed unlanded member cannot block current wrapup and next batch', async () => {
 		let available = true;
 		const env = await setup({
