@@ -1915,6 +1915,94 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('E-369: a stale wrapup human gate cannot complete the rebuilt generation', async () => {
+		let available = true;
+		const env = await setup({ canDispatch: () => available, withWrapupWorkspace: true });
+		const { server, container, headers, docId, docsPath } = env;
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		if (!batch || !task) return;
+		seedImplementationRun(env, {
+			id: 'stale-gate-implementation',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		const url = `/api/v1/documents/${docId}/execution`;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const old = await container.services.wrapup?.triggerWrapup({
+			batchId: batch.id,
+			trigger: 'manual',
+		});
+		const oldRunId = old?.run.id ?? '';
+		await container.services.wrapup?.recordWrapupResult({
+			runId: oldRunId,
+			rawText: readFileSync(
+				join(root, 'packages/daemon/test/fixtures/wrapup/missing-next.md'),
+				'utf8',
+			),
+		});
+		const gate = container.repos.gates?.findPendingByRunId?.(oldRunId);
+		expect(gate?.state).toBe('waiting');
+		expect(container.repos.runs.findById(oldRunId)?.state).toBe('awaiting_human');
+		await container.services.dispatch.tick();
+		expect(container.repos.gates?.findById(gate?.id ?? '')?.state).toBe('waiting');
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2' },
+		]);
+		const changed = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(changed.statusCode, changed.body).toBe(200);
+		available = false;
+		const resumed = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resumed.statusCode, resumed.body).toBe(200);
+		await container.services.dispatch.tick();
+		expect(container.repos.gates?.findById(gate?.id ?? '')).toMatchObject({
+			state: 'decided',
+			decision: null,
+			comment: 'superseded',
+		});
+		expect(container.repos.runs.findById(oldRunId)).toMatchObject({
+			state: 'failed',
+			queued_reason: 'source_changed',
+		});
+		await expect(
+			container.services.gates?.decideGate({
+				gateId: gate?.id ?? '',
+				decision: 'pass',
+				comment: 'Late old verdict',
+				actorDeviceId: 'dev-1',
+			}),
+		).rejects.toMatchObject({ code: 'E_GATE_ALREADY_DECIDED' });
+		expect(container.repos.batches.findById(batch.id)?.state).toBe('running');
+		await server.instance.close();
+	});
+
 	it('does not admit a run after pause wins an asynchronous tick preflight', async () => {
 		const { server, container, headers, docId, pauseNextGitRun } = await setup({
 			canDispatch: () => true,

@@ -1529,7 +1529,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				}
 				if (planBatch) {
 					const isStaleInactiveRun = (run: RunRow): boolean => {
-						if (run.state === 'queued' && run.kind === 'wrapup') {
+						if (
+							run.kind === 'wrapup' &&
+							(run.state === 'queued' || run.state === 'awaiting_human')
+						) {
 							const batch = run.batch_id ? deps.batchesRepo.findById(run.batch_id) : null;
 							return batch?.doc_id === doc.id && !planBatch.wrapupRunIds.includes(run.id);
 						}
@@ -1577,6 +1580,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								queuedReason: 'source_changed',
 								endedAt: deps.clock.now(),
 							});
+							if (run.kind === 'wrapup' && run.state === 'awaiting_human')
+								deps.gatesRepo?.supersedePendingByRunIds?.([run.id], deps.clock.now());
 							if (run.state === 'awaiting_human' && task?.manual_state === 'awaiting_human') {
 								const currentHumanRun = runsRepo
 									.listByTaskId(task.id)
