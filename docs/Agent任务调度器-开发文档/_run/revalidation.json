@@ -1,16 +1,1 @@
-{
-  "R19-T23428016": {
-    "contractHash": "b3f6d6b578b8fd4896d777d80b9f1452867cd0c4f3498f43bd948c96a80807da",
-    "patches": [
-      {
-        "changedFields": [
-          "definition",
-          "effectivePaths"
-        ],
-        "patch": "r19-density-fingerprint-scope-20261013",
-        "sourceVersion": "f924473a5de6d8b6e2ca09ba31309439a36ad6134a7e38fac60a7a485429fcf5"
-      }
-    ],
-    "previousStatus": "review"
-  }
-}
+{}

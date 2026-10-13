@@ -9071,15 +9071,15 @@
     "compiler": "eeddd07520a3431c9e3a6f44609ca79790d7653a1082674d6ca4e1c3f7107607",
     "contractHash": "b3f6d6b578b8fd4896d777d80b9f1452867cd0c4f3498f43bd948c96a80807da",
     "evidence": [
-      "仅登记任务契约语义复核，最终代码验收待真实模型录像；六项验收、全部边界、前置、视觉方向与架构分层不变。",
-      "canonical 返工定义来自 batch-19-20261013.md:43-57；build_docs.py:4191 从 paths 派生支持路径，handoff_contract.py:179-182 拒绝 root 配置重复返工 ID。最终补丁只追加 AC6 必需的 tool-version.json，保留 open 历史裁定、B3、stable-key、任务与批次集合。",
-      "指纹 diff 仅 density_probe.js 一行，LF 归一 SHA256匹配；其他开放 PR 无该文件冲突。手机 view 已有 emptyConsole 装配(716-720)，无需新增支持路径或依赖 PR209；曾加的 view 路径已撤回。",
-      "完整检查通过：pnpm -w check --maxWorkers=4 --minWorkers=1 253 files/3302 passed/3既有skipped；初次超时用例单独5 passed且全量复跑成功，不改超时或断言。完整 _run/tests 前214/后215 OK，各1既有skip。",
-      "真实浏览器基线两桌面均20px批次树及24px导入误报；新 E2E红3failed/1passed，修复后4passed。两主题两尺寸D1-D6/overflow全通过。真实触屏390任务列表入口导入及刷新200、idle/0runs、批次选中成功；默认stream的错误探测已纠正，不作为产品缺陷。",
-      "Jev jev-1.13.0：复用实施全部候选并加入diff事实，间距A(high0.97)、指纹A(high1.00)、canonical源A(high1.00)。手机复审补入完整源码和真实任务栏成功证据，在保留既有入口验证/改变默认栏/改全局位置之间选A(high1.00)，adopt=take(A)，实际动作是正确入口验收且撤回多余范围。",
-      "无新增服务、路由、注册点。接线启发式“服务”来源于真实服务验收文字；实际入口沿用甲板、EmptyOnboarding与样式，展示层仍不取数或计算业务判定。"
+      "任务契约与前置能力、13/17/19节、展示/API分层、全部验收和四个边界均已本轮核对；只补充 AC6 必需的指纹支持路径，未降低标准或修改历史批次 open 记录。",
+      "真实前后证据见 _run/R19-T23428016.review-round1-20261013.proof.json：两桌面基线D4为20/24px，新回归红3failed/1passed、绿4passed，当前浅深两主题净距12px，40px及24px负控仍失败，阈值18px未变。",
+      "pnpm -w check 完整3302passed/3既有skipped，253files；初次负载超时已由独立5passed和全量复跑排除，未更改测试/超时。生成器完整前214/后215 OK各1skip，指纹匹配，真实浏览器pageErrors为空。",
+      "1920/1440 两主题 D1-D6及overflow全过，fill0.972/0.963、横向空带12px、overflowX0。真实粗指针390手机使用现有 tasks 分栏；导入、刷新200、idle/0runs、批次选择及0到197px实际内滚动均通过。",
+      "真实原生Codex0.157.1/app-server请求及原生确认模型gpt-6.1-sol，assistant delta与completed均返回动态验收标记，实际GUI可见；六帧均1440x900、真实服务和同一运行，已编码检查14秒GIF。最终PR头提交完成后再录该头并替换PR嵌入。",
+      "源入口：手机emptyConsole已有装配 run-deck-view.tsx:716-720，桌面:831-838；无服务/路由/注册点新增，接线“服务”仅是验收文字。Jev jev-1.13.0 实施两项全部候选复审均A、高置信、adopt=take；canonical路径A，手机完整源码复核后按A保留既有入口验收，未引入外部PR依赖。",
+      "代码位置及实施沉淀已按prose/trim技能核质量，代码/流程/测试范围与必要元数据一致。发现既有原生消息在GUI重复呈现，记录独立FOLLOW_UP证据；本任务仅修初始甲板间距，不修改适配器。"
     ],
-    "reviewed": "2026-10-13T16:34:47.393010+00:00",
+    "reviewed": "2026-10-13T17:09:56.989722+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

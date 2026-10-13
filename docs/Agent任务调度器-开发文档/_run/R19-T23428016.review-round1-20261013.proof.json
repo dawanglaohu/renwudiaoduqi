@@ -1,0 +1,537 @@
+{
+  "scope": "implementation-acceptance",
+  "task": "R19-T23428016",
+  "round": 1,
+  "verdict": "pass",
+  "testedHead": "04f70ccacfbeddcd10abe8a4b69b1ca6fffaedbb",
+  "baselineSource": "81cc5a3717cc4071e4591a29e615b55c982fa3aa",
+  "redGreen": {
+    "testHarnessHead": "c7902a9a881f0b8520c9bd50d23db03fb0ae9f1a",
+    "baselineSource": "81cc5a3717cc4071e4591a29e615b55c982fa3aa",
+    "baselinePaths": [
+      "packages/web/src/styles/memphis.css",
+      "packages/web/src/styles/memphis-dark.css",
+      "docs/Agent任务调度器-开发文档/_run/density_probe.js"
+    ],
+    "review-web-red": {
+      "exitCode": 0,
+      "summary": []
+    },
+    "review-red-density": {
+      "exitCode": 0,
+      "summary": []
+    },
+    "review-e2e-red": {
+      "exitCode": 1,
+      "summary": [
+        " FAIL  e2e/batch-14-composition.test.ts > R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E-108, E-145) > AC 1-2: 批次树相邻块净距是契约 12px（margin 不与 gap 叠加），浅深两主题两尺寸都成立",
+        " FAIL  e2e/batch-14-composition.test.ts > R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E-108, E-145) > AC 3: 导入控件换行按实际行边界量，不等高同行子项不误判，真实超限行间距仍失败",
+        "Error: page.evaluate: TypeError: probe.blockGap is not a function",
+        " FAIL  e2e/batch-14-composition.test.ts > R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E-108, E-145) > AC 4: 两种桌面尺寸 D1-D6 与 overflow 全过，浅深主题都成立",
+        " Test Files  1 failed (1)",
+        "      Tests  3 failed | 1 passed | 8 skipped (12)",
+        "   Duration  94.10s (transform 841ms, setup 0ms, collect 3.69s, tests 73.04s, environment 0ms, prepare 12.54s)"
+      ]
+    },
+    "restored": true,
+    "review-web-green": {
+      "exitCode": 0,
+      "summary": []
+    },
+    "review-e2e-green": {
+      "exitCode": 0,
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  4 passed | 8 skipped (12)",
+        "   Duration  95.22s (transform 2.09s, setup 0ms, collect 4.24s, tests 75.58s, environment 0ms, prepare 11.21s)"
+      ]
+    }
+  },
+  "generatorTests": {
+    "before": {
+      "exitCode": 0,
+      "summary": [
+        "Ran 214 tests in 135.858s",
+        "OK (skipped=1)"
+      ]
+    },
+    "after": {
+      "exitCode": 0,
+      "summary": [
+        "Ran 215 tests in 155.290s",
+        "OK (skipped=1)"
+      ]
+    }
+  },
+  "workspaceCheck": {
+    "firstAttempt": "One untouched 5001-event stress test timed out under default full concurrency",
+    "focusedRetry": "event-publication-order.test.ts 5 passed, pressure case 10.642s",
+    "finalCommand": "pnpm -w check --maxWorkers=4 --minWorkers=1",
+    "exitCode": 0,
+    "files": 253,
+    "passed": 3302,
+    "existingSkipped": 3,
+    "durationSeconds": 246.71
+  },
+  "desktopDensity": [
+    {
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34553/#/",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.963,
+        "leftGap": 22,
+        "rightGap": 32,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.008
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34553/#/",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.972,
+        "leftGap": 22,
+        "rightGap": 32,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.006
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34553/#/",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1440,
+          "width": 1440
+        },
+        "contentFound": true,
+        "fill": 0.963,
+        "leftGap": 22,
+        "rightGap": 32,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.008
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "result": {
+        "probe": "density",
+        "version": 2,
+        "url": "http://127.0.0.1:34553/#/",
+        "type": "work",
+        "contract": {
+          "density": 8,
+          "gutter": 16,
+          "gap": 12,
+          "pad": 14
+        },
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "mobile": false,
+        "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+        "rail": null,
+        "avail": {
+          "left": 0,
+          "right": 1920,
+          "width": 1920
+        },
+        "contentFound": true,
+        "fill": 0.972,
+        "leftGap": 22,
+        "rightGap": 32,
+        "interiorBand": {
+          "px": 12,
+          "ratio": 0.006
+        },
+        "overflowX": 0,
+        "bars": 4,
+        "growth": [],
+        "emptyTracks": [],
+        "gapOffenders": [],
+        "padOffenders": [],
+        "sparseBlocks": [],
+        "centeredCaps": [],
+        "counts": {
+          "growth": 0,
+          "emptyTracks": 0,
+          "gapOffenders": 0,
+          "padOffenders": 0,
+          "sparseBlocks": 0,
+          "centeredCaps": 0
+        },
+        "verdict": {
+          "D1": "pass",
+          "D2": "pass",
+          "D3": "pass",
+          "D4": "pass",
+          "D5": "pass",
+          "D6": "pass",
+          "overflow": "pass",
+          "pass": true
+        }
+      }
+    }
+  ],
+  "finePointerNarrow": {
+    "narrow": {
+      "overflowX": 0,
+      "flexDirection": "column",
+      "importInput": true,
+      "rebind": true,
+      "onboarding": true
+    },
+    "result": {
+      "probe": "density",
+      "version": 2,
+      "url": "http://127.0.0.1:34553/#/",
+      "type": "work",
+      "contract": {
+        "density": 8,
+        "gutter": 16,
+        "gap": 12,
+        "pad": 14
+      },
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mobile": true,
+      "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+      "rail": null,
+      "avail": {
+        "left": 0,
+        "right": 390,
+        "width": 390
+      },
+      "contentFound": true,
+      "fill": 0.897,
+      "leftGap": 20,
+      "rightGap": 20,
+      "interiorBand": {
+        "px": 0,
+        "ratio": 0
+      },
+      "overflowX": 0,
+      "bars": 4,
+      "growth": [],
+      "emptyTracks": [],
+      "gapOffenders": [],
+      "padOffenders": [],
+      "sparseBlocks": [],
+      "centeredCaps": [],
+      "counts": {
+        "growth": 0,
+        "emptyTracks": 0,
+        "gapOffenders": 0,
+        "padOffenders": 0,
+        "sparseBlocks": 0,
+        "centeredCaps": 0
+      },
+      "verdict": {
+        "D1": "n/a",
+        "D2": "n/a",
+        "D3": "pass",
+        "D4": "n/a",
+        "D5": "n/a",
+        "D6": "n/a",
+        "overflow": "pass",
+        "pass": true
+      }
+    }
+  },
+  "trueTouchNarrow": {
+    "coarsePointer": true,
+    "width": 390,
+    "height": 844,
+    "paneCount": 1,
+    "overflowX": 0,
+    "scroll": {
+      "before": 0,
+      "after": 197,
+      "moved": true,
+      "scrollHeight": 829,
+      "clientHeight": 632
+    },
+    "refreshStatus": 200,
+    "state": "idle",
+    "runs": 0,
+    "batchSelected": "true"
+  },
+  "nativeGui": {
+    "head": "04f70ccacfbeddcd10abe8a4b69b1ca6fffaedbb",
+    "base": "http://127.0.0.1:38293",
+    "root": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r19-t23428016/review-live-8bcb042f-a00d-487a-9d42-44f0941fd69c",
+    "source": "review-authored benign task, no fixture agent, no mocked API or events",
+    "platform": "linux",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "frames": [
+      {
+        "name": "00-light-idle",
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "name": "01-dark-idle",
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "name": "02-assignment",
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "name": "03-dispatch",
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "name": "04-created-run",
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "name": "05-real-model-reply",
+        "width": 1440,
+        "height": 900
+      }
+    ],
+    "pageErrors": [],
+    "nonce": "R19_REAL_MODEL_62052143",
+    "density": [],
+    "modelRun": {
+      "id": "req_ddb5f4e39327",
+      "agentId": "codex",
+      "modelName": "gpt-6.1-sol",
+      "initialState": "starting",
+      "nativeModel": "gpt-6.1-sol",
+      "reply": "R19_REAL_MODEL_62052143",
+      "visibleReplyText": "R19_REAL_MODEL_62052143R19_REAL_MODEL_62052143",
+      "finalState": "exited"
+    },
+    "codexVersion": "codex-cli 0.157.1",
+    "import": {
+      "status": 200,
+      "execution": "idle",
+      "runs": 0
+    },
+    "phoneAudit": {
+      "coarsePointer": true,
+      "width": 390,
+      "height": 844,
+      "paneCount": 1,
+      "overflowX": 0,
+      "scroll": {
+        "before": 0,
+        "after": 197,
+        "moved": true,
+        "scrollHeight": 829,
+        "clientHeight": 632
+      },
+      "refreshStatus": 200,
+      "state": "idle",
+      "runs": 0,
+      "batchSelected": "true"
+    },
+    "computed": {
+      "gap": "12px",
+      "titleMargin": "0px",
+      "titleBorder": "3px",
+      "background": "rgb(255, 159, 243)"
+    },
+    "startStatus": 200,
+    "ok": true
+  },
+  "initialGif": {
+    "path": "review-04f70cc.gif",
+    "sourceFrames": 6,
+    "encodedFrames": 140,
+    "width": 1200,
+    "height": 750,
+    "seconds": 14,
+    "bytes": 512424
+  },
+  "exceptions": [
+    "Real daemon is WSL root on Ubuntu 20.04; Linux SQLite binding rebuilt for GLIBC 2.31; changes are confined to ignored dependencies.",
+    "Codex execPath uses a transparent WSL interop bridge to the normally authenticated Windows codex-cli 0.157.1. No credential values were read or exposed.",
+    "Browser hasTouch=true, fresh context, screenshots all 1440x900; the phone audit temporarily resized this same context to 390x844 before returning to the fixed recording viewport.",
+    "Benign real task requests a unique marker and no tools/files. The recorded native reply and exit prove model/GUI reachability; this is not a full document execution acceptance."
+  ],
+  "followUp": [
+    {
+      "symptom": "Native agent-message deltas concatenate to the nonce once and item/completed repeats the same text; the run-detail GUI displays two copies.",
+      "changedByPr": false,
+      "scope": "Independent native adapter or log projection follow-up; preserve evidence, do not expand R19 code changes.",
+      "candidateSource": "packages/daemon/src/adapters/codex/map-events.ts:751 and :796",
+      "deltaJoinedMatches": true,
+      "completedMatches": true,
+      "guiCopies": 2
+    }
+  ]
+}
