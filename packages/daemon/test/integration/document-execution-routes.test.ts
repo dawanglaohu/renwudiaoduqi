@@ -2451,6 +2451,221 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('E-369: completed execution reopens when refresh moves a member without changing task hashes', async () => {
+		const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
+		const { server, container, headers, docId, docsPath } = env;
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2' },
+		]);
+		const firstRefresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(firstRefresh.statusCode, firstRefresh.body).toBe(200);
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		const tasks = container.repos.tasks.listByDocId(docId);
+		if (!batch || tasks.length !== 2) return;
+		for (const [index, task] of tasks.entries()) {
+			seedImplementationRun(env, {
+				id: `completed-move-${index}`,
+				taskId: task.id,
+				batchId: batch.id,
+				attemptNo: 1,
+				contractHash: task.contract_hash,
+				createdAt: '2026-10-12T07:00:00.000Z',
+			});
+		}
+		const url = `/api/v1/documents/${docId}/execution`;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const wrapup = await container.services.wrapup?.triggerWrapup({
+			batchId: batch.id,
+			trigger: 'manual',
+		});
+		const wrapupId = wrapup?.run.id ?? '';
+		container.repos.runs.updateState({ id: wrapupId, toState: 'starting' });
+		container.repos.runs.updateState({ id: wrapupId, toState: 'running' });
+		await container.services.wrapup?.recordWrapupResult({
+			runId: wrapupId,
+			rawText: readFileSync(
+				join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
+				'utf8',
+			),
+		});
+		container.repos.runs.updateInHead?.({
+			id: wrapupId,
+			isInHead: 1,
+			checkedAt: '2026-10-12T11:00:00.000Z',
+		});
+		await container.services.dispatch.tick();
+		const completed = container.services.documentExecution.get(docId).execution;
+		expect(completed.state).toBe('completed');
+		const runCount = container.repos.runs.listAll().length;
+		const beforeRefreshEvent = container.events.ringBuffer.latest()?.id;
+		const unchanged = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(unchanged.statusCode, unchanged.body).toBe(200);
+		expect(container.services.documentExecution.get(docId).execution.version).toBe(
+			completed.version,
+		);
+		expect(container.events.ringBuffer.latest()?.id).toBe(beforeRefreshEvent);
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T1', hash: 'contract-1' },
+			{ id: 'M1-T2', hash: 'contract-2', deps: ['M1-T1'] },
+		]);
+		const moved = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(moved.statusCode, moved.body).toBe(200);
+		const reopened = container.services.documentExecution.get(docId).execution;
+		expect(reopened.state).toBe('idle');
+		expect(reopened.version).toBeGreaterThan(completed.version);
+		expect(container.repos.documentExecutions.findByDocId(docId)?.completed_at).toBeNull();
+		expect(container.repos.runs.listAll()).toHaveLength(runCount);
+		expect(
+			container.events.ringBuffer
+				.getAll()
+				.some(
+					(event) =>
+						event.id > (beforeRefreshEvent ?? 0) && event.kind === 'document.execution_changed',
+				),
+		).toBe(true);
+		const restarted = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: reopened.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(restarted.statusCode, restarted.body).toBe(200);
+		expect(restarted.json().execution.state).toBe('running');
+		await server.instance.close();
+	});
+
+	it('E-369: a returned contract uses its valid landed run despite a later failed contract', async () => {
+		const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
+		const { server, container, headers, docId, docsPath } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) return;
+		seedImplementationRun(env, {
+			id: 'contract-a-landed',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: 'contract-1',
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		const url = `/api/v1/documents/${docId}/execution`;
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
+		const changedToB = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(changedToB.statusCode, changedToB.body).toBe(200);
+		const resumedB = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resumedB.statusCode, resumedB.body).toBe(200);
+		seedImplementationRun(env, {
+			id: 'contract-b-failed',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 2,
+			contractHash: 'contract-2',
+			createdAt: '2026-10-12T08:00:00.000Z',
+		});
+		container.repos.runs.updateState({ id: 'contract-b-failed', toState: 'failed' });
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-1' }]);
+		const returnedToA = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(returnedToA.statusCode, returnedToA.body).toBe(200);
+		const resumedA = await server.instance.inject({
+			method: 'POST',
+			url: `${url}/resume`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+			},
+		});
+		expect(resumedA.statusCode, resumedA.body).toBe(200);
+		container.repos.dispatchSnapshots?.updateTaskChangedFlags(task.id, {
+			hasAcceptChanged: false,
+			hasPromptChanged: false,
+		});
+		const wrapup = await container.services.wrapup?.triggerWrapup({
+			batchId: batch.id,
+			trigger: 'manual',
+		});
+		expect(wrapup?.run.agentId).toBe('codex');
+		const wrapupId = wrapup?.run.id ?? '';
+		container.repos.runs.updateState({ id: wrapupId, toState: 'starting' });
+		container.repos.runs.updateState({ id: wrapupId, toState: 'running' });
+		await container.services.wrapup?.recordWrapupResult({
+			runId: wrapupId,
+			rawText: readFileSync(
+				join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
+				'utf8',
+			),
+		});
+		container.repos.runs.updateInHead?.({
+			id: wrapupId,
+			isInHead: 1,
+			checkedAt: '2026-10-12T11:00:00.000Z',
+		});
+		await container.services.dispatch.tick();
+		expect(container.services.documentExecution.get(docId).execution.state).toBe('completed');
+		expect(container.repos.runs.findById('contract-a-landed')?.state).toBe('landed');
+		expect(container.repos.runs.findById('contract-b-failed')?.state).toBe('failed');
+		await server.instance.close();
+	});
+
 	it('R1: changed-contract work reports an unavailable Agent despite old landed history', async () => {
 		let available = true;
 		const env = await setup({ canDispatch: () => available });

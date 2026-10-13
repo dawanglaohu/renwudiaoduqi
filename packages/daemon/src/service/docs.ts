@@ -146,6 +146,7 @@ export interface DocsServiceDeps {
 	readonly tasksRepo?: TasksRepo;
 	readonly runsRepo?: RunsRepo;
 	readonly dispatchSnapshotsRepo?: DispatchSnapshotsRepo;
+	readonly reopenCompletedExecutionInTx?: (docId: string) => void;
 	readonly db?: DatabaseConnection;
 	/** 任务与批次落库走一次事务（08 节：只有 service 层能开事务）；缺省时逐条执行。 */
 	readonly unitOfWork?: UnitOfWork;
@@ -1000,6 +1001,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 					});
 				}
 				const imported = persistParsedTasks(deps, docId, parsed, true);
+				deps.reopenCompletedExecutionInTx?.(docId);
 				const hasChanged =
 					existingRow?.content_fingerprint !== parsed.contentFingerprint ||
 					existingRow?.repo_path !== repoPath;
@@ -1118,6 +1120,7 @@ export function createDocsService(deps: DocsServiceDeps): DocsService {
 				if (bindingChanged) assertBindingChangeAllowed(docId);
 				deps.documentsRepo.updateMetadata(updateRow);
 				persistParsedTasks(deps, existingRow.id, parsed, true);
+				deps.reopenCompletedExecutionInTx?.(docId);
 
 				if (deps.dispatchSnapshotsRepo) {
 					const banner = deps.dispatchSnapshotsRepo.refreshDocDiff(

@@ -429,6 +429,7 @@ export function createContainer(input: {
 
 	if (input.bootstrapPairing !== false) pairingService.bootstrapIfNeeded();
 
+	const documentExecutionHolder: { current?: DocumentExecutionService } = {};
 	const docsService =
 		input.docsService ??
 		createDocsService({
@@ -438,6 +439,8 @@ export function createContainer(input: {
 			tasksRepo: tasks,
 			batchesRepo: batches,
 			dispatchSnapshotsRepo: dispatchSnapshots,
+			reopenCompletedExecutionInTx: (docId) =>
+				documentExecutionHolder.current?.reopenCompletedOnRefreshInTx(docId),
 			db: input.database,
 			unitOfWork,
 			clock: input.clock,
@@ -619,7 +622,6 @@ export function createContainer(input: {
 		});
 
 	const schedulerTickJobHolder: { current?: ContainerJob & { trigger?: () => void } } = {};
-	const documentExecutionHolder: { current?: DocumentExecutionService } = {};
 	const nudgeTick = () => {
 		schedulerTickJobHolder.current?.trigger?.();
 	};

@@ -335,6 +335,7 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			readonly effortTier?: 'low' | 'medium' | 'high' | null;
 			readonly effort?: EffortValue;
 		},
+		planBatch?: DocumentPlanBatch,
 	): {
 		readonly agentId: string;
 		readonly modelName: string | null;
@@ -429,7 +430,20 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 		}
 
 		// Follow candidate from batch
-		const landedRuns = deps.runsRepo.findLandedImplementationRunsByBatchId?.(batchId) ?? [];
+		const landedRuns = planBatch
+			? currentMemberEvidence(
+					deps.tasksRepo
+						.listByBatchId(batchId)
+						.filter((task) => planBatch.members.some((member) => member.taskId === task.id)),
+					deps.runsRepo.listAll(),
+					deps.dispatchSnapshotsRepo,
+				)
+					.runs.filter((run) => run.state === 'landed')
+					.sort(
+						(a, b) =>
+							(b.ended_at ?? '').localeCompare(a.ended_at ?? '') || b.id.localeCompare(a.id),
+					)
+			: (deps.runsRepo.findLandedImplementationRunsByBatchId?.(batchId) ?? []);
 		const sourceRun = landedRuns.length > 0 ? landedRuns[0] : null;
 		let followAssignment = null;
 		if (sourceRun?.task_id) {
@@ -748,12 +762,18 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 			// 3. Resolve assignment (AC 2, E-287, E-344)
 			let assignment: ReturnType<typeof resolveWrapupAssignment>;
 			try {
-				assignment = resolveWrapupAssignment(batchId, validRoundCount + 1, latestWrapup ?? null, {
-					agentId: input.agentId,
-					model: input.model,
-					effortTier: input.effortTier,
-					effort: input.effort,
-				});
+				assignment = resolveWrapupAssignment(
+					batchId,
+					validRoundCount + 1,
+					latestWrapup ?? null,
+					{
+						agentId: input.agentId,
+						model: input.model,
+						effortTier: input.effortTier,
+						effort: input.effort,
+					},
+					executionPlan?.entry,
+				);
 			} catch (err: unknown) {
 				// If agent unavailable or follow source missing, transition batch to needs_attention (E-287, E-344)
 				if (err instanceof AppError && err.code === 'E_AGENT_UNAVAILABLE') {

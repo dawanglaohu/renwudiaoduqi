@@ -80,6 +80,7 @@ export interface DocumentExecutionService {
 		actorDeviceId?: string | null,
 	) => Promise<DocumentExecutionResponse>;
 	readonly pauseRunningOnRestart: () => void;
+	readonly reopenCompletedOnRefreshInTx: (docId: string) => void;
 	readonly advanceRunning: (docId: string) => void;
 	readonly publishIfVersionChanged: (
 		docId: string,
@@ -229,11 +230,12 @@ export function createDocumentExecutionService(
 		}
 		const taskKeys = tasks.map((task) => task.task_key).sort();
 		if (!Array.isArray(covered) || !sameMembers(covered, taskKeys)) return false;
-		if (!summarizeBatchLanding(tasks, runs).allInHead) return false;
+		const evidence = currentMemberEvidence(tasks, runs, deps.snapshots);
+		if (!summarizeBatchLanding(evidence.tasks, evidence.runs).allInHead) return false;
 		const wrapupRun = deps.runs.findById(wrapup.run_id);
 		if (!wrapupRun || wrapupRun.is_in_head !== 1) return false;
-		return tasks.every((task) =>
-			runs.some((run) => {
+		return evidence.tasks.every((task) =>
+			evidence.runs.some((run) => {
 				if (
 					run.task_id !== task.id ||
 					run.kind !== 'implement' ||
@@ -527,6 +529,36 @@ export function createDocumentExecutionService(
 	function currentResponse(docId: string): DocumentExecutionResponse {
 		const doc = requireDocument(docId);
 		return { execution: toDto(doc, deps.executions.findByDocId(docId)) };
+	}
+
+	function reopenCompletedOnRefreshInTx(docId: string): void {
+		const row = deps.executions.findByDocId(docId);
+		if (row?.state !== 'completed') return;
+		const stored = parsePlan(row.plan_json);
+		const observed = buildPlanFromRows(
+			deps.batches.listByDocId(docId),
+			deps.tasks.listByDocId(docId),
+			row.version,
+			stored,
+		);
+		if (
+			observed.length === stored.length &&
+			observed.every(
+				(entry, index) =>
+					entry.batchId === stored[index]?.batchId &&
+					entry.membershipFingerprint === stored[index]?.membershipFingerprint,
+			)
+		)
+			return;
+		deps.executions.save({
+			...row,
+			state: 'idle',
+			version: row.version + 1,
+			pause_reason: 'doc_changed',
+			current_batch_id: null,
+			completed_at: null,
+			updated_at: deps.clock.now(),
+		});
 	}
 
 	function advanceRunning(docId: string): void {
@@ -1005,6 +1037,7 @@ export function createDocumentExecutionService(
 			});
 			for (const id of ids) publishChanged(id, []);
 		},
+		reopenCompletedOnRefreshInTx,
 		advanceRunning,
 		publishIfVersionChanged,
 	});
