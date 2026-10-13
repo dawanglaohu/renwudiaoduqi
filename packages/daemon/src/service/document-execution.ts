@@ -121,6 +121,41 @@ function sameMembers(a: readonly string[], b: readonly string[]): boolean {
 	return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+/** Wrapup repairs inherit their wrapup owner's generation before the copied task snapshot. */
+export function readDocumentRunGeneration(
+	run: RunRow,
+	runs: Pick<RunsRepo, 'findById'>,
+	snapshots: Pick<DispatchSnapshotsRepo, 'findById'>,
+	seen = new Set<string>(),
+): number {
+	if (seen.has(run.id)) return 0;
+	seen.add(run.id);
+	if (run.origin === 'wrapup-fix' && run.spawned_by_run_id) {
+		const wrapup = runs.findById(run.spawned_by_run_id);
+		if (wrapup) return readDocumentRunGeneration(wrapup, runs, snapshots, seen);
+	}
+	const snapshot = snapshots.findById(run.snapshot_id);
+	try {
+		const launch = JSON.parse(snapshot?.launch_spec_json ?? '{}') as {
+			documentGenerationId?: number;
+		};
+		if (typeof launch.documentGenerationId === 'number') return launch.documentGenerationId;
+	} catch {
+		/* The parent run can still identify this stage's generation. */
+	}
+	if (run.kind === 'wrapup') {
+		try {
+			const frozen = JSON.parse(snapshot?.input_text ?? '{}') as { generationId?: number };
+			if (typeof frozen.generationId === 'number') return frozen.generationId;
+		} catch {
+			/* Legacy wrapups belong to generation zero. */
+		}
+	}
+	const parentId = run.parent_run_id ?? run.spawned_by_run_id;
+	const parent = parentId ? runs.findById(parentId) : null;
+	return parent ? readDocumentRunGeneration(parent, runs, snapshots, seen) : 0;
+}
+
 export function currentMemberEvidence(
 	tasks: readonly TaskRow[],
 	runs: readonly RunRow[],
@@ -491,15 +526,7 @@ export function createDocumentExecutionService(
 				.filter((run) => {
 					if (run.batch_id !== current.batchId) return true;
 					if (run.kind === 'wrapup') return !current.wrapupRunIds.includes(run.id);
-					const snapshot = deps.snapshots.findById(run.snapshot_id);
-					try {
-						const launch = JSON.parse(snapshot?.launch_spec_json ?? '{}') as {
-							documentGenerationId?: number;
-						};
-						return (launch.documentGenerationId ?? 0) !== current.generationId;
-					} catch {
-						return current.generationId !== 0;
-					}
+					return readDocumentRunGeneration(run, deps.runs, deps.snapshots) !== current.generationId;
 				});
 			const sourceRunIds = oldSourceRuns
 				.map((run) => run.task_id)
@@ -835,7 +862,9 @@ export function createDocumentExecutionService(
 					row.content_fingerprint === expectedFingerprint &&
 					assignment !== null &&
 					sameAssignment(parseAssignment(row.default_assignment_json), assignment)
-				: row?.state === 'running' && row.version === expectedVersion + 1;
+				: row?.state === 'running' &&
+					(row.version === expectedVersion || row.version === expectedVersion + 1) &&
+					row.content_fingerprint === expectedFingerprint;
 		try {
 			const preflightRow = deps.executions.findByDocId(docId);
 			if (isIdempotentRetry(preflightRow)) {
@@ -895,8 +924,7 @@ export function createDocumentExecutionService(
 					details: { execution: currentResponse(docId).execution },
 				});
 			}
-			if (mode === 'resume' && row?.state === 'running' && row.version === expectedVersion + 1)
-				return;
+			if (mode === 'resume' && isIdempotentRetry(row)) return;
 			assertVersion(expectedVersion, docId, row);
 			if (mode === 'start' && (row?.state ?? 'idle') !== 'idle')
 				throw new AppError('E_VALIDATION', 'Document execution is not idle.');
@@ -1050,7 +1078,11 @@ export function createDocumentExecutionService(
 			let changed = false;
 			deps.unitOfWork.run(() => {
 				const row = deps.executions.findByDocId(docId);
-				if (row?.state === 'paused' && row.version === body.expectedVersion + 1) return;
+				if (
+					row?.state === 'paused' &&
+					(row.version === body.expectedVersion || row.version === body.expectedVersion + 1)
+				)
+					return;
 				assertVersion(body.expectedVersion, docId, row);
 				if (row?.state !== 'running')
 					throw new AppError('E_VALIDATION', 'Document execution is not running.');

@@ -90,7 +90,7 @@ import type { PrepareWorktreeInput, PrepareWorktreeResult } from '../workspace/w
 import { createAssignmentReader } from './assignment-reader.ts';
 import { type StoredAssignmentDraft, parseAssignmentDraft } from './assignments.ts';
 import { type BatchService, computeBatchSummary, createBatchService, toBatchDto } from './batch.ts';
-import { currentMemberEvidence } from './document-execution.ts';
+import { currentMemberEvidence, readDocumentRunGeneration } from './document-execution.ts';
 import type { LanesService } from './lanes.ts';
 import type { EventEnvelopeInput } from './logstore.ts';
 import { createRerunService } from './rerun.ts';
@@ -556,33 +556,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		);
 	}
 
-	function runGeneration(run: RunRow, seen = new Set<string>()): number {
-		if (seen.has(run.id)) return 0;
-		seen.add(run.id);
-		if (run.origin === 'wrapup-fix' && run.spawned_by_run_id) {
-			const wrapup = runsRepo.findById(run.spawned_by_run_id);
-			if (wrapup) return runGeneration(wrapup, seen);
-		}
-		const snapshot = deps.dispatchSnapshotsRepo.findById(run.snapshot_id);
-		try {
-			const launch = JSON.parse(snapshot?.launch_spec_json ?? '{}') as {
-				documentGenerationId?: number;
-			};
-			if (typeof launch.documentGenerationId === 'number') return launch.documentGenerationId;
-		} catch {
-			/* The parent run can still identify this stage's generation. */
-		}
-		if (run.kind === 'wrapup') {
-			try {
-				const frozen = JSON.parse(snapshot?.input_text ?? '{}') as { generationId?: number };
-				if (typeof frozen.generationId === 'number') return frozen.generationId;
-			} catch {
-				/* Legacy wrapups belong to generation zero. */
-			}
-		}
-		const parentId = run.parent_run_id ?? run.spawned_by_run_id;
-		const parent = parentId ? runsRepo.findById(parentId) : null;
-		return parent ? runGeneration(parent, seen) : 0;
+	function runGeneration(run: RunRow): number {
+		return readDocumentRunGeneration(run, runsRepo, deps.dispatchSnapshotsRepo);
 	}
 
 	function frozenRunTaskPaths(run: RunRow): readonly string[] {

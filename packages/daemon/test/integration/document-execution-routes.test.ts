@@ -390,6 +390,47 @@ function seedQueuedStageRun(
 }
 
 describe('M8-T12 document execution through the real container', () => {
+	it.each(['pause', 'resume'] as const)(
+		'E-361: repeating %s with the observed current version is read-only',
+		async (action) => {
+			const { server, container, headers, docId, setGitAvailable } = await setup();
+			const url = `/api/v1/documents/${docId}/execution`;
+			const expectedFingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
+			const post = (operation: string, payload: Record<string, unknown>) =>
+				server.instance.inject({ method: 'POST', url: `${url}/${operation}`, headers, payload });
+			expect(
+				(
+					await post('start', {
+						expectedVersion: 0,
+						expectedFingerprint,
+						defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+					})
+				).statusCode,
+			).toBe(200);
+			expect((await post('pause', { expectedVersion: 1 })).statusCode).toBe(200);
+			if (action === 'resume')
+				expect((await post('resume', { expectedVersion: 2, expectedFingerprint })).statusCode).toBe(
+					200,
+				);
+			const before = container.repos.documentExecutions.findByDocId(docId);
+			const eventId = container.events.ringBuffer.latest()?.id;
+			setGitAvailable(false);
+			const response = await post(action, {
+				expectedVersion: before?.version,
+				...(action === 'resume' ? { expectedFingerprint } : {}),
+			});
+			expect(response.statusCode, response.body).toBe(200);
+			expect(response.json().execution).toMatchObject({
+				state: before?.state,
+				version: before?.version,
+			});
+			expect(container.repos.documentExecutions.findByDocId(docId)).toEqual(before);
+			expect(container.events.ringBuffer.latest()?.id).toBe(eventId);
+			expect(container.repos.runs.listAll()).toHaveLength(0);
+			await server.instance.close();
+		},
+	);
+
 	it('E-361: duplicate start reads the committed plan while the repository is unavailable', async () => {
 		const { server, container, headers, docId, setGitAvailable } = await setup();
 		const url = `/api/v1/documents/${docId}/execution/start`;
@@ -4220,6 +4261,11 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(resume.statusCode, resume.body).toBe(200);
 		const tick = await container.services.dispatch.tick();
 		expect(tick.runsDispatched).toContain('r3-current-fix');
+		const execution = await server.instance.inject({ method: 'GET', url, headers });
+		expect(execution.statusCode, execution.body).toBe(200);
+		expect(execution.json().execution.blockers).not.toContainEqual(
+			expect.objectContaining({ code: 'source_runs_pending' }),
+		);
 		await server.instance.close();
 	});
 
