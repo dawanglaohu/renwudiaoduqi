@@ -2517,3 +2517,448 @@ Ready for landing checklist
 		expect(ciYamlContent).toContain('Upload E2E Smoke Artifacts and Browser Evidence');
 	});
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 第 19 批返工 R19-T23428016：甲板初始状态间距与桌面密度探针
+// (AC 1-4, M9-T28, M9-T23, E-108, E-145)
+//
+// 真实 daemon + 构建后的 Web + 真实浏览器：配对、导入、两种桌面尺寸、浅深两套主题。
+// 两处第 19 批实测的 D4 失败都覆盖：
+//   1) 批次树标题的 margin-bottom 与容器 gap 叠成 20px（真实布局缺陷，探针量得对）；
+//   2) 导入控件换行时逐子项量出的 24px（不等高的同行子项造成的测量误判，探针算法缺陷）。
+// 负控：真实超限的行间距必须仍然判失败，改算法不许把超限一起放过去。
+// ─────────────────────────────────────────────────────────────────────────────
+describe('R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E-108, E-145)', () => {
+	let daemon: RunningDaemon;
+	let browser: Browser;
+	let isolatedProjectRoot: string | null = null;
+	// 一次性配对码只能在整套用例里领一次，所以配对、导入、页面都在 beforeAll 做一次，
+	// 三个用例共用同一个已配对的 page（探针只量几何，不需要每个用例重新配对）。
+	let context: BrowserContext;
+	let page: Page;
+	let token = '';
+	let importedDocId = '';
+
+	const DESKTOP_VIEWPORTS = [
+		{ width: 1920, height: 1080 },
+		{ width: 1440, height: 900 },
+	] as const;
+
+	const probeSource = readFileSync(
+		resolve(repoRoot, 'docs/Agent任务调度器-开发文档/_run/density_probe.js'),
+		'utf8',
+	);
+
+	beforeAll(async () => {
+		mkdirSync(artifactsDir, { recursive: true });
+		// 生产 Web 构建产物必须先存在（探针量的是真实构建产物，不是开发服务器）
+		const webDistIndex = join(repoRoot, 'packages/web/dist/index.html');
+		if (!existsSync(webDistIndex)) {
+			execSync('pnpm --filter @agent-scheduler/web build', { cwd: repoRoot, stdio: 'inherit' });
+		}
+
+		// 隔离的项目仓库：导入要求 daemon 能读到真实仓库里的 docs-data.js
+		isolatedProjectRoot = mkdtempSync(join(tmpdir(), 'agsched-r19-project-'));
+		const repoDir = join(isolatedProjectRoot, 'repo');
+		mkdirSync(repoDir, { recursive: true });
+		execFileSync('git', ['init', repoDir], { stdio: 'ignore' });
+		execFileSync('git', ['-C', repoDir, 'symbolic-ref', 'HEAD', 'refs/heads/main'], { stdio: 'ignore' });
+		execFileSync('git', ['-C', repoDir, 'config', 'user.name', 'R19 E2E'], { stdio: 'ignore' });
+		execFileSync('git', ['-C', repoDir, 'config', 'user.email', 'r19-e2e@example.invalid'], { stdio: 'ignore' });
+
+		const fixture = JSON.parse(
+			readFileSync(join(fixturesDir, 'docs-data.js'), 'utf8')
+				.replace(/^\s*window\.DOCS\s*=\s*/, '')
+				.replace(/;\s*$/, ''),
+		) as { pres: { handoff: { repo: string } } };
+		fixture.pres.handoff.repo = repoDir;
+		writeFileSync(join(repoDir, 'docs-data.js'), `window.DOCS = ${JSON.stringify(fixture)};\n`, 'utf8');
+		execFileSync('git', ['-C', repoDir, 'add', 'docs-data.js'], { stdio: 'ignore' });
+		execFileSync('git', ['-C', repoDir, 'commit', '-m', 'Acceptance input'], { stdio: 'ignore' });
+
+		daemon = await startCompositionDaemon({ timeoutMs: 120000 });
+		browser = await chromium.launch({
+			headless: true,
+			args:
+				typeof process.getuid === 'function' && process.getuid() === 0
+					? ['--no-sandbox', '--disable-setuid-sandbox']
+					: [],
+		});
+		context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, bypassCSP: true });
+		page = await context.newPage();
+		// 一次性配对码只能领一次，配对与导入在这里做一次，三个用例共用同一个已配对页面
+		await pairAndImport();
+	}, 300000);
+
+	afterAll(async () => {
+		try {
+			if (context) await context.close();
+		} catch {}
+		try {
+			if (browser) await browser.close();
+		} catch {}
+		try {
+			if (daemon) await daemon.stop();
+		} catch {}
+		if (isolatedProjectRoot !== null) {
+			try {
+				rmSync(isolatedProjectRoot, { recursive: true, force: true });
+			} catch {}
+		}
+	});
+
+	/** 真实 UI 配对 + 真实 UI 导入；导入后必须仍是 idle 且 0 runs（AC 4）。 */
+	async function pairAndImport(): Promise<void> {
+		const codeFilePath = join(daemon.dataDir, 'pairing-code.txt');
+		let code = '';
+		for (let i = 0; i < 60; i++) {
+			if (existsSync(codeFilePath)) {
+				code = readFileSync(codeFilePath, 'utf8').trim();
+				if (code.length > 0) break;
+			}
+			await new Promise((r) => setTimeout(r, 250));
+		}
+		expect(code).toMatch(/^[A-Za-z0-9]{6}$/);
+		registerSensitiveData(code);
+
+		await page.goto(`http://127.0.0.1:${daemon.port}/`, { waitUntil: 'domcontentloaded' });
+		await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/pair`, { timeout: 20000 });
+		const codeInput = page.locator('[data-testid="pairing-code-input"]');
+		await codeInput.waitFor({ state: 'visible', timeout: 20000 });
+		await codeInput.fill(code);
+		const toggleManualHost = page.getByRole('button', { name: /手填地址/ });
+		if (await toggleManualHost.isVisible().catch(() => false)) await toggleManualHost.click();
+		const hostInput = page.locator('[data-testid="manual-host-input"]');
+		if (await hostInput.isVisible().catch(() => false)) {
+			await hostInput.fill(`127.0.0.1:${daemon.port}`);
+		}
+		await page.locator('[data-testid="pairing-submit-button"]').click();
+		await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/`, { timeout: 25000 });
+		const stored = await page.evaluate(() => sessionStorage.getItem('agsched.token'));
+		expect(stored).toBeTruthy();
+		token = stored as string;
+		registerSensitiveData(token);
+		expect(existsSync(codeFilePath)).toBe(false);
+
+		// 真实 UI 导入
+		const importInput = page.getByTestId('import-doc-path');
+		await importInput.waitFor({ state: 'visible', timeout: 25000 });
+		await importInput.fill(join(isolatedProjectRoot as string, 'repo', 'docs-data.js'));
+		const importPromise = page.waitForResponse(
+			(res) => res.request().method() === 'POST' && res.url().endsWith('/api/v1/documents'),
+		);
+		await page.locator('[data-action="import-document"]').click();
+		const importRes = await importPromise;
+		expect([200, 201]).toContain(importRes.status());
+		importedDocId = ((await importRes.json()) as { document: { id: string } }).document.id;
+		expect(importedDocId).toBeTruthy();
+
+		// AC 4：导入后仍是 idle 且没有运行。
+		// beforeAll 里不能用 expect.poll（vitest 要求它在用例内），用手写轮询等执行态落定。
+		let executionState: string | null = null;
+		for (let i = 0; i < 40; i++) {
+			const r = await fetch(
+				`http://127.0.0.1:${daemon.port}/api/v1/documents/${importedDocId}/execution`,
+				{ headers: { Authorization: `Bearer ${token}` } },
+			);
+			if (r.ok) {
+				const body = (await r.json()) as { execution?: { state?: string }; state?: string };
+				executionState = body.execution?.state ?? body.state ?? null;
+				if (executionState === 'idle') break;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 300));
+		}
+		expect(executionState, 'AC 4: 导入后执行态必须是 idle').toBe('idle');
+		const runsRes = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/runs`, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		expect(runsRes.status).toBe(200);
+		expect(((await runsRes.json()) as { runs: unknown[] }).runs.length, 'AC 4: 导入后不得有运行').toBe(0);
+	}
+
+	/** 把页面切到指定主题：真实 provider 只往 html 写 dark|light（E-15），写的是同一个属性。 */
+	async function applyTheme(theme: 'light' | 'dark'): Promise<void> {
+		await page.evaluate((value) => {
+			document.documentElement.setAttribute('data-theme', value);
+			document.documentElement.style.colorScheme = value;
+		}, theme);
+		await page.evaluate(() => document.fonts.ready);
+		await page.waitForTimeout(400);
+	}
+
+	/** 打开甲板初始状态页（空态四步引导 + 左栏批次树），返回空态是否出现。 */
+	async function openDeck(): Promise<void> {
+		await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'load' });
+		await page.waitForSelector('[data-testid="empty-onboarding-console"]', { timeout: 25000 });
+	}
+
+	it('AC 1-2: 批次树相邻块净距是契约 12px（margin 不与 gap 叠加），浅深两主题两尺寸都成立', async () => {
+		for (const theme of ['light', 'dark'] as const) {
+			for (const viewport of DESKTOP_VIEWPORTS) {
+				const label = `${theme}-${viewport.width}x${viewport.height}`;
+				await page.setViewportSize(viewport);
+				await openDeck();
+				await applyTheme(theme);
+
+				const tree = await page.evaluate(() => {
+					const el = document.querySelector('.deck-batch-tree');
+					if (!el) return null;
+					const kids = Array.from(el.children).map((child) => {
+						const rect = child.getBoundingClientRect();
+						const cs = getComputedStyle(child);
+						return {
+							top: rect.top,
+							bottom: rect.bottom,
+							marginBottom: cs.marginBottom,
+							text: (child.textContent ?? '').trim().slice(0, 20),
+						};
+					});
+					const gaps: number[] = [];
+					for (let i = 1; i < kids.length; i++) {
+						gaps.push(kids[i]!.top - kids[i - 1]!.bottom);
+					}
+					return { gap: getComputedStyle(el).gap, count: kids.length, kids, gaps };
+				});
+				expect(tree, `${label}: 批次树必须存在`).not.toBeNull();
+				expect(tree!.count, `${label}: 批次树至少要有标题与批次两块`).toBeGreaterThanOrEqual(2);
+				// 容器 gap 就是契约的块间距
+				expect(tree!.gap, `${label}: 批次树容器 gap`).toBe('12px');
+				// 标题的外边距不许再叠加到 gap 上（第 19 批实测叠成 20px）
+				expect(tree!.kids[0]!.marginBottom, `${label}: 标题 margin-bottom 会与 gap 叠加`).toBe('0px');
+				for (const netGap of tree!.gaps) {
+					expect(netGap, `${label}: 批次树相邻块净距 ${netGap}px 超出 D4 上限 18px`).toBeLessThanOrEqual(18);
+					expect(netGap, `${label}: 批次树相邻块净距应为契约 12px`).toBeCloseTo(12, 1);
+				}
+
+				writeFileSync(
+					join(artifactsDir, `r19-batch-tree-${label}.json`),
+					JSON.stringify({ theme, viewport, tree }, null, 2),
+					'utf8',
+				);
+			}
+		}
+	}, 300000);
+
+	it('AC 3: 导入控件换行按实际行边界量，不等高同行子项不误判，真实超限行间距仍失败', async () => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await openDeck();
+		await applyTheme('light');
+
+		// 导入行：用导入输入框的父元素定位，别用 .flex.flex-wrap.gap-2 这种类名选择器——
+		// 第一步内容区里同样带这几个类的还有标题行，先命中的会是它而不是真正换行的导入行。
+		const importRow = await page.evaluate(() => {
+			const input = document.querySelector('[data-testid="import-doc-path"]');
+			const wrap = input?.parentElement ?? null;
+			if (!wrap) return null;
+			const rects = Array.from(wrap.children).map((child) => {
+				const rect = child.getBoundingClientRect();
+				return {
+					tag: child.tagName,
+					testid: (child as HTMLElement).dataset?.testid ?? null,
+					top: rect.top,
+					bottom: rect.bottom,
+					height: rect.height,
+					width: rect.width,
+				};
+			});
+			// 视觉行分组：同一行的矩形竖直方向有重叠
+			const lines: { top: number; bottom: number }[] = [];
+			for (const rect of [...rects].sort((a, b) => a.top - b.top)) {
+				const last = lines[lines.length - 1];
+				if (last && rect.top < last.bottom - 0.5) last.bottom = Math.max(last.bottom, rect.bottom);
+				else lines.push({ top: rect.top, bottom: rect.bottom });
+			}
+			const lineGaps: number[] = [];
+			for (let i = 1; i < lines.length; i++) {
+				lineGaps.push(lines[i]!.top - lines[i - 1]!.bottom);
+			}
+			return {
+				rowGap: parseFloat(getComputedStyle(wrap).rowGap) || 0,
+				heights: rects.map((r) => r.height),
+				lineCount: lines.length,
+				lineGaps,
+				// 旧口径（逐子项）用来证明这个形状确实会产生 24 的误判
+				perChild: rects.slice(1).map((r, i) => r.top - rects[i]!.bottom),
+			};
+		});
+		expect(importRow, '导入行必须存在').not.toBeNull();
+		// 前提：这一行确实换行了，而且同行子项确实不等高（48px 输入框 + 32px 按钮）
+		expect(importRow!.lineCount, '导入行应换行').toBeGreaterThanOrEqual(2);
+		expect(new Set(importRow!.heights.map((h) => Math.round(h))).size, '导入行应有不等高的子项').toBeGreaterThan(1);
+		expect(Math.max(...importRow!.perChild), '旧口径应虚报出超过 D4 上限的值').toBeGreaterThan(18);
+		for (const lineGap of importRow!.lineGaps) {
+			expect(lineGap, `导入行行间距 ${lineGap}px 超出 D4 上限 18px`).toBeLessThanOrEqual(18);
+		}
+
+		// 探针在同一行上必须与页面实测同口径（按行边界，不是逐子项）
+		const probeGap = await page.evaluate(
+			(input) => {
+				(0, eval)(input.src);
+				const probe = (globalThis as unknown as { densityProbe: any }).densityProbe;
+				const importInput = document.querySelector('[data-testid="import-doc-path"]');
+				const el = importInput?.parentElement as HTMLElement | null;
+				if (!el) return null;
+				const kids = Array.from(el.children).map((child) => {
+					const rect = child.getBoundingClientRect();
+					return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
+				});
+				const cs = getComputedStyle(el);
+				return probe.blockGap(kids, {
+					spaced: false,
+					wraps: true,
+					rowFlex: true,
+					isGrid: false,
+					rowGap: parseFloat(cs.rowGap) || 0,
+					colGap: parseFloat(cs.columnGap) || 0,
+					maxBetween: window.innerHeight * 0.25,
+				});
+			},
+			{ src: probeSource },
+		);
+		expect(probeGap, '探针在导入行上必须等于真实行距').not.toBeNull();
+		expect(probeGap as number).toBeLessThanOrEqual(18);
+
+		// 负控：同样形状但行间距真的超限 40px，探针必须仍然判失败；阈值没有被抬高
+		const negative = await page.evaluate(
+			(input) => {
+				(0, eval)(input.src);
+				const probe = (globalThis as unknown as { densityProbe: any }).densityProbe;
+				const contract = probe.contract({ density: 8 });
+				const overflowing = [
+					{ top: 0, bottom: 48, left: 0, right: 100 },
+					{ top: 0, bottom: 32, left: 110, right: 200 },
+					{ top: 88, bottom: 120, left: 0, right: 200 },
+					{ top: 128, bottom: 176, left: 0, right: 200 },
+				];
+				const gap = probe.blockGap(overflowing, {
+					spaced: false,
+					wraps: true,
+					rowFlex: true,
+					isGrid: false,
+					rowGap: 8,
+					colGap: 8,
+					maxBetween: 270,
+				});
+				const stacked = probe.blockGap(
+					[
+						{ top: 0, bottom: 40, left: 0, right: 200 },
+						{ top: 64, bottom: 104, left: 0, right: 200 },
+					],
+					{
+						spaced: false,
+						wraps: false,
+						rowFlex: false,
+						isGrid: false,
+						rowGap: 0,
+						colGap: 0,
+						maxBetween: 270,
+					},
+				);
+				return { gap, stacked, limit: contract.gap * 1.5, density: contract.density };
+			},
+			{ src: probeSource },
+		);
+		expect(negative.density, '阈值不许被抬高').toBe(8);
+		expect(negative.limit, 'DENSITY 8 的 D4 上限仍是 12 × 1.5').toBe(18);
+		expect(negative.gap, '负控：真实超限行间距必须失败').toBeGreaterThan(negative.limit);
+		expect(negative.stacked, '竖向堆叠分支不受影响，兄弟净距照旧量出来').toBeGreaterThan(negative.limit);
+
+		writeFileSync(
+			join(artifactsDir, 'r19-import-row.json'),
+			JSON.stringify({ importRow, probeGap, negative }, null, 2),
+			'utf8',
+		);
+	}, 300000);
+
+	it('AC 4: 两种桌面尺寸 D1-D6 与 overflow 全过，浅深主题都成立', async () => {
+		for (const theme of ['light', 'dark'] as const) {
+			for (const viewport of DESKTOP_VIEWPORTS) {
+				const label = `${theme}-${viewport.width}x${viewport.height}`;
+				await page.setViewportSize(viewport);
+				await openDeck();
+				await applyTheme(theme);
+
+				const result = await page.evaluate(
+					(input) => {
+						(0, eval)(input.src);
+						return (globalThis as unknown as { densityProbe: any }).densityProbe({
+							type: 'work',
+							density: 8,
+						});
+					},
+					{ src: probeSource },
+				);
+				const verdict = result.verdict as Record<string, string>;
+				for (const key of ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'overflow']) {
+					expect(
+						verdict[key],
+						`${label}: ${key} 失败；gapOffenders=${JSON.stringify(result.gapOffenders)} padOffenders=${JSON.stringify(result.padOffenders)}`,
+					).toBe('pass');
+				}
+				expect(result.gapOffenders, `${label}: 仍有超契约块间距`).toHaveLength(0);
+				expect(result.padOffenders, `${label}: 仍有超契约卡片内边距`).toHaveLength(0);
+				expect(verdict.pass, `${label}: 探针整体判定`).toBe(true);
+
+				writeFileSync(
+					join(artifactsDir, `r19-density-${label}.json`),
+					JSON.stringify({ theme, viewport, result }, null, 2),
+					'utf8',
+				);
+			}
+		}
+	}, 300000);
+
+	it('AC 4 窄屏对照: 390x844 单栏、无横向滚动、导入与重绑定与批次选择仍可用', async () => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await openDeck();
+		await applyTheme('light');
+
+		// E-145：极窄屏不得横向滚动，也不得并排三栏
+		const narrow = await page.evaluate(() => {
+			const layout = document.querySelector('.deck-desktop-layout');
+			return {
+				overflowX: Math.max(
+					0,
+					document.documentElement.scrollWidth - document.documentElement.clientWidth,
+				),
+				flexDirection: layout ? getComputedStyle(layout).flexDirection : null,
+				importInput: !!document.querySelector('[data-testid="import-doc-path"]'),
+				rebind: !!document.querySelector('[data-action="rebind-document"]'),
+				onboarding: !!document.querySelector('[data-testid="empty-onboarding-console"]'),
+			};
+		});
+		expect(narrow.overflowX, 'E-145: 极窄屏不得横向滚动').toBeLessThanOrEqual(1);
+		expect(narrow.flexDirection, 'E-145: 极窄屏降级为单栏').toBe('column');
+		expect(narrow.onboarding, 'E-108: 空态仍是四步引导').toBe(true);
+		// 窄屏导入与重绑定入口仍在（AC 4）
+		expect(narrow.importInput, '窄屏导入入口').toBe(true);
+		expect(narrow.rebind, '窄屏重绑定入口').toBe(true);
+
+		// 批次选择仍可用（E-108 第二步）
+		await page.locator('[data-action="next-step-1"]').click();
+		const batchButton = page.locator('[data-step-content="1"] [data-batch-id]').first();
+		await batchButton.waitFor({ state: 'visible', timeout: 15000 });
+		await batchButton.click();
+		expect(await batchButton.getAttribute('data-selected')).toBe('true');
+
+		// 窄屏对照也量一次探针：D4/D5 不判，但横向溢出在任何宽度都判
+		const result = await page.evaluate(
+			(input) => {
+				(0, eval)(input.src);
+				return (globalThis as unknown as { densityProbe: any }).densityProbe({
+					type: 'work',
+					density: 8,
+				});
+			},
+			{ src: probeSource },
+		);
+		expect(result.verdict.overflow).toBe('pass');
+		expect(result.verdict.pass).toBe(true);
+
+		writeFileSync(
+			join(artifactsDir, 'r19-density-narrow-390x844.json'),
+			JSON.stringify({ narrow, result }, null, 2),
+			'utf8',
+		);
+	}, 300000);
+});
