@@ -136,13 +136,24 @@ export function currentMemberEvidence(
 		currentRuns.filter((run) => run.state === 'landed').map((run) => run.task_id),
 	);
 	const currentHumanTaskIds = new Set(
-		currentRuns.filter((run) => run.state === 'awaiting_human').map((run) => run.task_id),
+		currentRuns
+			.filter(
+				(run) =>
+					run.state === 'awaiting_human' &&
+					run.task_id &&
+					run.batch_id === byId.get(run.task_id)?.batch_id,
+			)
+			.map((run) => run.task_id),
 	);
 	const staleHumanTaskIds = new Set<string>();
 	for (const run of runs) {
 		if (run.kind !== 'implement' || run.state !== 'awaiting_human' || !run.task_id) continue;
 		const member = byId.get(run.task_id);
-		if (member && snapshots.findById(run.snapshot_id)?.contract_hash !== member.contract_hash)
+		if (
+			member &&
+			(run.batch_id !== member.batch_id ||
+				snapshots.findById(run.snapshot_id)?.contract_hash !== member.contract_hash)
+		)
 			staleHumanTaskIds.add(run.task_id);
 	}
 	return {

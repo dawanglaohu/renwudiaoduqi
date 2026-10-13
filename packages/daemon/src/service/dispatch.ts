@@ -539,6 +539,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		return parent ? runGeneration(parent, seen) : 0;
 	}
 
+	function frozenRunTaskPaths(run: RunRow): readonly string[] {
+		const snapshot = deps.dispatchSnapshotsRepo.findById(run.snapshot_id);
+		if (!snapshot)
+			throw new AppError('E_INTERNAL', 'Active run dispatch snapshot is missing.', {
+				details: { runId: run.id },
+			});
+		return parseTaskPaths(snapshot.task_paths_json);
+	}
+
 	function hasLivePathClash(task: TaskRow): boolean {
 		const candidatePaths = parseTaskPaths(task.task_paths_json);
 		for (const holding of runsRepo.listActive()) {
@@ -550,8 +559,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					{
 						taskId: heldTask.id,
 						taskKey: heldTask.task_key,
-						taskPaths: parseTaskPaths(heldTask.task_paths_json),
-						batchId: heldTask.batch_id ?? undefined,
+						taskPaths: frozenRunTaskPaths(holding),
+						batchId: holding.batch_id ?? undefined,
 					},
 					{
 						taskId: task.id,
@@ -1547,8 +1556,9 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						if (run.state === 'awaiting_human')
 							return (
 								run.kind === 'implement' &&
-								deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
-									task.contract_hash
+								(run.batch_id !== task.batch_id ||
+									deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
+										task.contract_hash)
 							);
 						return runGeneration(run) !== planBatch.generationId;
 					};
@@ -1974,17 +1984,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					}
 
 					// 2. 路径冲突检查（E-46）
-					let qPaths: string[] = [];
-					try {
-						qPaths = JSON.parse(qTask.task_paths_json ?? '[]');
-					} catch {
-						qPaths = [];
-					}
 					const queuedDesc: TaskPathDescriptor = {
 						taskId: qTask.id,
 						taskKey: qTask.task_key,
-						taskPaths: Object.freeze(qPaths),
-						batchId: qTask.batch_id ?? undefined,
+						taskPaths: frozenRunTaskPaths(queuedRun),
+						batchId: queuedRun.batch_id ?? undefined,
 						state: 'queued',
 						runId: queuedRun.id,
 					};
@@ -1994,17 +1998,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						if (queuedRun.kind === 'bughunt' && holding.id === queuedRun.parent_run_id) continue;
 						if (!holding.task_id || !isTaskPathHolding(holding.state)) continue;
 						const hTask = deps.tasksRepo.findById(holding.task_id);
-						let hPaths: string[] = [];
-						try {
-							hPaths = JSON.parse(hTask?.task_paths_json ?? '[]');
-						} catch {
-							hPaths = [];
-						}
 						const clashRes = checkTaskPathClash(
 							{
 								taskId: holding.task_id,
 								taskKey: hTask?.task_key,
-								taskPaths: Object.freeze(hPaths),
+								taskPaths: frozenRunTaskPaths(holding),
 								runId: holding.id,
 							},
 							queuedDesc,
@@ -2202,19 +2200,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					.map((r) => {
 						const taskId = r.task_id as string;
 						const task = deps.tasksRepo.findById(taskId);
-						let taskPaths: string[] = [];
-						if (task?.task_paths_json) {
-							try {
-								taskPaths = JSON.parse(task.task_paths_json);
-							} catch {
-								taskPaths = [];
-							}
-						}
 						return {
 							taskId,
 							taskKey: task?.task_key ?? taskId,
-							taskPaths: Object.freeze(taskPaths),
-							batchId: task?.batch_id ?? undefined,
+							taskPaths: frozenRunTaskPaths(r),
+							batchId: r.batch_id ?? undefined,
 							state: r.state,
 							runId: r.id,
 						};

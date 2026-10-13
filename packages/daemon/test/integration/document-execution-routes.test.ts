@@ -2088,6 +2088,76 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('E-362: an in-flight run holds its frozen paths after document refresh', async () => {
+		const { server, container, headers, docId, docsPath, folder } = await setup({
+			canDispatch: () => true,
+			agentConcurrencyLimit: 2,
+			withImplementationProcess: true,
+		});
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-1' }]);
+		writeFileSync(docsPath, readFileSync(docsPath, 'utf8').replaceAll('src/', 'src/old/'));
+		const firstRefresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(firstRefresh.statusCode, firstRefresh.body).toBe(200);
+		const firstStart = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(firstStart.statusCode, firstStart.body).toBe(200);
+		const firstTick = await container.services.dispatch.tick();
+		expect(firstTick.runsDispatched).toHaveLength(1);
+		const firstRun = container.repos.runs.findById(firstTick.runsDispatched[0] ?? '');
+		expect(
+			container.repos.dispatchSnapshots?.findById(firstRun?.snapshot_id ?? '')?.task_paths_json,
+		).toContain('src/old/');
+		writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-1' }]);
+		writeFileSync(docsPath, readFileSync(docsPath, 'utf8').replaceAll('src/', 'src/new/'));
+		const secondRefresh = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(secondRefresh.statusCode, secondRefresh.body).toBe(200);
+		expect(container.repos.tasks.listByDocId(docId)[0]?.task_paths_json).toContain('src/new/');
+		const secondPath = join(folder, 'frozen-path-docs-data.js');
+		writeTasksDocsData(secondPath, [{ id: 'M1-T2', hash: 'other-contract' }]);
+		writeFileSync(secondPath, readFileSync(secondPath, 'utf8').replaceAll('src/', 'src/old/'));
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/documents',
+			headers,
+			payload: { docsPath: secondPath, repoPath: root },
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const secondId = imported.json().document.id as string;
+		const secondStart = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${secondId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(secondId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(secondStart.statusCode, secondStart.body).toBe(200);
+		const secondTick = await container.services.dispatch.tick();
+		expect(secondTick.runsDispatched).toHaveLength(0);
+		expect(container.repos.runs.listAll()).toHaveLength(1);
+		await server.instance.close();
+	});
+
 	it('relays after production wrapup records clean and its branch reaches HEAD', async () => {
 		let available = true;
 		const env = await setup({
@@ -2409,85 +2479,94 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
-	it('R1: a moved reworking task cannot hold the new batch Agent slot', async () => {
-		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
-		const { server, container, headers, docId, docsPath } = env;
-		writeTasksDocsData(docsPath, [
-			{ id: 'M1-T1', hash: 'contract-1' },
-			{ id: 'M1-T2', hash: 'contract-2' },
-		]);
-		const refreshed = await server.instance.inject({
-			method: 'POST',
-			url: `/api/v1/documents/${docId}/refresh`,
-			headers,
-			payload: {},
-		});
-		expect(refreshed.statusCode, refreshed.body).toBe(200);
-		const firstTask = container.repos.tasks
-			.listByDocId(docId)
-			.find((task) => task.task_key === 'M1-T1');
-		const movedTask = container.repos.tasks
-			.listByDocId(docId)
-			.find((task) => task.task_key === 'M1-T2');
-		const firstBatch = container.repos.batches.listByDocId(docId)[0];
-		if (!firstTask || !movedTask || !firstBatch) return;
-		const url = `/api/v1/documents/${docId}/execution`;
-		const started = await server.instance.inject({
-			method: 'POST',
-			url: `${url}/start`,
-			headers,
-			payload: {
-				expectedVersion: 0,
-				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
-				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
-			},
-		});
-		expect(started.statusCode, started.body).toBe(200);
-		seedImplementationRun(env, {
-			id: 'r1-moved-rework',
-			taskId: movedTask.id,
-			batchId: firstBatch.id,
-			attemptNo: 1,
-			contractHash: movedTask.contract_hash,
-			generationId: started.json().execution.wrapupProgress.generationId,
-			createdAt: '2026-10-12T07:00:00.000Z',
-		});
-		container.repos.runs.updateState({ id: 'r1-moved-rework', toState: 'reworking' });
-		writeTasksDocsData(docsPath, [
-			{ id: 'M1-T1', hash: 'contract-1' },
-			{ id: 'M1-T2', hash: 'contract-2', deps: ['M1-T1'] },
-		]);
-		const changed = await server.instance.inject({
-			method: 'POST',
-			url: `/api/v1/documents/${docId}/refresh`,
-			headers,
-			payload: {},
-		});
-		expect(changed.statusCode, changed.body).toBe(200);
-		await container.services.dispatch.tick();
-		expect(container.services.documentExecution.get(docId).execution.state).toBe('paused');
-		const resumed = await server.instance.inject({
-			method: 'POST',
-			url: `${url}/resume`,
-			headers,
-			payload: {
-				expectedVersion: container.services.documentExecution.get(docId).execution.version,
-				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
-			},
-		});
-		expect(resumed.statusCode, resumed.body).toBe(200);
-		expect(resumed.json().execution.currentBatchId).toBe(firstBatch.id);
-		container.repos.dispatchSnapshots?.updateTaskChangedFlags(firstTask.id, {
-			hasAcceptChanged: false,
-			hasPromptChanged: false,
-		});
-		const tick = await container.services.dispatch.tick();
-		expect(container.repos.runs.findById('r1-moved-rework')?.state).toBe('failed');
-		expect(
-			tick.runsDispatched.some((id) => container.repos.runs.findById(id)?.task_id === firstTask.id),
-		).toBe(true);
-		await server.instance.close();
-	});
+	it.each([{ state: 'reworking' as const }, { state: 'awaiting_human' as const }])(
+		'R1: a moved $state task cannot hold the new batch Agent slot or path',
+		async ({ state }) => {
+			const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+			const { server, container, headers, docId, docsPath } = env;
+			writeTasksDocsData(docsPath, [
+				{ id: 'M1-T1', hash: 'contract-1' },
+				{ id: 'M1-T2', hash: 'contract-2' },
+			]);
+			const refreshed = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/refresh`,
+				headers,
+				payload: {},
+			});
+			expect(refreshed.statusCode, refreshed.body).toBe(200);
+			const firstTask = container.repos.tasks
+				.listByDocId(docId)
+				.find((task) => task.task_key === 'M1-T1');
+			const movedTask = container.repos.tasks
+				.listByDocId(docId)
+				.find((task) => task.task_key === 'M1-T2');
+			const firstBatch = container.repos.batches.listByDocId(docId)[0];
+			if (!firstTask || !movedTask || !firstBatch) return;
+			const url = `/api/v1/documents/${docId}/execution`;
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			seedImplementationRun(env, {
+				id: 'r1-moved-rework',
+				taskId: movedTask.id,
+				batchId: firstBatch.id,
+				attemptNo: 1,
+				contractHash: movedTask.contract_hash,
+				generationId: started.json().execution.wrapupProgress.generationId,
+				createdAt: '2026-10-12T07:00:00.000Z',
+			});
+			container.repos.runs.updateState({ id: 'r1-moved-rework', toState: state });
+			if (state === 'awaiting_human')
+				container.repos.tasks.updateManualState(movedTask.id, 'awaiting_human');
+			writeTasksDocsData(docsPath, [
+				{ id: 'M1-T1', hash: 'contract-1' },
+				{ id: 'M1-T2', hash: 'contract-2', deps: ['M1-T1'] },
+			]);
+			const changed = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/refresh`,
+				headers,
+				payload: {},
+			});
+			expect(changed.statusCode, changed.body).toBe(200);
+			await container.services.dispatch.tick();
+			expect(container.services.documentExecution.get(docId).execution.state).toBe('paused');
+			const resumed = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/resume`,
+				headers,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				},
+			});
+			expect(resumed.statusCode, resumed.body).toBe(200);
+			expect(resumed.json().execution.currentBatchId).toBe(firstBatch.id);
+			container.repos.dispatchSnapshots?.updateTaskChangedFlags(firstTask.id, {
+				hasAcceptChanged: false,
+				hasPromptChanged: false,
+			});
+			const tick = await container.services.dispatch.tick();
+			expect(container.repos.runs.findById('r1-moved-rework')?.state).toBe('failed');
+			if (state === 'awaiting_human')
+				expect(container.repos.tasks.findById(movedTask.id)?.manual_state).toBeNull();
+			expect(
+				tick.runsDispatched.some(
+					(id) => container.repos.runs.findById(id)?.task_id === firstTask.id,
+				),
+			).toBe(true);
+			await server.instance.close();
+		},
+	);
 
 	it('R1: a changed contract clears its obsolete human gate before new dispatch', async () => {
 		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
