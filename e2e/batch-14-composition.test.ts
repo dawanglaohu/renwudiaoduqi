@@ -326,7 +326,7 @@ function decodePngRgba(buf: Buffer): { width: number; height: number; data: Uint
 function getRunFromDb(dataDir: string, runId: string): any {
 	const dbPath = join(dataDir, 'app.db');
 	if (!existsSync(dbPath)) return null;
-	const require = createRequire(import.meta.url);
+	const require = createRequire(join(repoRoot, 'packages/daemon/package.json'));
 	const Database = require('better-sqlite3');
 	const db = new Database(dbPath, { readonly: true });
 	try {
@@ -339,7 +339,7 @@ function getRunFromDb(dataDir: string, runId: string): any {
 function getSnapshotFromDb(dataDir: string, snapshotId: string): any {
 	const dbPath = join(dataDir, 'app.db');
 	if (!existsSync(dbPath)) return null;
-	const require = createRequire(import.meta.url);
+	const require = createRequire(join(repoRoot, 'packages/daemon/package.json'));
 	const Database = require('better-sqlite3');
 	const db = new Database(dbPath, { readonly: true });
 	try {
