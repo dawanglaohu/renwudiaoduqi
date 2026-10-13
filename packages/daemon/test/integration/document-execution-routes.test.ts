@@ -2320,6 +2320,97 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it.each([
+		{ kind: 'review' as const, occupiedLane: false },
+		{ kind: 'bughunt' as const, occupiedLane: false },
+		{ kind: 'review' as const, occupiedLane: true },
+	])(
+		'E-369: queued $kind waits when only task readiness becomes false (occupiedLane=$occupiedLane)',
+		async ({ kind, occupiedLane }) => {
+			const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+			const { server, container, headers, docId, docsPath } = env;
+			writeTasksDocsData(docsPath, [
+				{ id: 'M1-T1', hash: 'contract-1' },
+				{ id: 'M1-T2', hash: 'contract-2' },
+			]);
+			const imported = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/refresh`,
+				headers,
+				payload: {},
+			});
+			expect(imported.statusCode, imported.body).toBe(200);
+			const task = container.repos.tasks
+				.listByDocId(docId)
+				.find((item) => item.task_key === 'M1-T1');
+			const sibling = container.repos.tasks
+				.listByDocId(docId)
+				.find((item) => item.task_key === 'M1-T2');
+			const batch = container.repos.batches.listByDocId(docId)[0];
+			if (!task || !sibling || !batch) return;
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			const runId = `unready-${kind}`;
+			seedQueuedStageRun(env, {
+				id: runId,
+				taskId: task.id,
+				batchId: batch.id,
+				contractHash: task.contract_hash,
+				generationId: started.json().execution.wrapupProgress.generationId,
+				kind,
+			});
+			if (occupiedLane) {
+				container.repos.documents.updateLaneCount(docId, 1);
+				container.repos.runs.updateLaneNo?.(runId, 1);
+				container.repos.tasks.assignLaneNo(task.id, 1);
+			}
+			const source = readFileSync(docsPath, 'utf8');
+			const unready = source.replace('"ready":true', '"ready":false');
+			expect(unready).not.toBe(source);
+			writeFileSync(docsPath, unready);
+			const refreshed = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/refresh`,
+				headers,
+				payload: {},
+			});
+			expect(refreshed.statusCode, refreshed.body).toBe(200);
+			expect(container.repos.tasks.findById(task.id)?.is_contract_ready).toBe(0);
+			expect(container.repos.tasks.findById(sibling.id)?.is_contract_ready).toBe(1);
+			expect(container.services.documentExecution.get(docId).execution.state).toBe('running');
+			const tick = await container.services.dispatch.tick();
+			expect(tick.runsDispatched).not.toContain(runId);
+			expect(container.repos.runs.findById(runId)?.state).toBe('queued');
+			expect(
+				tick.runsDispatched.some((id) => container.repos.runs.findById(id)?.task_id === sibling.id),
+			).toBe(true);
+			if (occupiedLane) {
+				expect(container.repos.runs.findById(runId)?.lane_no).toBeNull();
+				expect(
+					container.events.ringBuffer
+						.getAll()
+						.some(
+							(event) =>
+								event.kind === 'lane.released' &&
+								event.runId === runId &&
+								'reason' in event.payload &&
+								event.payload.reason === 'contract_not_ready',
+						),
+				).toBe(true);
+			}
+			await server.instance.close();
+		},
+	);
+
 	it('shares the Agent limit across two running documents in one tick', async () => {
 		const { server, container, headers, docId, folder } = await setup({
 			canDispatch: () => true,

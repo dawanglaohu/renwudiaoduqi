@@ -378,7 +378,13 @@ export interface LaneReleasedPayload {
 	readonly laneNo: number | null;
 	readonly taskId: string | null;
 	readonly runId: string;
-	readonly reason: 'landed' | 'awaiting_human' | 'failed' | 'aborted' | 'interrupted';
+	readonly reason:
+		| 'landed'
+		| 'awaiting_human'
+		| 'failed'
+		| 'aborted'
+		| 'interrupted'
+		| 'contract_not_ready';
 	readonly vendor?: unknown;
 	readonly [key: string]: unknown;
 }

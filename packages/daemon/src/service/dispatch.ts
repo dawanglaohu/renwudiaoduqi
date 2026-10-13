@@ -598,6 +598,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		const candidatePaths = parseTaskPaths(task.task_paths_json);
 		for (const holding of runsRepo.listActive()) {
 			if (!holding.task_id || !isTaskPathHolding(holding.state)) continue;
+			if (isUnreadyQueuedTaskRun(holding)) continue;
 			const heldTask = deps.tasksRepo.findById(holding.task_id);
 			if (!heldTask) continue;
 			if (
@@ -687,6 +688,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		let count = 0;
 		for (const run of runs) {
 			if (run.agent_id !== agentId) continue;
+			if (isUnreadyQueuedTaskRun(run)) continue;
 			if (!countsTowardAgentConcurrency(run.state as RunState, run.session_archived_at)) continue;
 			if (
 				run.kind === 'implement' &&
@@ -699,6 +701,14 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			count += 1;
 		}
 		return count;
+	}
+
+	function isUnreadyQueuedTaskRun(run: RunRow): boolean {
+		return (
+			run.state === 'queued' &&
+			!!run.task_id &&
+			deps.tasksRepo.findById(run.task_id)?.is_contract_ready !== 1
+		);
 	}
 
 	/**
@@ -1910,7 +1920,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				// Step 3: 按槽位补位 (AC 2, AC 3, E-309, E-310, E-311, E-327)
 				const docTasks = deps.tasksRepo.listByDocId(doc.id);
 				const allRuns = runsRepo.listAll();
-				const activeRuns = runsRepo.listActive();
+				const activeRuns = runsRepo.listActive().filter((run) => !isUnreadyQueuedTaskRun(run));
 				const docBatches = deps.batchesRepo ? deps.batchesRepo.listByDocId(doc.id) : batches;
 				const docBatchIds = new Set(docBatches.map((b) => b.id));
 				const docTaskIds = new Set(docTasks.map((t) => t.id));
@@ -2055,6 +2065,62 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const qTaskId = queuedRun.task_id as string;
 					const qTask = docTasks.find((t) => t.id === qTaskId);
 					if (!qTask) continue;
+					if (qTask.is_contract_ready !== 1) {
+						let releasedLaneNo: number | null = null;
+						const releaseUnreadyLane = () => {
+							const currentRun = runsRepo.findById(queuedRun.id);
+							const currentTask = deps.tasksRepo.findById(qTaskId);
+							const laneNo = currentRun?.lane_no;
+							if (
+								currentRun?.state !== 'queued' ||
+								currentTask?.is_contract_ready === 1 ||
+								typeof laneNo !== 'number' ||
+								currentTask?.lane_no !== laneNo ||
+								!runsRepo.updateLaneNo
+							)
+								return;
+							const heldByAnotherRun = runsRepo
+								.listActive()
+								.some(
+									(other) =>
+										other.id !== currentRun.id &&
+										other.lane_no === laneNo &&
+										!isUnreadyQueuedTaskRun(other) &&
+										((other.task_id && deps.tasksRepo.findById(other.task_id)?.doc_id === doc.id) ||
+											(other.batch_id &&
+												deps.batchesRepo.findById(other.batch_id)?.doc_id === doc.id)) &&
+										isTaskPathHolding(other.state),
+								);
+							if (heldByAnotherRun) return;
+							runsRepo.updateLaneNo(currentRun.id, null);
+							deps.tasksRepo.clearLaneNo(qTaskId);
+							releasedLaneNo = laneNo;
+						};
+						if (deps.unitOfWork) deps.unitOfWork.run(releaseUnreadyLane);
+						else releaseUnreadyLane();
+						if (releasedLaneNo !== null) {
+							occupiedLanes.delete(releasedLaneNo);
+							if (!free.includes(releasedLaneNo)) free.push(releasedLaneNo);
+							free.sort((a, b) => a - b);
+							if (deps.bus && deps.envelopeFactory)
+								deps.bus.publish(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'lane.released',
+										runId: queuedRun.id,
+										taskId: qTaskId,
+										payload: {
+											docId: doc.id,
+											laneNo: releasedLaneNo,
+											taskId: qTaskId,
+											runId: queuedRun.id,
+											reason: 'contract_not_ready',
+										},
+									}),
+								);
+						}
+						tasksBlocked.push({ taskId: qTaskId, reason: 'contract_not_ready' });
+						continue;
+					}
 
 					if (!isAgentDispatchable(queuedRun.agent_id)) {
 						tasksBlocked.push({
@@ -2170,6 +2236,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const persistDequeue = () => {
 						if (!executionStillCurrent(doc.id, documentExecution ?? null)) return;
 						if (runsRepo.findById(queuedRun.id)?.state !== 'queued') return;
+						const currentTask = deps.tasksRepo.findById(qTaskId);
+						if (
+							!currentTask ||
+							currentTask.is_removed_from_doc === 1 ||
+							currentTask.is_contract_ready !== 1
+						)
+							return;
 						deps.tasksRepo.assignLaneNo(qTaskId, laneNo as number);
 						runsRepo.updateLaneNo?.(queuedRun.id, laneNo as number);
 						runsRepo.updateState({
@@ -2446,6 +2519,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						const item = admitted[i];
 						if (!item) continue;
 						const candidate = item.candidate;
+						const currentTask = deps.tasksRepo.findById(candidate.task.id);
+						if (
+							!currentTask ||
+							currentTask.is_removed_from_doc === 1 ||
+							currentTask.is_contract_ready !== 1
+						) {
+							tasksBlocked.push({ taskId: candidate.task.id, reason: 'contract_not_ready' });
+							continue;
+						}
 						if (!candidate.isRework && (!newWorkAllowed || pendingTaskIds.has(candidate.task.id)))
 							continue;
 
