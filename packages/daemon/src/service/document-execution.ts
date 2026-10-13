@@ -135,9 +135,22 @@ export function currentMemberEvidence(
 	const acceptedTaskIds = new Set(
 		currentRuns.filter((run) => run.state === 'landed').map((run) => run.task_id),
 	);
+	const currentHumanTaskIds = new Set(
+		currentRuns.filter((run) => run.state === 'awaiting_human').map((run) => run.task_id),
+	);
+	const staleHumanTaskIds = new Set<string>();
+	for (const run of runs) {
+		if (run.kind !== 'implement' || run.state !== 'awaiting_human' || !run.task_id) continue;
+		const member = byId.get(run.task_id);
+		if (member && snapshots.findById(run.snapshot_id)?.contract_hash !== member.contract_hash)
+			staleHumanTaskIds.add(run.task_id);
+	}
 	return {
 		tasks: members.map((task) =>
-			task.manual_state === 'landed' && !acceptedTaskIds.has(task.id)
+			(task.manual_state === 'landed' && !acceptedTaskIds.has(task.id)) ||
+			(task.manual_state === 'awaiting_human' &&
+				staleHumanTaskIds.has(task.id) &&
+				!currentHumanTaskIds.has(task.id))
 				? { ...task, manual_state: null }
 				: task,
 		),
@@ -362,7 +375,9 @@ export function createDocumentExecutionService(
 			blockers.push({ code: 'awaiting_landing', batchId: current?.batchId ?? null, taskIds: [] });
 		if (currentBatch?.state === 'needs_attention')
 			blockers.push({ code: 'wrapup_attention', batchId: current?.batchId ?? null, taskIds: [] });
-		const gateTasks = currentTasks.filter((task) => task.manual_state === 'awaiting_human');
+		const gateTasks = currentEvidence.tasks.filter(
+			(task) => task.manual_state === 'awaiting_human',
+		);
 		if (gateTasks.length)
 			blockers.push({
 				code: 'gate_waiting',

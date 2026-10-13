@@ -1524,18 +1524,32 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							const batch = run.batch_id ? deps.batchesRepo.findById(run.batch_id) : null;
 							return batch?.doc_id === doc.id && !planBatch.wrapupRunIds.includes(run.id);
 						}
-						if (!run.task_id || (run.state !== 'queued' && run.state !== 'reworking')) return false;
+						if (
+							!run.task_id ||
+							(run.state !== 'queued' &&
+								run.state !== 'reworking' &&
+								run.state !== 'awaiting_human')
+						)
+							return false;
 						const task = deps.tasksRepo.findById(run.task_id);
 						if (task?.doc_id !== doc.id) return false;
 						if (run.state === 'reworking') {
 							const member = planBatch.members.find((item) => item.taskId === run.task_id);
 							return (
 								run.kind === 'implement' &&
-								!!member &&
-								deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
-									member.contractHash
+								(runGeneration(run) !== planBatch.generationId ||
+									run.batch_id !== planBatch.batchId ||
+									!member ||
+									deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
+										member.contractHash)
 							);
 						}
+						if (run.state === 'awaiting_human')
+							return (
+								run.kind === 'implement' &&
+								deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
+									task.contract_hash
+							);
 						return runGeneration(run) !== planBatch.generationId;
 					};
 					const staleInactive = runsRepo.listAll().filter(isStaleInactiveRun);
@@ -1553,6 +1567,17 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								queuedReason: 'source_changed',
 								endedAt: deps.clock.now(),
 							});
+							if (run.state === 'awaiting_human' && task?.manual_state === 'awaiting_human') {
+								const currentHumanRun = runsRepo
+									.listByTaskId(task.id)
+									.some(
+										(item) =>
+											item.state === 'awaiting_human' &&
+											deps.dispatchSnapshotsRepo.findById(item.snapshot_id)?.contract_hash ===
+												task.contract_hash,
+									);
+								if (!currentHumanRun) deps.tasksRepo.updateManualState(task.id, null);
+							}
 							runsRepo.updateLaneNo?.(run.id, null);
 							if (task?.lane_no !== null && task?.lane_no !== undefined)
 								deps.tasksRepo.clearLaneNo(task.id);
