@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "R19-T23428016": {
+      "contractHash": "b3f6d6b578b8fd4896d777d80b9f1452867cd0c4f3498f43bd948c96a80807da",
+      "evidence": [
+        "本回执仅登记任务契约语义复核。逐项对照 13/17/19 节、当前返工源围栏、M8-T13/M9-T23/M9-T28 前置实现与 API/展示层分工，六项验收及 E-108/E-145/E-319/E-356 保持原样。",
+        "canonical repair contract 来自 _run/batches/batch-19-20261013.md:43-57；build_docs.py:4191 用 paths 生成 supportPaths，handoff_contract.py:179-182 禁止 root task-contracts.json 重复定义返工 ID。补丁仅在该围栏 paths 行追加 AC6 必需的 _run/tool-version.json。",
+        "补丁不修改第 19 批 open 裁定、B3 事实、原任务状态、任务集合、stable-key、产出与验收、任何边界；sync 只报告本任务受影响，未新增已落地任务复验标记。",
+        "已读取其他开放 PR 的实际文件列表：tool-version.json 无路径冲突。此文件 diff 仅更新 density_probe.js 的 LF 归一 SHA256，其余指纹保持原值；本轮 214/215 个完整生成器测试通过，pnpm -w check 253 文件、3302 passed/3 既有 skipped。",
+        "任务只改变已装配甲板主题 CSS 与密度测量工具及其回归，不新增注册表/服务/路由贡献。H12/H13 的“服务”命中来自真实服务验收文字，生产入口沿用 run-deck-view → empty-onboarding 与 memphis 样式；无需新增服务接线。",
+        "Jev jev-1.13.0 复审全部实施候选并补入实际 diff：两处间距 pick=A(high 0.97)，指纹 pick=A(high 1.00)，canonical 源补齐 pick=A(high 1.00)，均 adopt=take(A)，对应动作已在代码或源围栏落实。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

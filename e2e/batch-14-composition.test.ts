@@ -2533,7 +2533,7 @@ describe('R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E
 	let browser: Browser;
 	let isolatedProjectRoot: string | null = null;
 	// 一次性配对码只能在整套用例里领一次，所以配对、导入、页面都在 beforeAll 做一次，
-	// 三个用例共用同一个已配对的 page（探针只量几何，不需要每个用例重新配对）。
+	// 各用例共用同一个已配对的 page（探针只量几何，不需要每个用例重新配对）。
 	let context: BrowserContext;
 	let page: Page;
 	let token = '';
@@ -2586,7 +2586,7 @@ describe('R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E
 		});
 		context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, bypassCSP: true });
 		page = await context.newPage();
-		// 一次性配对码只能领一次，配对与导入在这里做一次，三个用例共用同一个已配对页面
+		// 一次性配对码只能领一次，配对与导入在这里做一次，各用例共用同一个已配对页面
 		await pairAndImport();
 	}, 300000);
 
