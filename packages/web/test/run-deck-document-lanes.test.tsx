@@ -300,7 +300,10 @@ it('selects the document from an active snapshot and reveals blocked task handli
 			'task-a',
 		);
 		expect(scroll).toHaveBeenCalled();
-		for (const kind of ['task.landed', 'batch.advanced'] as const) {
+		for (const event of [
+			{ kind: 'task.landed', scope: 'task', payload: { by: 'human' } },
+			{ kind: 'batch.advanced', scope: 'batch', payload: { batchId: batch.id } },
+		] as const) {
 			const before = snapshotReads;
 			await act(async () => {
 				eventBus.push({
@@ -308,11 +311,9 @@ it('selects the document from an active snapshot and reveals blocked task handli
 					ts: '2026-10-15T13:00:00Z',
 					runId: null,
 					taskId: null,
-					scope: kind === 'task.landed' ? 'task' : 'batch',
-					kind,
 					seq: 1,
 					actorDeviceId: null,
-					payload: {},
+					...event,
 				});
 				for (let i = 0; i < 30; i++) await Promise.resolve();
 			});

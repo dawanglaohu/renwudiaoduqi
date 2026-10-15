@@ -34,13 +34,14 @@
     },
     "entrySupplement": {
       "result": "57 passed across6 files including cache invalidation",
-      "typescript": "pass",
+      "typescript": "pass: pnpm exec tsc -b --noEmit; project references including tests",
       "architecture": "0 violations",
       "redBeforeFix": "3 regressions failed before repair",
       "navigationRedBeforeFix": "3 additional UI navigation regressions failed before repair",
       "lateControlCache": "red before fix, green after target-cache invalidation independent of selected document",
       "eventAndMobileRedBeforeFix": "6 failures before repair: same-version availability/landing/batch projections, unmounted capacity cache, phone wrap-up, first readable initial selection",
-      "eventAndMobileAfterFix": "57 passed; event-driven deck reload and first-readable source selected; phone blocker reveals batch without wrap-up mutation"
+      "eventAndMobileAfterFix": "57 passed; event-driven deck reload and first-readable source selected; phone blocker reveals batch without wrap-up mutation",
+      "typedEventCorrection": "CI found incomplete typed test payloads at549823b; corrected discriminated kind/scope/payload samples, then checked all project references and reran the two changed files"
     }
   },
   "browser": {
