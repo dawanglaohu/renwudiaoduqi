@@ -10,7 +10,7 @@
     "packages/daemon/src/service/document-execution.ts": "d63e49bd6d0e30864e270a469aedcfd98d1ca4d082c0ee7964a2dc662ee39f7f",
     "packages/daemon/src/service/wrapup.ts": "41dd3f0bf1b01a0930493b3cbb135b30230e2821f473f2fa1e07c9ba1b925008",
     "packages/daemon/src/workspace/worktree.ts": "da11315602730616314221fa14020ed7640139f8be0bd48315893c1438b51dd3",
-    "packages/daemon/test/integration/document-execution-routes.test.ts": "ffeed4d6dda6c7df79e5435b208ee80d38d94c03709012ec87bbba581b3e12d6",
+    "packages/daemon/test/integration/document-execution-routes.test.ts": "a38e4c8cee06dd2adb60aac851fa41aa35a1aa5ca8d4013c1939bd05cace1d24",
     "packages/daemon/test/unit/landing.test.ts": "510c114c50c85d5133462a43507ac85eea9c003217bfccda92e0172a73e0ab96",
     "packages/daemon/test/unit/worktree.test.ts": "a6f731056b8fad9ecbfb6b04acabfe06f8a1fc7deb6ec22f3d59f320f4db3b54"
   },
@@ -18,47 +18,86 @@
     "red-wrapup-readiness.log": {
       "originalSha256": "f6a7398c4c8c6c8f2787838d688ccf1af7a127fefaa204cf00385dc77a123068",
       "artifact": "_run/evidence/batch-19-20261014/red-wrapup-readiness.txt",
-      "artifactSha256": "30ef858d78beb8310d4db3944aa0cd12c6d7bc3e2f6bda4d5ab716f6c8cbf535"
+      "artifactSha256": "4bceb0ec9d7703c9a0a6cd9b9a06a66b34342c806d6695b8e6f827ff07ef08cc",
+      "artifactWorkingCopySha256": "30ef858d78beb8310d4db3944aa0cd12c6d7bc3e2f6bda4d5ab716f6c8cbf535"
     },
     "red-wrapup-revocation-tiny-repo.log": {
       "originalSha256": "372b4899311dd34439ea077e212c6f6fcaf64081acf2fdb93ebb33d14fb4da06",
       "artifact": "_run/evidence/batch-19-20261014/red-wrapup-revocation-tiny-repo.txt",
-      "artifactSha256": "093918445d2de9fc3e8e1b2ffb70a3e542acf06763ff6458b8224b0d3a80e246"
+      "artifactSha256": "c57ab5d6d621e2a1aba25a9e0d9647efc058fc1ca3b61ce498d54bf71f931750",
+      "artifactWorkingCopySha256": "093918445d2de9fc3e8e1b2ffb70a3e542acf06763ff6458b8224b0d3a80e246"
     },
     "red-offline-and-cleanup.log": {
       "originalSha256": "afc00cc82bf2829cc01cb72e24448e03369bf5daf7924862d604cccf1948141d",
       "artifact": "_run/evidence/batch-19-20261014/red-offline-and-cleanup.txt",
-      "artifactSha256": "24ddd643de6cb9e04a43433640a7993cd1ef608a88ddc2832db1194a672de7df"
+      "artifactSha256": "28d1b031b426e32d7710a98abe0da6b4be4ce37572bf2bef16f03c007defef10",
+      "artifactWorkingCopySha256": "24ddd643de6cb9e04a43433640a7993cd1ef608a88ddc2832db1194a672de7df"
     },
     "green-final-focused.log": {
       "originalSha256": "efaa66bbc2100cd3a8d6a38e75f78dc7b1ae2c3e78c0cea16d1b6bd491c614a4",
       "artifact": "_run/evidence/batch-19-20261014/green-final-focused.txt",
-      "artifactSha256": "c3338c198adeb31f0d4230632322e31cf709f3105f23523cd26ef039d92d2c84"
+      "artifactSha256": "dd2e1ae34916913cb75200185e0b6c3de6f14ef17f6bb253fd8d77647dcbd6f3",
+      "artifactWorkingCopySha256": "c3338c198adeb31f0d4230632322e31cf709f3105f23523cd26ef039d92d2c84"
     },
     "final-check-windows-rerun.log": {
       "originalSha256": "c102ff226ddfcf2fb2afc85b882e57b1d9464fc72a34c01a9a8637309b66b964",
       "artifact": "_run/evidence/batch-19-20261014/final-check-windows-rerun.txt",
-      "artifactSha256": "5905a68d29e62c5a70e6ef87d9b42a276b77e69fcc7d1bdd94c6e9f06974c933"
+      "artifactSha256": "dbe45434825017c77efefa9aead9f3f0f04cdbf6100b63e467278a387f12093a",
+      "artifactWorkingCopySha256": "5905a68d29e62c5a70e6ef87d9b42a276b77e69fcc7d1bdd94c6e9f06974c933"
     },
     "final-e2e.log": {
       "originalSha256": "6aa2e2b6bc9b15766d52a7a8f937483e3db9db894aa00a3d9a55131ba265bb17",
       "artifact": "_run/evidence/batch-19-20261014/final-e2e.txt",
-      "artifactSha256": "67fca0343a51dff0976ec5bdc7e70b40d8a5683f31b00444b8bb017619146c28"
+      "artifactSha256": "a78b3078782977ab9bc6723324520adf40706ce9a1bc6b0b9d555b1719277a82",
+      "artifactWorkingCopySha256": "67fca0343a51dff0976ec5bdc7e70b40d8a5683f31b00444b8bb017619146c28"
     },
     "baseline-e2e.log": {
       "originalSha256": "9bbc712c044faaf37377f319bc632fea55600010ea1a02f0c4089bed1c214fd5",
       "artifact": "_run/evidence/batch-19-20261014/baseline-e2e.txt",
-      "artifactSha256": "7344eafc6bd185960c1320d8951711c4ad48ad2c183bfdadd325dc060144d108"
+      "artifactSha256": "0d009ee61a9f23fb914ac2a5eb47c80e32254c1f8f9a69f6c625b7464ebd1251",
+      "artifactWorkingCopySha256": "7344eafc6bd185960c1320d8951711c4ad48ad2c183bfdadd325dc060144d108"
     },
     "baseline-check.log": {
       "originalSha256": "ff0204a16bbf08c73ed1681bd22c777e1841ea2e8e91cad5c6f0b1cb4a027743",
       "artifact": "_run/evidence/batch-19-20261014/baseline-check.txt",
-      "artifactSha256": "172eb505000b419c6a931d2708191aaac2aba2e7627f32501f2d5311bc86dbe3"
+      "artifactSha256": "e0821ff4285d66e13de3402452494845936b39c29687a236d2eb5780abb4b3f6",
+      "artifactWorkingCopySha256": "172eb505000b419c6a931d2708191aaac2aba2e7627f32501f2d5311bc86dbe3"
     },
     "final-check-linux.log": {
       "originalSha256": "ae94416d5c65b8ea041cb5c1cfa695e4877a2fabb7b873b0d4f9bbfdd65967c7",
       "artifact": "_run/evidence/batch-19-20261014/final-check-linux.txt",
-      "artifactSha256": "05779df93e1059c75488087db15e5a45d3a3b8f012579ec91be164a8071e0d2f"
+      "artifactSha256": "f8f013d9daf9a2a5912a5a518af92d1c301bcce75bbead963b0f382001d13857",
+      "artifactWorkingCopySha256": "05779df93e1059c75488087db15e5a45d3a3b8f012579ec91be164a8071e0d2f"
+    },
+    "red-ci-git-path-input.log": {
+      "originalSha256": "cffb641363d1816444e6d7323e54ec3e7698452a00cbd09dab6c173463a4e0b6",
+      "artifact": "_run/evidence/batch-19-20261014/red-ci-git-path-input.txt",
+      "artifactSha256": "56ed96f615424dbf81d5cc95babaaa5a50c2700c04a1f7a70a0d8ffa2c4cb851",
+      "artifactWorkingCopySha256": "8fddfa63438651c7a55f9396b4825616509af02037af11f4e1a90ff9eb5ef424"
+    },
+    "green-ci-fixture-owning-suites.log": {
+      "originalSha256": "d0aab62dec8e0afcbef4839dd8b47ac985485c5e8ec681af21f7dfec753e73ef",
+      "artifact": "_run/evidence/batch-19-20261014/green-ci-fixture-owning-suites.txt",
+      "artifactSha256": "25d720f3c644687f50ea1c6eb8561cfe408c844047f76a201cd172c1c1bd2836",
+      "artifactWorkingCopySha256": "a0cc343d3cee95a22baa5ef275fb87db3d50399f7e79ab73883833be4581a864"
+    },
+    "ci-fixture-biome.log": {
+      "originalSha256": "0eb922b4f4772eb9845b4ea6e94124eed43aab9820406ef7800a57e8ff4bd75a",
+      "artifact": "_run/evidence/batch-19-20261014/ci-fixture-biome.txt",
+      "artifactSha256": "2bf75ae898964bb3422795668a74058807b41e1f078891d256432d253d866f59",
+      "artifactWorkingCopySha256": "bf4789b70433837c00aad46ccf9ce28dff6aba1374a08f116a9a4db3e5f89339"
+    },
+    "ci-fixture-typecheck.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": "_run/evidence/batch-19-20261014/ci-fixture-typecheck.txt",
+      "artifactSha256": "9065cd938332563cecb89574d7be83279e99d549849ccdcd5789fe64be6c2ba2",
+      "artifactWorkingCopySha256": "8d1709e43e213016fd2cbee921f477a95bfd8313bba150b37637a75cfe7f6c5e"
+    },
+    "windows-ci-38682310123": {
+      "originalSha256": "3cfea2f65351d15ea8c731c49c74c7f2127aa466b1a03b3cbffd0e846918f5f6",
+      "artifact": "_run/evidence/batch-19-20261014/windows-ci-38682310123.txt",
+      "artifactSha256": "46751eff9fbf1c0bda71de208a6eee4744a97b8d9432260ccb519563ddbbc13d",
+      "artifactWorkingCopySha256": "88d91ce9f0c5f7a18e83307f1ee72a3a06f220b60333cdfa789ffa572bf06500"
     }
   },
   "check": {
@@ -88,7 +127,8 @@
     "browser": "Production bootstrap, built Web, real Chromium and actual Git/worktrees; declared deterministic Agent subprocesses for E2E. This is not native-provider full document acceptance.",
     "nativeGifGate": "A fresh final-head normally authenticated Codex app-server to exact assistant DOM marker GIF is required before merge, with complete provenance in the PR body. It proves provider/UI reachability only.",
     "environment": "Task-local Linux SQLite rebuild for GLIBC2.31, old-Git init -b wrapper, read-only Windows Fonts through task-local FONTCONFIG_FILE; Windows machine lock ACL unchanged. Dependency directories preserved across native check and Linux E2E.",
-    "limits": "M1-T12 and M9-T30 remain todo; no complete sequential-document GUI delivery is claimed. Original red B1 used contract_pending as an anticipated run reason; final assertions use the already-defined contract_not_ready run/lane enum while DTO remains contract_pending."
+    "limits": "M1-T12 and M9-T30 remain todo; no complete sequential-document GUI delivery is claimed. Original red B1 used contract_pending as an anticipated run reason; final assertions use the already-defined contract_not_ready run/lane enum while DTO remains contract_pending.",
+    "artifactHashFormat": "artifactSha256 hashes persisted UTF-8/LF text as Git stores it; originalSha256 is the original command capture, artifactWorkingCopySha256 includes host line endings."
   },
   "density": {
     "r19-batch-tree-dark-1440x900.json": {
@@ -619,32 +659,32 @@
       },
       "status": "ok",
       "model": "jev-1.13.0",
-      "line": "adjudicate: pick=A(high 0.86) spec_change=no(0.17) outside_stack=no(0.20) needs_owner=no(0.09) reversible=yes(0.69) adopt=take(A)",
+      "line": "adjudicate: pick=A(high 0.88) spec_change=no(0.15) outside_stack=no(0.19) needs_owner=no(0.07) reversible=yes(0.68) adopt=take(A)",
       "verdicts": {
         "pick": {
           "choice": "A",
-          "confidence": 0.86,
+          "confidence": 0.88,
           "band": "high",
           "probabilities": {
-            "A": 0.91,
-            "B": 0.08,
+            "A": 0.92,
+            "B": 0.07,
             "C": 0.01
           }
         },
         "spec_change": {
-          "p": 0.17,
+          "p": 0.15,
           "verdict": "no"
         },
         "outside_stack": {
-          "p": 0.2,
+          "p": 0.19,
           "verdict": "no"
         },
         "needs_owner": {
-          "p": 0.09,
+          "p": 0.07,
           "verdict": "no"
         },
         "reversible": {
-          "p": 0.69,
+          "p": 0.68,
           "verdict": "yes"
         },
         "adopt": {
@@ -654,7 +694,54 @@
           "why": "Jev 选 A（high）"
         }
       },
-      "action": "原残留先原样保全到 planning，再重建唯一允许的工作树；未 clone/prune/reset。"
+      "action": "原残留先原样保全到 planning，再重建唯一允许的工作树；未 clone/prune/reset。",
+      "previousReview": {
+        "line": "adjudicate: pick=A(high 0.86) spec_change=no(0.17) outside_stack=no(0.20) needs_owner=no(0.09) reversible=yes(0.69) adopt=take(A)",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.86,
+            "band": "high",
+            "probabilities": {
+              "A": 0.91,
+              "B": 0.08,
+              "C": 0.01
+            }
+          },
+          "spec_change": {
+            "p": 0.17,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.2,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.69,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
+      },
+      "finalReviewFacts": {
+        "review": {
+          "phase": "Final bounded review of the implementation against every original candidate, before merge",
+          "final_diff_facts": "All pre-existing children were preserved under the allowed planning root before recreating the exact allowed worktree. No clone, prune, reset or user-file deletion occurred. The final changes are limited to M8 scheduling, M5 resource cleanup, owning regressions and required knowledge/maintenance outputs.",
+          "verified_workspace_check": "pnpm -w check --maxWorkers=2 --minWorkers=1: 253 files passed, 3313 tests passed, 3 pre-existing skips; no changed tests omitted.",
+          "scope_limit": "Review all original options below without deleting or weakening any. Ordinary technical choices stay with Jev. Do not treat a pending pre-merge evidence gate as already performed."
+        },
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate."
+      }
     },
     {
       "name": "wrapup-readiness",
@@ -715,7 +802,7 @@
       },
       "status": "ok",
       "model": "jev-1.13.0",
-      "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.08) outside_stack=no(0.06) needs_owner=no(0.05) reversible=yes(0.77) adopt=take(A)",
+      "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.08) outside_stack=no(0.06) needs_owner=no(0.04) reversible=yes(0.75) adopt=take(A)",
       "verdicts": {
         "pick": {
           "choice": "A",
@@ -736,11 +823,11 @@
           "verdict": "no"
         },
         "needs_owner": {
-          "p": 0.05,
+          "p": 0.04,
           "verdict": "no"
         },
         "reversible": {
-          "p": 0.77,
+          "p": 0.75,
           "verdict": "yes"
         },
         "adopt": {
@@ -750,7 +837,54 @@
           "why": "Jev 选 A（high）"
         }
       },
-      "action": "同一 queued 收口按当前成员 readiness 等待，释放 lane、不占 Agent/路径；事务前重核，同 run/代次/额度恢复。"
+      "action": "同一 queued 收口按当前成员 readiness 等待，释放 lane、不占 Agent/路径；事务前重核，同 run/代次/额度恢复。",
+      "previousReview": {
+        "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.08) outside_stack=no(0.06) needs_owner=no(0.05) reversible=yes(0.77) adopt=take(A)",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "A": 1.0,
+              "B": 0.0,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.08,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.06,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.05,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.77,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
+      },
+      "finalReviewFacts": {
+        "review": {
+          "phase": "Final bounded review of the implementation against every original candidate, before merge",
+          "final_diff_facts": "The final diff reuses isUnreadyQueuedRun for queued task and wrapup readiness, capacity and path accounting. It parks the same queued wrapup with existing contract_not_ready run/lane reason; execution DTO uses its existing contract_pending blocker. Commit guards recheck readiness. Recovery preserves run/generation/attempts; already starting/running admissions survive. The original red test started process_spawned; the final complete workspace check passes all new regressions.",
+          "verified_workspace_check": "pnpm -w check --maxWorkers=2 --minWorkers=1: 253 files passed, 3313 tests passed, 3 pre-existing skips; no changed tests omitted.",
+          "scope_limit": "Review all original options below without deleting or weakening any. Ordinary technical choices stay with Jev. Do not treat a pending pre-merge evidence gate as already performed."
+        },
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate."
+      }
     },
     {
       "name": "e2e-environment",
@@ -811,24 +945,24 @@
       },
       "status": "ok",
       "model": "jev-1.13.0",
-      "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.12) outside_stack=no(0.29) needs_owner=no(0.09) reversible=yes(0.79) adopt=take(A)",
+      "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.11) outside_stack=no(0.23) needs_owner=no(0.09) reversible=yes(0.77) adopt=take(A)",
       "verdicts": {
         "pick": {
           "choice": "A",
-          "confidence": 0.98,
+          "confidence": 1.0,
           "band": "high",
           "probabilities": {
-            "A": 0.99,
-            "B": 0.01,
+            "A": 1.0,
+            "B": 0.0,
             "C": 0.0
           }
         },
         "spec_change": {
-          "p": 0.12,
+          "p": 0.11,
           "verdict": "no"
         },
         "outside_stack": {
-          "p": 0.29,
+          "p": 0.23,
           "verdict": "no"
         },
         "needs_owner": {
@@ -836,7 +970,7 @@
           "verdict": "no"
         },
         "reversible": {
-          "p": 0.79,
+          "p": 0.77,
           "verdict": "yes"
         },
         "adopt": {
@@ -846,7 +980,54 @@
           "why": "Jev 选 A（high）"
         }
       },
-      "action": "保留 Windows 锁 ACL 失败；隔离工作树用 WSL 原生环境运行原端到端入口；最终 head 的 CI 仍是合并门禁。"
+      "action": "保留 Windows 锁 ACL 失败；隔离工作树用 WSL 原生环境运行原端到端入口；最终 head 的 CI 仍是合并门禁。",
+      "previousReview": {
+        "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.12) outside_stack=no(0.29) needs_owner=no(0.09) reversible=yes(0.79) adopt=take(A)",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.98,
+            "band": "high",
+            "probabilities": {
+              "A": 0.99,
+              "B": 0.01,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.12,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.29,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.79,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
+      },
+      "finalReviewFacts": {
+        "review": {
+          "phase": "Final bounded review of the implementation against every original candidate, before merge",
+          "final_diff_facts": "Windows machine-wide lock ACL remains unchanged. The exact disposable checkout uses native WSL Node and a transparent old-Git init argument compatibility wrapper, with Linux SQLite rebuilt locally. Full Windows workspace check passes 3313 tests with 3 existing skips. WSL E2E baseline failures and any final retries are retained without altered assertions or timeouts; exact-head remote CI is required before merge.",
+          "verified_workspace_check": "pnpm -w check --maxWorkers=2 --minWorkers=1: 253 files passed, 3313 tests passed, 3 pre-existing skips; no changed tests omitted.",
+          "scope_limit": "Review all original options below without deleting or weakening any. Ordinary technical choices stay with Jev. Do not treat a pending pre-merge evidence gate as already performed."
+        },
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate."
+      }
     },
     {
       "name": "evidence-scope",
@@ -907,7 +1088,7 @@
       },
       "status": "ok",
       "model": "jev-1.13.0",
-      "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.16) outside_stack=no(0.08) needs_owner=no(0.11) reversible=yes(0.76) adopt=take(A)",
+      "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.15) outside_stack=no(0.07) needs_owner=no(0.10) reversible=yes(0.78) adopt=take(A)",
       "verdicts": {
         "pick": {
           "choice": "A",
@@ -920,19 +1101,19 @@
           }
         },
         "spec_change": {
-          "p": 0.16,
+          "p": 0.15,
           "verdict": "no"
         },
         "outside_stack": {
-          "p": 0.08,
+          "p": 0.07,
           "verdict": "no"
         },
         "needs_owner": {
-          "p": 0.11,
+          "p": 0.1,
           "verdict": "no"
         },
         "reversible": {
-          "p": 0.76,
+          "p": 0.78,
           "verdict": "yes"
         },
         "adopt": {
@@ -942,7 +1123,54 @@
           "why": "Jev 选 A（high）"
         }
       },
-      "action": "只验收 M8 后端与当前真实容器/界面；M9-T30、M1-T12 保持 todo，完整文档控制与原生顺序交付不提前算完成。"
+      "action": "只验收 M8 后端与当前真实容器/界面；M9-T30、M1-T12 保持 todo，完整文档控制与原生顺序交付不提前算完成。",
+      "previousReview": {
+        "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.16) outside_stack=no(0.08) needs_owner=no(0.11) reversible=yes(0.76) adopt=take(A)",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.98,
+            "band": "high",
+            "probabilities": {
+              "A": 0.99,
+              "B": 0.0,
+              "C": 0.01
+            }
+          },
+          "spec_change": {
+            "p": 0.16,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.08,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.11,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.76,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
+      },
+      "finalReviewFacts": {
+        "review": {
+          "phase": "Final bounded review of the implementation against every original candidate, before merge",
+          "final_diff_facts": "No future document-control UI or full M1-T12 orchestration was implemented. M9-T30 and M1-T12 remain todo. Real production container/tick/spawn tests cover backend sequence, gates, quotas, source changes and both pause orderings. Real built-Web browser tests and density cover current UI. Native-provider reachability is explicitly distinct from full document implementation acceptance.",
+          "verified_workspace_check": "pnpm -w check --maxWorkers=2 --minWorkers=1: 253 files passed, 3313 tests passed, 3 pre-existing skips; no changed tests omitted.",
+          "scope_limit": "Review all original options below without deleting or weakening any. Ordinary technical choices stay with Jev. Do not treat a pending pre-merge evidence gate as already performed."
+        },
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate."
+      }
     },
     {
       "name": "wrapup-revocation",
@@ -1003,16 +1231,16 @@
       },
       "status": "ok",
       "model": "jev-1.13.0",
-      "line": "adjudicate: pick=A(high 0.82) spec_change=no(0.11) outside_stack=no(0.10) needs_owner=no(0.08) reversible=unsure(0.62) adopt=take(A)",
+      "line": "adjudicate: pick=A(high 0.76) spec_change=no(0.11) outside_stack=no(0.07) needs_owner=no(0.07) reversible=yes(0.65) adopt=take(A)",
       "verdicts": {
         "pick": {
           "choice": "A",
-          "confidence": 0.82,
+          "confidence": 0.76,
           "band": "high",
           "probabilities": {
-            "A": 0.88,
+            "A": 0.84,
             "B": 0.0,
-            "C": 0.12
+            "C": 0.16
           }
         },
         "spec_change": {
@@ -1020,16 +1248,16 @@
           "verdict": "no"
         },
         "outside_stack": {
-          "p": 0.1,
+          "p": 0.07,
           "verdict": "no"
         },
         "needs_owner": {
-          "p": 0.08,
+          "p": 0.07,
           "verdict": "no"
         },
         "reversible": {
-          "p": 0.62,
-          "verdict": "unsure"
+          "p": 0.65,
+          "verdict": "yes"
         },
         "adopt": {
           "action": "take",
@@ -1038,7 +1266,54 @@
           "why": "Jev 选 A（high）"
         }
       },
-      "action": "只回收明确新建且未受理资源；复用、脏树、受理后及清理失败均保留；M5 不做全仓 prune，非强制用 -d 且登记读取失败不变更。"
+      "action": "只回收明确新建且未受理资源；复用、脏树、受理后及清理失败均保留；M5 不做全仓 prune，非强制用 -d 且登记读取失败不变更。",
+      "previousReview": {
+        "line": "adjudicate: pick=A(high 0.82) spec_change=no(0.11) outside_stack=no(0.10) needs_owner=no(0.08) reversible=unsure(0.62) adopt=take(A)",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.82,
+            "band": "high",
+            "probabilities": {
+              "A": 0.88,
+              "B": 0.0,
+              "C": 0.12
+            }
+          },
+          "spec_change": {
+            "p": 0.11,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.1,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.08,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.62,
+            "verdict": "unsure"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
+      },
+      "finalReviewFacts": {
+        "review": {
+          "phase": "Final bounded review of the implementation against every original candidate, before merge",
+          "final_diff_facts": "The final ownership guard is prepared.isReused === false, and admitted becomes true only after the existing unit-of-work returns from its committed transaction. Only fresh unadmitted worktrees are discarded. Reused, unknown ownership, accepted, dirty and failed-cleanup resources are preserved; the primary admission error remains authoritative. Container uses existing non-forced M5 cleanup, which removes only its exact worktree, uses branch -d and no repository-wide prune. Failed non-forced registration inspection throws before mutation. Real tiny-Git regression proves the original leak and six ownership outcomes. Required M5 supportPaths are patched without changing acceptance.",
+          "verified_workspace_check": "pnpm -w check --maxWorkers=2 --minWorkers=1: 253 files passed, 3313 tests passed, 3 pre-existing skips; no changed tests omitted.",
+          "scope_limit": "Review all original options below without deleting or weakening any. Ordinary technical choices stay with Jev. Do not treat a pending pre-merge evidence gate as already performed."
+        },
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate."
+      }
     },
     {
       "name": "gui-evidence",
@@ -1099,16 +1374,16 @@
       },
       "status": "ok",
       "model": "jev-1.13.0",
-      "line": "adjudicate: pick=A(high 0.83) spec_change=no(0.19) outside_stack=unsure(0.37) needs_owner=no(0.10) reversible=unsure(0.64) adopt=take(A)",
+      "line": "adjudicate: pick=A(high 0.80) spec_change=no(0.19) outside_stack=no(0.30) needs_owner=no(0.08) reversible=yes(0.67) adopt=take(A)",
       "verdicts": {
         "pick": {
           "choice": "A",
-          "confidence": 0.83,
+          "confidence": 0.8,
           "band": "high",
           "probabilities": {
-            "A": 0.89,
+            "A": 0.87,
             "B": 0.0,
-            "C": 0.11
+            "C": 0.13
           }
         },
         "spec_change": {
@@ -1116,16 +1391,16 @@
           "verdict": "no"
         },
         "outside_stack": {
-          "p": 0.37,
-          "verdict": "unsure"
+          "p": 0.3,
+          "verdict": "no"
         },
         "needs_owner": {
-          "p": 0.1,
+          "p": 0.08,
           "verdict": "no"
         },
         "reversible": {
-          "p": 0.64,
-          "verdict": "unsure"
+          "p": 0.67,
+          "verdict": "yes"
         },
         "adopt": {
           "action": "take",
@@ -1134,7 +1409,55 @@
           "why": "Jev 选 A（high）"
         }
       },
-      "action": "最终干净 head 录真实 Codex 唯一消息标记；完整声明 API 控制、WSL 互操作与字体例外，media-only 分支经 API 发布；合并前执行，当前记录不预报成功。"
+      "action": "最终干净 head 录真实 Codex 唯一消息标记；完整声明 API 控制、WSL 互操作与字体例外，media-only 分支经 API 发布；合并前执行，当前记录不预报成功。",
+      "previousReview": {
+        "line": "adjudicate: pick=A(high 0.83) spec_change=no(0.19) outside_stack=unsure(0.37) needs_owner=no(0.10) reversible=unsure(0.64) adopt=take(A)",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.83,
+            "band": "high",
+            "probabilities": {
+              "A": 0.89,
+              "B": 0.0,
+              "C": 0.11
+            }
+          },
+          "spec_change": {
+            "p": 0.19,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.37,
+            "verdict": "unsure"
+          },
+          "needs_owner": {
+            "p": 0.1,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.64,
+            "verdict": "unsure"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
+      },
+      "finalReviewFacts": {
+        "review": {
+          "phase": "Final bounded review of the implementation against every original candidate, before merge",
+          "final_diff_facts": "The final code touches daemon scheduling/workspace only; waiting and released lane availability are visible through existing UI. Final review requires a fresh frozen-head production server, normal Codex app-server authentication, a transparent cwd-only Windows interop bridge, and an exact assistant marker element. API start is a declared exception until M9-T30. A no-tools/no-files empty-diff probe proves only actual provider-to-UI reachability. Record all flags, tree/head/origin, then publish only verified media through GitHub API. This action is a required remaining pre-merge gate and is not yet claimed complete.",
+          "verified_workspace_check": "pnpm -w check --maxWorkers=2 --minWorkers=1: 253 files passed, 3313 tests passed, 3 pre-existing skips; no changed tests omitted.",
+          "scope_limit": "Review all original options below without deleting or weakening any. Ordinary technical choices stay with Jev. Do not treat a pending pre-merge evidence gate as already performed."
+        },
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate.",
+        "actual_native_observation": "A normal Windows Codex app-server0.157.1 completed one no-tools/no-files probe on old frozen head73a84a6. The UI imported the source with0runs, then normal production start dispatched the actual client. Its normal run-detail page renders raw vendor logs. Exactly one visible full-text DOM span parses as method=item/completed, item.type=agentMessage, phase=final_answer, and item.text exactly equals the unique marker; the entire JSON text also has a unique exact locator. Prompt echo was explicitly excluded. It stopped at the real mechanical-check human gate and was never accepted/landed. Windows reading WSL Git metadata and existing user MCP/model metadata generated warnings, so this is message reachability only, not Git-tool or full two-batch delivery proof. Once the fixture/docs are committed, repeat on the new clean final head with fresh roots and publish that recording only. Shared IAB browser profile is disclosed; new unused origin/tab gives fresh application site state, normal UI pairing, no browser-state injection. All published frames must share one fixed viewport and omit unrelated account telemetry. No native-provider credential was read or changed."
+      }
     },
     {
       "name": "check-environment",
@@ -1195,32 +1518,32 @@
       },
       "status": "ok",
       "model": "jev-1.13.0",
-      "line": "adjudicate: pick=A(high 0.97) spec_change=no(0.11) outside_stack=no(0.15) needs_owner=no(0.07) reversible=yes(0.78) adopt=take(A)",
+      "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.10) outside_stack=no(0.14) needs_owner=no(0.06) reversible=yes(0.77) adopt=take(A)",
       "verdicts": {
         "pick": {
           "choice": "A",
-          "confidence": 0.97,
+          "confidence": 0.98,
           "band": "high",
           "probabilities": {
-            "A": 0.98,
+            "A": 0.99,
             "B": 0.01,
-            "C": 0.01
+            "C": 0.0
           }
         },
         "spec_change": {
-          "p": 0.11,
+          "p": 0.1,
           "verdict": "no"
         },
         "outside_stack": {
-          "p": 0.15,
+          "p": 0.14,
           "verdict": "no"
         },
         "needs_owner": {
-          "p": 0.07,
+          "p": 0.06,
           "verdict": "no"
         },
         "reversible": {
-          "p": 0.78,
+          "p": 0.77,
           "verdict": "yes"
         },
         "adopt": {
@@ -1230,7 +1553,54 @@
           "why": "Jev 选 A（high）"
         }
       },
-      "action": "只停本轮慢 runner；保全依赖、Windows 独占双 worker 全量检查通过，再恢复 Linux 依赖；未改断言或超时。"
+      "action": "只停本轮慢 runner；保全依赖、Windows 独占双 worker 全量检查通过，再恢复 Linux 依赖；未改断言或超时。",
+      "previousReview": {
+        "line": "adjudicate: pick=A(high 0.97) spec_change=no(0.11) outside_stack=no(0.15) needs_owner=no(0.07) reversible=yes(0.78) adopt=take(A)",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.97,
+            "band": "high",
+            "probabilities": {
+              "A": 0.98,
+              "B": 0.01,
+              "C": 0.01
+            }
+          },
+          "spec_change": {
+            "p": 0.11,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.15,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.07,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.78,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
+      },
+      "finalReviewFacts": {
+        "review": {
+          "phase": "Final bounded review of the implementation against every original candidate, before merge",
+          "final_diff_facts": "Only the task-owned slow WSL runner and confirmed descendants were stopped. Linux dependencies were preserved in planning, complete native Windows check ran alone with two workers, and all lint/type/3313 tests passed (3 existing skips). Windows dependencies were then preserved and the original Linux directories restored for unchanged E2E. No assertions/timeouts, caches, active installs or global permissions were changed.",
+          "verified_workspace_check": "pnpm -w check --maxWorkers=2 --minWorkers=1: 253 files passed, 3313 tests passed, 3 pre-existing skips; no changed tests omitted.",
+          "scope_limit": "Review all original options below without deleting or weakening any. Ordinary technical choices stay with Jev. Do not treat a pending pre-merge evidence gate as already performed."
+        },
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate."
+      }
     },
     {
       "name": "offline-wrapup",
@@ -1289,27 +1659,164 @@
       },
       "status": "ok",
       "model": "jev-1.13.0",
-      "line": "adjudicate: pick=A(high 0.96) spec_change=no(0.11) outside_stack=no(0.09) needs_owner=no(0.05) reversible=yes(0.74) adopt=take(A)",
+      "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.10) outside_stack=no(0.07) needs_owner=no(0.05) reversible=yes(0.76) adopt=take(A)",
       "verdicts": {
         "pick": {
           "choice": "A",
-          "confidence": 0.96,
+          "confidence": 0.98,
           "band": "high",
           "probabilities": {
-            "A": 0.98,
-            "C": 0.02
+            "A": 0.99,
+            "C": 0.01
           }
         },
         "spec_change": {
-          "p": 0.11,
+          "p": 0.1,
           "verdict": "no"
         },
         "outside_stack": {
-          "p": 0.09,
+          "p": 0.07,
           "verdict": "no"
         },
         "needs_owner": {
           "p": 0.05,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.76,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "action": "冻结 Agent 离线时保留 queued，DTO 显示已有 agent_unavailable；可用后恢复同一 run，不替换厂商或增加尝试。",
+      "previousReview": {
+        "line": "adjudicate: pick=A(high 0.96) spec_change=no(0.11) outside_stack=no(0.09) needs_owner=no(0.05) reversible=yes(0.74) adopt=take(A)",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.96,
+            "band": "high",
+            "probabilities": {
+              "A": 0.98,
+              "C": 0.02
+            }
+          },
+          "spec_change": {
+            "p": 0.11,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.05,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.74,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
+      },
+      "finalReviewFacts": {
+        "review": {
+          "phase": "Final bounded review of the implementation against every original candidate, before merge",
+          "final_diff_facts": "Both queued-wrapup pre-admission and transaction guards check the frozen Agent availability. Existing DTO agent_unavailable includes only queued current-generation wrapupRunIds, so unrelated offline historical landed tasks do not block. Tests prove queued/no spawn while offline, same run/plan/generation/attempts and assignment on recovery, plus the no-queued-wrapup negative case. The complete Windows check passes.",
+          "verified_workspace_check": "pnpm -w check --maxWorkers=2 --minWorkers=1: 253 files passed, 3313 tests passed, 3 pre-existing skips; no changed tests omitted.",
+          "scope_limit": "Review all original options below without deleting or weakening any. Ordinary technical choices stay with Jev. Do not treat a pending pre-merge evidence gate as already performed."
+        },
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate."
+      }
+    },
+    {
+      "name": "ci-allocation-admission",
+      "originalRequirement": "Finish batch19 round2 on M8-T13 and one predecessor interface layer, with reproduced red-green fixes, real production entry evidence, full check and exact-head three-platform CI before merge. Do not raise test deadlines, skip cases, hide failures, bypass acceptance or change shared machine configuration. Ordinary finite decisions go to Jev.",
+      "task": {
+        "title": "M8-T13 wrapup allocation ownership regression and its M5 production Git interface",
+        "accept": "AC6/E-367 pause-first async preflight admits no run and preserves previously accepted work. AC7/E-369 source changes revoke unaccepted work. B2 owns only explicitly fresh unadmitted resources and must prove six real-Git outcomes. AC8/E-370 requires actual production container/tick/spawn coverage and passing workspace check; all three exact-head platform CI jobs are merge gates."
+      },
+      "conflict": "PR220 at 73a84a6 passes complete local Windows check (253 files/3313 pass/3 existing skips), independent Linux real-Git owning units49 and exact container9, and remote macOS/Linux desktop plus original Ubuntu E2E/settings/pairing. Windows CI instead times out all six newly added real-Git wrapup allocation tests at their unchanged 60000ms limit; all other 3306 tests pass with4 platform skips. Each fixture initializes and commits an actual tiny Git repository, then constructs the production M5 manager/default runner and holds its prepare callback after allocation. The test waits allocationReady without observing a preparation rejection, so an early error or a hanging real Git command is hidden by the wait. Runtime source has not changed since the successful local check. A fail-fast Promise.race against the actual trigger result has been added locally, preserving every product assertion, and its focused real-Git rerun is in progress. The completed native Codex GUI probe at the old frozen head has an exact completed agentMessage.text in the visible raw run-detail UI and a real mechanical-check human gate, but a new final head will require a fresh recording if tests/docs change.",
+      "allCandidates": {
+        "A": "Diagnose and repair the bounded regression fixture in this same PR: race allocation notification with the real trigger outcome; if necessary record the task-owned production default Git runner's actual commands/errors through transparent test dependency injection and emit them only on test failure. Keep real Git, production ownership/transaction code, all six outcomes, and the same60000ms deadline. Reproduce the discovered host/setup cause before the smallest fix, rerun the necessary checks and exact-head CI, replay the ruling with final diff facts, then freeze and record fresh native GUI evidence. Change production code only if a separately reproduced in-scope causal defect is established.",
+        "B": "Rerun only failed Windows CI and its release gate once at the unchanged old head without altering tests or diagnostics, preserving the first failure; if all six waits recur, return to a new Jev decision rather than repeatedly retrying or declaring a transient success.",
+        "C": "Leave the product repairs intact, mark the wrapup open, and create a stable-key unlanded validation repair for the Windows real-Git admission evidence. Keep the next batch locked and do not merge as pass until that repair and another wrapup succeed."
+      },
+      "initial": {
+        "model": "jev-1.13.0",
+        "line": "adjudicate: pick=A(high 0.92) spec_change=no(0.10) outside_stack=no(0.21) needs_owner=no(0.07) reversible=yes(0.75) adopt=take(A)",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.92,
+            "band": "high",
+            "probabilities": {
+              "A": 0.95,
+              "B": 0.04,
+              "C": 0.01
+            }
+          },
+          "spec_change": {
+            "p": 0.1,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.21,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.07,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.75,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
+      },
+      "action": "夹具显式传隔离 home 与真实 Path/PATH，使用生产默认 runner；受理结果竞速直接抛提前异常；六态与 60 秒期限保留，红绿复验通过。",
+      "status": "ok",
+      "model": "jev-1.13.0",
+      "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.07) outside_stack=no(0.15) needs_owner=no(0.06) reversible=yes(0.74) adopt=take(A)",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.98,
+          "band": "high",
+          "probabilities": {
+            "A": 0.99,
+            "B": 0.01,
+            "C": 0.0
+          }
+        },
+        "spec_change": {
+          "p": 0.07,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.15,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.06,
           "verdict": "no"
         },
         "reversible": {
@@ -1323,7 +1830,9 @@
           "why": "Jev 选 A（high）"
         }
       },
-      "action": "冻结 Agent 离线时保留 queued，DTO 显示已有 agent_unavailable；可用后恢复同一 run，不替换厂商或增加尝试。"
+      "finalReviewFacts": {
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate."
+      }
     }
   ],
   "browserCheckReruns": [
@@ -1390,5 +1899,63 @@
     },
     "generatorSourcesChanged": false,
     "optionalFullToolUnitSuite": "Stopped as unnecessary for unchanged generator sources; not claimed pass"
+  },
+  "sourceSha256AtOriginalCompleteCheck": {
+    "packages/daemon/src/boot/container.ts": "21e19d478001ff012fb43feb4209479be2be2eada6e2e943fd78676479bf77d8",
+    "packages/daemon/src/service/dispatch.ts": "4e42adb4372fc27764ecf3d7b51bb1d562acb45ebbcc99b44e045ef86b6ba37f",
+    "packages/daemon/src/service/document-execution.ts": "d63e49bd6d0e30864e270a469aedcfd98d1ca4d082c0ee7964a2dc662ee39f7f",
+    "packages/daemon/src/service/wrapup.ts": "41dd3f0bf1b01a0930493b3cbb135b30230e2821f473f2fa1e07c9ba1b925008",
+    "packages/daemon/src/workspace/worktree.ts": "da11315602730616314221fa14020ed7640139f8be0bd48315893c1438b51dd3",
+    "packages/daemon/test/integration/document-execution-routes.test.ts": "ffeed4d6dda6c7df79e5435b208ee80d38d94c03709012ec87bbba581b3e12d6",
+    "packages/daemon/test/unit/landing.test.ts": "510c114c50c85d5133462a43507ac85eea9c003217bfccda92e0172a73e0ab96",
+    "packages/daemon/test/unit/worktree.test.ts": "a6f731056b8fad9ecbfb6b04acabfe06f8a1fc7deb6ec22f3d59f320f4db3b54"
+  },
+  "sourceGitBlobSha1": {
+    "packages/daemon/src/boot/container.ts": "bca4150e07746694ee1000d3ad634adf66c9d5a6",
+    "packages/daemon/src/service/dispatch.ts": "df1e0154244d69d9dd736f600a79041c9e3084ca",
+    "packages/daemon/src/service/document-execution.ts": "a2c269bda46f9cd40f2d55459a2a8d24e951b13e",
+    "packages/daemon/src/service/wrapup.ts": "ff87113113e749180626bc4df694c94c8f6c5e7d",
+    "packages/daemon/src/workspace/worktree.ts": "2aaf2995aeb085a81d2610ea60cb9a227be1c629",
+    "packages/daemon/test/integration/document-execution-routes.test.ts": "7c9e7d3c809836921851a6b01e95bcb40814160c",
+    "packages/daemon/test/unit/landing.test.ts": "6bd9b7a3df7d391fe78938a76665aa00dd0e1577",
+    "packages/daemon/test/unit/worktree.test.ts": "897b6c85790ac27e9d6d9b92396ab6118f9eeb71"
+  },
+  "fixtureFollowup": {
+    "oldHead": "73a84a64bf63d5dc1f8cbed43c12ff7983eab65d",
+    "failedCiRun": 38682310123,
+    "firstCi": {
+      "windowsPassedTests": 3306,
+      "windowsSkippedTests": 4,
+      "windowsFailedTests": 6,
+      "failedCases": "all six new owned allocation cases timed out waiting for allocationReady before failure was observed",
+      "otherRequiredJobs": "macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed"
+    },
+    "root": "Standalone test manager omitted hostInputs.pathEnv; local user Git shim and Linux /usr/bin masked the omission. Production container already passes real host inputs.",
+    "red": {
+      "platform": "native Windows",
+      "isolatedHomeWithoutPath": true,
+      "realGitCliInitAndCommitSucceeded": true,
+      "failedCases": 6,
+      "durationSeconds": 19.96,
+      "observedErrorChain": [
+        "E_WORKSPACE_UNAVAILABLE",
+        "E_NOT_A_GIT_REPO"
+      ]
+    },
+    "green": {
+      "platform": "native Windows",
+      "owningFiles": 3,
+      "passedTests": 135,
+      "durationSeconds": 232.71,
+      "biome": "pass",
+      "typecheck": "pass"
+    },
+    "unchanged": [
+      "all six ownership outcomes",
+      "production default Git runner",
+      "60000ms deadline",
+      "all runtime source files"
+    ],
+    "independentReview": "second bounded review original blockers closed; VERDICT PASS; exact-head final CI remains required"
   }
 }

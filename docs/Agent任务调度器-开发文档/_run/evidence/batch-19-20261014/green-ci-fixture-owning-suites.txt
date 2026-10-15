@@ -1,0 +1,454 @@
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+ RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-19
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: repeating pause with the observed current version is read-only
+[daemon] Initial pairing code: [REDACTED]
+
+ ✓ packages/daemon/test/unit/worktree.test.ts (29 tests) 6008ms
+   ✓ M5-T1 Worktree Preparation, Branch Naming, and Reclamation > End-to-End Real Git Integration > executes real git commands on a real repository (AC 1, AC 2, AC 3, E-69, E-71, E-72) 5922ms
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: repeating resume with the observed current version is read-only
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: duplicate start reads the committed plan while the repository is unavailable
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: an old start cannot mask a version conflict after pause and resume
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: duplicate resume reads the committed plan while the repository is unavailable
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: duplicate start returns the committed plan after Agent capability changes
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: read-only execution DTO retains persisted generation and attempts until resume
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: landed work does not remain blocked by its unavailable Agent
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: refresh publishes a pause after source becomes unreadable
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: control preflight publishes a pause after source becomes unreadable
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: control events retain the authenticated device
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an established vendor effort survives a narrower cached model list
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an offline registered agent accepts a configured vendor effort as a waiting plan
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: resume rejects a saved vendor effort after its Agent capability is removed
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an unavailable draft agent remains an execution blocker
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: a draft on another unavailable agent blocks while the default is available
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-366: two legacy active batches appear in the idle execution DTO
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-366: a lone later legacy batch blocks start while an earlier batch is incomplete
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: first adoption retains legacy wrapup attempts and two effective rounds in generation zero
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R4: a later landed run cannot retroactively prove an older clean verdict for the same task key
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R4: adopts an old done only when the wrapup froze matching members and earlier landed evidence
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: resumes after the old active batch loses every member
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R2: pauses on a same-fingerprint source rebinding
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R2: re-import publishes the committed document execution change
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > keeps a legal vendor effort value and rejects an unknown value before a plan exists
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > rejects unknown agents and stale source without creating a plan, then pauses a live plan on restart
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > imports idle, then persists one waiting plan and preserves a newer pause against an old resume retry
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > refresh pauses a running plan and explicit resume creates a new generation for changed members
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > resumes an unstarted task after daemon restart and Agent recovery
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > activates the next batch only after frozen clean wrapup evidence enters HEAD
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > freezes the active generation and run ownership when production wrapup is admitted
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > freezes the active generation and run ownership when production wrapup is admitted
+[E-296] Document did not provide matching dispatchBatches for batch req_226be66e5929, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt
+[E-296] Document did not provide matching dispatchBatches for batch req_afc03ee3ef4d, falling back to builtin wrapup prompt
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot
+[daemon] Initial pairing code: [REDACTED]
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot
+[E-296] Document did not provide matching dispatchBatches for batch req_c5c4dd959c1c, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_3af4239f0872, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_a01c39e24425, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_c7e15a950aba, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+[E-296] Document did not provide matching dispatchBatches for batch req_1300a64d64c3, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+[daemon] Could not reclaim an unadmitted wrapup worktree. Path: C:\Users\admin\AppData\Local\Temp\agsched-document-plan-kT8Uux\owned-wrapup; branch: wrapup/owned-1
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_53d17c8f88ca, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+[daemon] Could not reclaim an unadmitted wrapup worktree. Path: C:\Users\admin\AppData\Local\Temp\agsched-document-plan-AMwK9I\owned-wrapup; branch: wrapup/owned-1
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_6b34f2f8c4f5, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a refresh during wrapup preflight cannot freeze obsolete batch members
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a refresh during wrapup preflight cannot freeze obsolete batch members
+[E-296] Document did not provide matching dispatchBatches for batch req_86f086ab01f4, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367: a clean wrapup completed during pause is adopted on resume (inHead=true)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367: a clean wrapup completed during pause is adopted on resume (inHead=true)
+[E-296] Document did not provide matching dispatchBatches for batch req_13689740163f, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367: a clean wrapup completed during pause is adopted on resume (inHead=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367: a clean wrapup completed during pause is adopted on resume (inHead=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_652f1866c69f, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367: a paused open report plans fixes once despite later stale history (lateStale=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367: a paused open report plans fixes once despite later stale history (lateStale=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_a464228c55e4, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367: a paused open report plans fixes once despite later stale history (lateStale=true)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367: a paused open report plans fixes once despite later stale history (lateStale=true)
+[E-296] Document did not provide matching dispatchBatches for batch req_ff9f778db473, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('active')
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('active')
+[E-296] Document did not provide matching dispatchBatches for batch req_a2fdd000dd9b, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('aborted')
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('aborted')
+[E-296] Document did not provide matching dispatchBatches for batch req_0dcd26c1d53f, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('interrupted')
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('interrupted')
+[E-296] Document did not provide matching dispatchBatches for batch req_291656fab6a1, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > fails an unstarted old-generation wrapup before dispatching the new generation
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > fails an unstarted old-generation wrapup before dispatching the new generation
+[E-296] Document did not provide matching dispatchBatches for batch req_00150b9cbe96, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a stale wrapup human gate cannot complete the rebuilt generation
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a stale wrapup human gate cannot complete the rebuilt generation
+[E-296] Document did not provide matching dispatchBatches for batch req_47f3be9bb902, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > does not admit a run after pause wins an asynchronous tick preflight
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > pauses a running plan when the source changes before refresh
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a refreshed batch move revokes a queued admission before the next plan advance
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued 'review' waits when only task readiness becomes false (occupiedLane=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued 'bughunt' waits when only task readiness becomes false (occupiedLane=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued 'review' waits when only task readiness becomes false (occupiedLane=true)
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > shares the Agent limit across two running documents in one tick
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > uses a task draft while an unavailable document default waits
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > holds a shared path across two documents even with two Agent slots
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-362: an in-flight run holds its frozen paths after document refresh
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > relays after production wrapup records clean and its branch reaches HEAD
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > relays after production wrapup records clean and its branch reaches HEAD
+[E-296] Document did not provide matching dispatchBatches for batch req_0c0585cd98d5, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > reaches the managed process port from document start through the production tick
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: revalidates a changed landed contract before current-generation wrapup
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: revalidates a changed landed contract before current-generation wrapup
+[E-296] Document did not provide matching dispatchBatches for batch req_a1012d7081f7, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: completed execution reopens when refresh moves a member without changing task hashes
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: completed execution reopens when refresh moves a member without changing task hashes
+[E-296] Document did not provide matching dispatchBatches for batch req_571573d3ce86, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'clean' wrapup artifacts
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'clean' wrapup artifacts
+[E-296] Document did not provide matching dispatchBatches for batch req_e8e3188a80cc, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'open' wrapup artifacts
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'open' wrapup artifacts
+[E-296] Document did not provide matching dispatchBatches for batch req_a6bf1af83557, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: changed-contract work reports an unavailable Agent despite old landed history
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: stale reworking implementation cannot replace the changed contract
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: a moved 'reworking' task cannot hold the new batch Agent slot or path
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: a moved 'awaiting_human' task cannot hold the new batch Agent slot or path
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: a changed contract clears its obsolete human gate before new dispatch
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-364: a current pre-dispatch human gate stays visible without a run
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a moved task retries in its new batch after an old-batch failure
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a moved task retries in its new batch after an old-batch failure
+[E-296] Document did not provide matching dispatchBatches for batch req_c09fb2e717fc, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R2: removed unlanded member cannot block current wrapup and next batch
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R2: removed unlanded member cannot block current wrapup and next batch
+[E-296] Document did not provide matching dispatchBatches for batch req_f768ca3a598a, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: a queued wrapup from a removed batch releases its lane and publishes its failure
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: a queued wrapup from a removed batch releases its lane and publishes its failure
+[E-296] Document did not provide matching dispatchBatches for batch req_52c51be3ff76, falling back to builtin wrapup prompt
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: stale queued 'review' stays out of the rebuilt generation
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: stale queued 'bughunt' stays out of the rebuilt generation
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: stale queued 'wrapup-fix' stays out of the rebuilt generation
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: rejecting an old queued bughunt retires its parked implementation parent
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=true)
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: 'bughunt' human stage gate follows current membership (moved=true)
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: same-generation queued review resumes after a user pause
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: queued review inherits durable generation from its implementation parent
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R3: queued wrapup-fix follows its current wrapup generation over an older copied snapshot
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R4: a legacy tick observed without a plan cannot admit after start and pause
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: a lost manual-wrapup response remains discoverable after document pause
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: a lost manual-wrapup response remains discoverable after document pause
+[E-296] Document did not provide matching dispatchBatches for batch req_7945e72501dc, falling back to builtin wrapup prompt
+
+ ✓ packages/daemon/test/integration/document-execution-routes.test.ts (86 tests) 218870ms
+   ✓ M8-T12 document execution through the real container > E-361: repeating pause with the observed current version is read-only 3072ms
+   ✓ M8-T12 document execution through the real container > E-361: repeating resume with the observed current version is read-only 2347ms
+   ✓ M8-T12 document execution through the real container > E-361: duplicate start reads the committed plan while the repository is unavailable 2180ms
+   ✓ M8-T12 document execution through the real container > E-361: an old start cannot mask a version conflict after pause and resume 2421ms
+   ✓ M8-T12 document execution through the real container > E-361: duplicate resume reads the committed plan while the repository is unavailable 2462ms
+   ✓ M8-T12 document execution through the real container > E-361: duplicate start returns the committed plan after Agent capability changes 2339ms
+   ✓ M8-T12 document execution through the real container > E-369: read-only execution DTO retains persisted generation and attempts until resume 2429ms
+   ✓ M8-T12 document execution through the real container > E-365: landed work does not remain blocked by its unavailable Agent 2095ms
+   ✓ M8-T12 document execution through the real container > E-369: refresh publishes a pause after source becomes unreadable 2331ms
+   ✓ M8-T12 document execution through the real container > E-369: control preflight publishes a pause after source becomes unreadable 2277ms
+   ✓ M8-T12 document execution through the real container > E-361: control events retain the authenticated device 2258ms
+   ✓ M8-T12 document execution through the real container > E-365: an established vendor effort survives a narrower cached model list 2255ms
+   ✓ M8-T12 document execution through the real container > E-365: an offline registered agent accepts a configured vendor effort as a waiting plan 2063ms
+   ✓ M8-T12 document execution through the real container > E-365: resume rejects a saved vendor effort after its Agent capability is removed 2171ms
+   ✓ M8-T12 document execution through the real container > E-365: an unavailable draft agent remains an execution blocker 2150ms
+   ✓ M8-T12 document execution through the real container > E-365: a draft on another unavailable agent blocks while the default is available 3708ms
+   ✓ M8-T12 document execution through the real container > E-366: two legacy active batches appear in the idle execution DTO 2289ms
+   ✓ M8-T12 document execution through the real container > E-366: a lone later legacy batch blocks start while an earlier batch is incomplete 2271ms
+   ✓ M8-T12 document execution through the real container > R3: first adoption retains legacy wrapup attempts and two effective rounds in generation zero 2137ms
+   ✓ M8-T12 document execution through the real container > R4: a later landed run cannot retroactively prove an older clean verdict for the same task key 2241ms
+   ✓ M8-T12 document execution through the real container > R4: adopts an old done only when the wrapup froze matching members and earlier landed evidence 2074ms
+   ✓ M8-T12 document execution through the real container > R1: resumes after the old active batch loses every member 2497ms
+   ✓ M8-T12 document execution through the real container > R2: pauses on a same-fingerprint source rebinding 2720ms
+   ✓ M8-T12 document execution through the real container > R2: re-import publishes the committed document execution change 2397ms
+   ✓ M8-T12 document execution through the real container > keeps a legal vendor effort value and rejects an unknown value before a plan exists 2261ms
+   ✓ M8-T12 document execution through the real container > rejects unknown agents and stale source without creating a plan, then pauses a live plan on restart 2439ms
+   ✓ M8-T12 document execution through the real container > imports idle, then persists one waiting plan and preserves a newer pause against an old resume retry 2713ms
+   ✓ M8-T12 document execution through the real container > refresh pauses a running plan and explicit resume creates a new generation for changed members 2427ms
+   ✓ M8-T12 document execution through the real container > resumes an unstarted task after daemon restart and Agent recovery 2198ms
+   ✓ M8-T12 document execution through the real container > activates the next batch only after frozen clean wrapup evidence enters HEAD 2421ms
+   ✓ M8-T12 document execution through the real container > freezes the active generation and run ownership when production wrapup is admitted 2213ms
+   ✓ M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt 2156ms
+   ✓ M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot 2787ms
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false) 3737ms
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false) 3907ms
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false) 3538ms
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true) 3930ms
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false) 3439ms
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false) 5750ms
+   ✓ M8-T12 document execution through the real container > E-369: a refresh during wrapup preflight cannot freeze obsolete batch members 2549ms
+   ✓ M8-T12 document execution through the real container > E-367: a clean wrapup completed during pause is adopted on resume (inHead=true) 2200ms
+   ✓ M8-T12 document execution through the real container > E-367: a clean wrapup completed during pause is adopted on resume (inHead=false) 2288ms
+   ✓ M8-T12 document execution through the real container > E-367: a paused open report plans fixes once despite later stale history (lateStale=false) 2814ms
+   ✓ M8-T12 document execution through the real container > E-367: a paused open report plans fixes once despite later stale history (lateStale=true) 2543ms
+   ✓ M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('active') 2368ms
+   ✓ M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('aborted') 2286ms
+   ✓ M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('interrupted') 2430ms
+   ✓ M8-T12 document execution through the real container > fails an unstarted old-generation wrapup before dispatching the new generation 2431ms
+   ✓ M8-T12 document execution through the real container > E-369: a stale wrapup human gate cannot complete the rebuilt generation 2782ms
+   ✓ M8-T12 document execution through the real container > does not admit a run after pause wins an asynchronous tick preflight 2314ms
+   ✓ M8-T12 document execution through the real container > pauses a running plan when the source changes before refresh 2215ms
+   ✓ M8-T12 document execution through the real container > E-369: a refreshed batch move revokes a queued admission before the next plan advance 2546ms
+   ✓ M8-T12 document execution through the real container > E-369: queued 'review' waits when only task readiness becomes false (occupiedLane=false) 2580ms
+   ✓ M8-T12 document execution through the real container > E-369: queued 'bughunt' waits when only task readiness becomes false (occupiedLane=false) 2633ms
+   ✓ M8-T12 document execution through the real container > E-369: queued 'review' waits when only task readiness becomes false (occupiedLane=true) 2633ms
+   ✓ M8-T12 document execution through the real container > shares the Agent limit across two running documents in one tick 2266ms
+   ✓ M8-T12 document execution through the real container > uses a task draft while an unavailable document default waits 2304ms
+   ✓ M8-T12 document execution through the real container > holds a shared path across two documents even with two Agent slots 2236ms
+   ✓ M8-T12 document execution through the real container > E-362: an in-flight run holds its frozen paths after document refresh 2622ms
+   ✓ M8-T12 document execution through the real container > relays after production wrapup records clean and its branch reaches HEAD 2422ms
+   ✓ M8-T12 document execution through the real container > reaches the managed process port from document start through the production tick 2335ms
+   ✓ M8-T12 document execution through the real container > R1: revalidates a changed landed contract before current-generation wrapup 2406ms
+   ✓ M8-T12 document execution through the real container > E-369: completed execution reopens when refresh moves a member without changing task hashes 2635ms
+   ✓ M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'clean' wrapup artifacts 3030ms
+   ✓ M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'open' wrapup artifacts 2712ms
+   ✓ M8-T12 document execution through the real container > R1: changed-contract work reports an unavailable Agent despite old landed history 2325ms
+   ✓ M8-T12 document execution through the real container > R1: stale reworking implementation cannot replace the changed contract 2541ms
+   ✓ M8-T12 document execution through the real container > R1: a moved 'reworking' task cannot hold the new batch Agent slot or path 2441ms
+   ✓ M8-T12 document execution through the real container > R1: a moved 'awaiting_human' task cannot hold the new batch Agent slot or path 2537ms
+   ✓ M8-T12 document execution through the real container > R1: a changed contract clears its obsolete human gate before new dispatch 2382ms
+   ✓ M8-T12 document execution through the real container > E-364: a current pre-dispatch human gate stays visible without a run 2809ms
+   ✓ M8-T12 document execution through the real container > E-369: a moved task retries in its new batch after an old-batch failure 2624ms
+   ✓ M8-T12 document execution through the real container > R2: removed unlanded member cannot block current wrapup and next batch 2602ms
+   ✓ M8-T12 document execution through the real container > R3: a queued wrapup from a removed batch releases its lane and publishes its failure 2466ms
+   ✓ M8-T12 document execution through the real container > R3: stale queued 'review' stays out of the rebuilt generation 2409ms
+   ✓ M8-T12 document execution through the real container > R3: stale queued 'bughunt' stays out of the rebuilt generation 2256ms
+   ✓ M8-T12 document execution through the real container > R3: stale queued 'wrapup-fix' stays out of the rebuilt generation 2430ms
+   ✓ M8-T12 document execution through the real container > R3: rejecting an old queued bughunt retires its parked implementation parent 2293ms
+   ✓ M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=true) 2463ms
+   ✓ M8-T12 document execution through the real container > E-369: 'bughunt' human stage gate follows current membership (moved=true) 2432ms
+   ✓ M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=false) 2238ms
+   ✓ M8-T12 document execution through the real container > R3: same-generation queued review resumes after a user pause 2360ms
+   ✓ M8-T12 document execution through the real container > R3: queued review inherits durable generation from its implementation parent 2383ms
+   ✓ M8-T12 document execution through the real container > R3: queued wrapup-fix follows its current wrapup generation over an older copied snapshot 2452ms
+   ✓ M8-T12 document execution through the real container > R4: a legacy tick observed without a plan cannot admit after start and pause 2370ms
+   ✓ M8-T12 document execution through the real container > E-361: a lost manual-wrapup response remains discoverable after document pause 2368ms
+ ✓ packages/daemon/test/unit/landing.test.ts (20 tests) 8691ms
+   ✓ M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68) > Real Git Repository Integration (E-73, E-74 lifecycle) > full lifecycle: prepare worktree -> inspect landing diff & commands -> explicit cleanup -> retry rebuilds worktree (E-73, E-74) 7981ms
+
+ Test Files  3 passed (3)
+      Tests  135 passed (135)
+   Start at  22:06:40
+   Duration  232.71s (transform 2.61s, setup 0ms, collect 4.50s, tests 233.57s, environment 1ms, prepare 446ms)

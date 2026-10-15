@@ -1,0 +1,96 @@
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+ RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-19
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_9506b579fbbe, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_c126eddf7e3e, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_cfc1e0f4d8b2, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+[E-296] Document did not provide matching dispatchBatches for batch req_8dbc6963f93b, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_6a8e33cf1b68, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_be45ce256692, falling back to builtin wrapup prompt
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts (86 tests | 6 failed | 80 skipped) 15826ms
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false) 3249ms
+     → Failed to prepare wrapup workspace.
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false) 2607ms
+     → Failed to prepare wrapup workspace.
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false) 2482ms
+     → Failed to prepare wrapup workspace.
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true) 2528ms
+     → Failed to prepare wrapup workspace.
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false) 2441ms
+     → Failed to prepare wrapup workspace.
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false) 2515ms
+     → Failed to prepare wrapup workspace.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false)
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false)
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+AppError: Failed to prepare wrapup workspace.
+ ❯ Object.triggerWrapup packages/daemon/src/service/wrapup.ts:843:12
+    841|       );
+    842|      }
+    843|      throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Failed to prepare …
+       |            ^
+    844|       cause,
+    845|       details: { batchId, repoPath },
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts:2093:5
+
+Caused by: AppError: Target directory is not a git repository; parallel worktrees unavailable, forcing serial execution
+ ❯ assertGitRepository packages/daemon/src/workspace/worktree.ts:341:9
+ ❯ prepareWorktreeUnlocked packages/daemon/src/workspace/worktree.ts:556:2
+ ❯ prepareWrapupWorktreeUnlocked packages/daemon/src/workspace/worktree.ts:889:17
+ ❯ Module.withWorktreeOperation packages/daemon/src/workspace/worktree-operations.ts:52:10
+ ❯ Object.prepareWrapupWorktree packages/daemon/test/integration/document-execution-routes.test.ts:164:25
+ ❯ Object.prepareWrapupWorktree packages/daemon/src/boot/container.ts:660:23
+ ❯ Object.triggerWrapup packages/daemon/src/service/wrapup.ts:826:23
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts:2093:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'E_NOT_A_GIT_REPO', details: { repoPath: 'C:\Users\admin\AppData\Local\Temp\agsched-document-plan-ZqwOhz\owned-repo', reason: 'not-a-git-repo', forcedSerial: true }, retryable: false }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 80 skipped (86)
+   Start at  22:04:34
+   Duration  19.96s (transform 2.23s, setup 0ms, collect 3.54s, tests 15.83s, environment 0ms, prepare 176ms)

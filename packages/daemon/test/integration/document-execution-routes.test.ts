@@ -99,14 +99,16 @@ async function setup(
 	});
 	let cleanupAttempts = 0;
 	const warnings: string[] = [];
+	const ownedPlatform =
+		process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux';
 	const ownedManager = options.ownedWrapup
 		? createWorktreeManager({
-				platform:
-					process.platform === 'win32'
-						? 'win32'
-						: process.platform === 'darwin'
-							? 'darwin'
-							: 'linux',
+				platform: ownedPlatform,
+				hostInputs: {
+					platform: ownedPlatform,
+					homedir: folder,
+					pathEnv: process.env.Path ?? process.env.PATH,
+				},
 				ids: { newId: randomUUID },
 			})
 		: null;
@@ -2083,12 +2085,19 @@ describe('M8-T12 document execution through the real container', () => {
 				batchId: batch.id,
 				trigger: 'manual',
 			});
-			const outcome = triggering?.then(
+			if (!triggering) throw new Error('Production wrapup service is required');
+			const outcome = triggering.then(
 				(result) => ({ result, error: null }),
 				(error: unknown) => ({ result: null, error }),
 			);
 			try {
-				await env.allocationReady;
+				await Promise.race([
+					env.allocationReady,
+					outcome.then((completed) => {
+						if (completed.error) throw completed.error;
+						throw new Error('Wrapup completed before its worktree allocation was observed');
+					}),
+				]);
 				const allocation = env.getAllocation();
 				if (!allocation) throw new Error('Real Git allocation is required');
 				expect(existsSync(join(allocation.worktreePath, '.git'))).toBe(true);

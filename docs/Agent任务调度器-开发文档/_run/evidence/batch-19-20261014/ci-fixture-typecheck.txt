@@ -1,0 +1,3 @@
+pnpm exec tsc -b --noEmit
+exitCode: 0 (checked by the command chain before the135-test run)
+No diagnostics.
