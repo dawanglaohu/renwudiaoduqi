@@ -236,8 +236,10 @@ export function RunDeckContainer(props: RunDeckProps) {
 					loadGates(true),
 				]);
 				// 活跃泳道也需要文档初选，不能依赖仅在零运行时启用的指派向导。
-				if (!requestedDocId && canPublishDocument() && snapshot.documents[0]) {
-					useSelectionStore.getState().setSelectedDocId(snapshot.documents[0].id);
+				const initialDocument =
+					snapshot.documents.find((document) => document.isSourceReadable) ?? snapshot.documents[0];
+				if (!requestedDocId && canPublishDocument() && initialDocument) {
+					useSelectionStore.getState().setSelectedDocId(initialDocument.id);
 					return;
 				}
 				const batchResponses = await Promise.all(
@@ -386,6 +388,8 @@ export function RunDeckContainer(props: RunDeckProps) {
 				envelope.kind === 'lane.assigned' ||
 				envelope.kind === 'lane.released' ||
 				envelope.kind === 'task.sessions_archived' ||
+				envelope.kind === 'task.landed' ||
+				envelope.kind === 'batch.advanced' ||
 				envelope.kind === 'document.settings_changed'
 			) {
 				markLanesCacheInvalidated(selectedDocId);
@@ -402,6 +406,8 @@ export function RunDeckContainer(props: RunDeckProps) {
 				envelope.kind === 'run.started' ||
 				envelope.kind === 'run.state_changed' ||
 				envelope.kind === 'run.exited' ||
+				envelope.kind === 'task.landed' ||
+				envelope.kind === 'batch.advanced' ||
 				envelope.kind === 'lane.assigned' ||
 				envelope.kind === 'lane.released' ||
 				envelope.kind === 'task.sessions_archived' ||

@@ -493,6 +493,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 			lanes={rawLanes}
 			batches={batches as readonly BatchTreeItem[] | undefined}
 			isTouch={isTouch}
+			isPhoneTier={tier === 'phone' || tier === 'phone-xs'}
 			onOpenTask={(taskId) => {
 				onSelectTask?.(taskId);
 				revealBlockedTarget('task', taskId);

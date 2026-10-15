@@ -13,6 +13,7 @@ export interface DocumentExecutionContainerProps {
 	readonly lanes?: readonly LaneView[];
 	readonly batches?: readonly BatchTreeItem[];
 	readonly isTouch?: boolean;
+	readonly isPhoneTier?: boolean;
 	readonly client?: DocumentExecutionClient;
 	readonly onOpenTask?: (taskId: string) => void;
 	readonly onOpenBatch?: (batchId: string) => void;
@@ -23,6 +24,7 @@ export function DocumentExecutionContainer({
 	lanes,
 	batches,
 	isTouch = false,
+	isPhoneTier = false,
 	client,
 	onOpenTask,
 	onOpenBatch,
@@ -66,6 +68,7 @@ export function DocumentExecutionContainer({
 				needsSourceConfirm={model.needsSourceConfirm}
 				sourceConfirmed={model.sourceConfirmed}
 				isTouch={isTouch}
+				isPhoneTier={isPhoneTier}
 				onAgentId={model.setAgentId}
 				onModelName={model.setModelName}
 				onEffort={model.setEffort}

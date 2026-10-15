@@ -4,9 +4,9 @@
   "scope": "implementation-acceptance",
   "regressions": {
     "oldIndependentProbes": "3 passed",
-    "permanentUIRace": "12 passed",
+    "permanentUIRace": "16 passed",
     "selectedDocumentLanes": "1 passed",
-    "executionControls": "12 passed",
+    "executionControls": "13 passed",
     "selectedDocumentLanesAndActiveEntry": "2 passed",
     "entrySupplement": "39 passed across5 files; fresh document selection, lost HTTP response, blocker handling included"
   },
@@ -33,12 +33,14 @@
       "after": "positive auto/explicit rail left10 passes; detached left40 remains D2/D6 fail"
     },
     "entrySupplement": {
-      "result": "43 passed across5 files",
+      "result": "57 passed across6 files including cache invalidation",
       "typescript": "pass",
       "architecture": "0 violations",
       "redBeforeFix": "3 regressions failed before repair",
       "navigationRedBeforeFix": "3 additional UI navigation regressions failed before repair",
-      "lateControlCache": "red before fix, green after target-cache invalidation independent of selected document"
+      "lateControlCache": "red before fix, green after target-cache invalidation independent of selected document",
+      "eventAndMobileRedBeforeFix": "6 failures before repair: same-version availability/landing/batch projections, unmounted capacity cache, phone wrap-up, first readable initial selection",
+      "eventAndMobileAfterFix": "57 passed; event-driven deck reload and first-readable source selected; phone blocker reveals batch without wrap-up mutation"
     }
   },
   "browser": {
@@ -77,11 +79,12 @@
   },
   "adjudications": "_run/M9-T30.review-round2-adjudications.json",
   "reviewedSourceSha256": {
-    "packages/web/src/features/run-deck/run-deck-container.tsx": "072ce8650fc6351786b34be5b407f9d69da81a4f1f7b2e3d4c49d27528f44646",
-    "packages/web/src/features/run-deck/use-document-execution.ts": "a3cea9e95b57dbe5bf6810aeb4062690c193f781719a4d01683526c5c88eb26a",
-    "packages/web/src/features/run-deck/document-execution-container.tsx": "be10dd6ea04df3cde3a1056d1f1f1ac888210389c4f7ac8bf0ba98e77b7559ab",
-    "packages/web/src/features/run-deck/run-deck-view.tsx": "3663cbcc2806ddee5f4b68fc96cddb473c9027dbb193ceab7cca17c7675de60d",
-    "packages/web/src/components/document-execution-controls.tsx": "e72df7b03d722637c9dfcd27582eed7d0884077bf2a2b8e9d6dcbc4b1264cecd",
-    "packages/web/src/i18n/ui-strings.ts": "67e6d79aff7742be57f75941f80914a867a4f8974a011107eaa1148eec5cc516"
+    "packages/web/src/features/run-deck/run-deck-container.tsx": "b02c80bc45ede376f35cd65b74a7a2778b398db8ec75ee5de351395aa13deb25",
+    "packages/web/src/features/run-deck/use-document-execution.ts": "f01c15882a094caf20c737269bc62f39fa637c23a6efb176867d88d5bfcf6c43",
+    "packages/web/src/features/run-deck/document-execution-container.tsx": "899ea028e1d527807fcbd8e8db0ee42540f014689b65f30fd7d30c0e8107b460",
+    "packages/web/src/features/run-deck/run-deck-view.tsx": "f1ea2ee4fdcbaf6af930744b32c99669f403e829be68f23a9902ee450531dc6f",
+    "packages/web/src/components/document-execution-controls.tsx": "0b53794adbb5efa1c13c837dc40eac5bcb0212a26ec195e9c1fdded3991e7775",
+    "packages/web/src/i18n/ui-strings.ts": "67e6d79aff7742be57f75941f80914a867a4f8974a011107eaa1148eec5cc516",
+    "packages/web/src/api/cache-invalidation.ts": "ad8e1771df3801952fead214196307efc337b85769300d8d7e2add500da7055c"
   }
 }

@@ -102,7 +102,14 @@ export function publishDocumentExecutions(rows: readonly DocumentExecutionDto[])
 
 // 手机详情会卸掉执行面板，但甲板仍在。另端暂停必须清掉缓存，回到任务或运行流时重新读取。
 eventBus.subscribeMilestone((event) => {
-	if (event.kind === 'document.execution_changed' || event.kind === 'system.docs_changed') {
+	if (
+		event.kind === 'document.execution_changed' ||
+		event.kind === 'system.docs_changed' ||
+		event.kind === 'document.settings_changed' ||
+		event.kind === 'agent.availability_changed' ||
+		event.kind === 'task.landed' ||
+		event.kind === 'batch.advanced'
+	) {
 		invalidateForEvent(event.kind);
 	}
 });
@@ -221,6 +228,7 @@ export function useDocumentExecution(
 	const requestSeq = useRef(0);
 	const loadSeq = useRef(0);
 	const eventSerial = useRef(0);
+	const agentLoadSeq = useRef(0);
 	docIdRef.current = docId;
 	if (execution === null) {
 		executionRef.current = null;
@@ -302,22 +310,28 @@ export function useDocumentExecution(
 		};
 	}, [docId, reload]);
 
+	const loadAgents = useCallback(
+		async (targetDocId: string) => {
+			const seq = ++agentLoadSeq.current;
+			const response = await client.listAgents();
+			if (seq === agentLoadSeq.current && docIdRef.current === targetDocId) {
+				setAgentEntries(response.agents);
+			}
+		},
+		[client],
+	);
 	useEffect(() => {
 		if (!docId) return;
 		let active = true;
-		void client
-			.listAgents()
-			.then((response) => {
-				if (active && docIdRef.current === docId) setAgentEntries(response.agents);
-			})
-			.catch((cause: unknown) => {
-				if (!active || docIdRef.current !== docId) return;
-				setError(toPanelError(cause, getErrorMessage(isApiError(cause) ? cause.code : null)));
-			});
+		void loadAgents(docId).catch((cause: unknown) => {
+			if (!active || docIdRef.current !== docId) return;
+			setError(toPanelError(cause, getErrorMessage(isApiError(cause) ? cause.code : null)));
+		});
 		return () => {
 			active = false;
+			agentLoadSeq.current += 1;
 		};
-	}, [client, docId]);
+	}, [docId, loadAgents]);
 
 	useEffect(() => {
 		const onSnapshot = (rows: readonly DocumentExecutionDto[]) => {
@@ -336,13 +350,18 @@ export function useDocumentExecution(
 			if (
 				event.kind !== 'document.execution_changed' &&
 				event.kind !== 'system.docs_changed' &&
-				event.kind !== 'document.settings_changed'
+				event.kind !== 'document.settings_changed' &&
+				event.kind !== 'agent.availability_changed' &&
+				event.kind !== 'task.landed' &&
+				event.kind !== 'batch.advanced'
 			) {
 				return;
 			}
 			invalidateForEvent(event.kind);
 			const selected = docIdRef.current;
 			if (!selected) return;
+			if (event.kind === 'agent.availability_changed')
+				void loadAgents(selected).catch(() => undefined);
 			if (event.kind === 'document.execution_changed') {
 				const incoming = readExecutionPayload(event.payload);
 				if (!incoming) {
@@ -376,7 +395,7 @@ export function useDocumentExecution(
 			unregisterResync();
 			unregisterReplay();
 		};
-	}, [reload]);
+	}, [loadAgents, reload]);
 
 	const updateDraft = useCallback(
 		(patch: (current: DocumentDefaultAssignment) => DocumentDefaultAssignment) => {

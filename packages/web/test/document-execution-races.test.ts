@@ -514,6 +514,82 @@ function makeClient(overrides: Partial<DocumentExecutionClient> = {}): DocumentE
 	};
 }
 
+it.each(['agent.availability_changed', 'task.landed', 'batch.advanced'] as const)(
+	'reloads same-version execution projections on %s',
+	async (kind) => {
+		let current = execution();
+		vi.mocked(httpClient.callRoute).mockImplementation(async (route) =>
+			route.path.endsWith('/execution')
+				? { execution: current }
+				: { models: [], isComplete: true, currentConfig: null },
+		);
+		const listAgents = vi.fn(async () => ({ agents: [] }));
+		const view = await mount(
+			makeClient({ getExecution: httpDocumentExecutionClient.getExecution, listAgents }),
+		);
+		try {
+			current = execution({
+				completedBatchCount: 1,
+				blockers: [{ code: 'agent_unavailable', batchId: 'batch-1', taskIds: [] }],
+			});
+			await act(async () => {
+				eventBus.push({
+					id: 51,
+					ts: '2026-10-15T13:00:00Z',
+					runId: null,
+					taskId: null,
+					scope:
+						kind === 'agent.availability_changed'
+							? 'agent'
+							: kind === 'task.landed'
+								? 'task'
+								: 'batch',
+					kind,
+					seq: 1,
+					actorDeviceId: null,
+					payload: {},
+				});
+				for (let i = 0; i < 12; i++) await Promise.resolve();
+			});
+			expect(view.container.textContent).toContain('已完成批次 1 / 2');
+			expect(view.container.querySelector('[data-blocker="agent_unavailable"]')).not.toBeNull();
+			if (kind === 'agent.availability_changed') expect(listAgents).toHaveBeenCalledTimes(2);
+		} finally {
+			await view.unmount();
+		}
+	},
+);
+
+it('invalidates cached document capacity while the panel is unmounted', async () => {
+	let laneCount = 2;
+	vi.mocked(httpClient.callRoute).mockImplementation(async (route) =>
+		route.path === '/api/v1/documents'
+			? { documents: [documentDto({ laneCount })] }
+			: { models: [], isComplete: true, currentConfig: null },
+	);
+	const client = makeClient({ listDocuments: httpDocumentExecutionClient.listDocuments });
+	const first = await mount(client);
+	await first.unmount();
+	laneCount = 4;
+	eventBus.push({
+		id: 52,
+		ts: '2026-10-15T13:00:01Z',
+		runId: null,
+		taskId: null,
+		scope: 'document',
+		kind: 'document.settings_changed',
+		seq: 1,
+		actorDeviceId: null,
+		payload: {},
+	});
+	const second = await mount(client);
+	try {
+		expect(second.container.textContent).toContain('窗口占用 1 / 4');
+	} finally {
+		await second.unmount();
+	}
+});
+
 describe('document execution cache and snapshot ordering', () => {
 	it('reads the current execution when remounting after an event while the panel was absent', async () => {
 		let serverExecution = execution();

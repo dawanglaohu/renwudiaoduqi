@@ -47,6 +47,7 @@ export interface DocumentExecutionControlsProps {
 	readonly needsSourceConfirm: boolean;
 	readonly sourceConfirmed: boolean;
 	readonly isTouch?: boolean;
+	readonly isPhoneTier?: boolean;
 	readonly onAgentId: (agentId: string) => void;
 	readonly onModelName: (modelName: string | null) => void;
 	readonly onEffort: (effort: EffortValue) => void;
@@ -107,6 +108,7 @@ export function DocumentExecutionControls({
 	needsSourceConfirm,
 	sourceConfirmed,
 	isTouch = false,
+	isPhoneTier = false,
 	onAgentId,
 	onModelName,
 	onEffort,
@@ -233,6 +235,7 @@ export function DocumentExecutionControls({
 									key={`${blocker.code}:${blocker.batchId ?? ''}:${index}`}
 									blocker={blocker}
 									height={height}
+									isPhoneTier={isPhoneTier}
 									disabled={!canControl || pendingAction !== null}
 									onOpenTasks={onOpenTasks}
 									onOpenLanding={onOpenLanding}
@@ -379,6 +382,7 @@ export function DocumentExecutionControls({
 function BlockerRow({
 	blocker,
 	height,
+	isPhoneTier,
 	disabled,
 	onOpenTasks,
 	onOpenLanding,
@@ -390,6 +394,7 @@ function BlockerRow({
 }: {
 	readonly blocker: DocumentExecutionBlocker;
 	readonly height: string;
+	readonly isPhoneTier: boolean;
 	readonly disabled: boolean;
 	readonly onOpenTasks: (taskIds: readonly string[]) => void;
 	readonly onOpenLanding: (taskId: string) => void;
@@ -426,11 +431,13 @@ function BlockerRow({
 		(blocker.code === 'wrapup_manual' || blocker.code === 'wrapup_attention') &&
 		blocker.batchId
 	) {
-		action = {
-			label: COPY.openWrapup,
-			onClick: () => onWrapup(blocker.batchId as string),
-			requiresControl: true,
-		};
+		action = isPhoneTier
+			? { label: COPY.openBatch, onClick: () => onOpenBatch(blocker.batchId as string) }
+			: {
+					label: COPY.openWrapup,
+					onClick: () => onWrapup(blocker.batchId as string),
+					requiresControl: true,
+				};
 	} else if (blocker.code === 'source_unreadable' || blocker.code === 'doc_changed') {
 		action = { label: COPY.confirmSource, onClick: onConfirmSource, requiresControl: true };
 	} else if (blocker.code === 'agent_unavailable') {

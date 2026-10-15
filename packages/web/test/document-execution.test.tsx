@@ -471,6 +471,41 @@ it('opens the batch when awaiting-landing has no task IDs', async () => {
 	}
 });
 
+it('reveals manual wrap-up on a phone without sending the desktop mutation', async () => {
+	const onOpenBatch = vi.fn();
+	const onWrapup = vi.fn();
+	const api = client({
+		getExecution: async () => ({
+			execution: execution({
+				state: 'running',
+				canStart: false,
+				canPause: true,
+				blockers: [{ code: 'wrapup_manual', batchId: 'batch-1', taskIds: [] }],
+			}),
+		}),
+	});
+	const view = await render(
+		createElement(DocumentExecutionContainer, {
+			client: api,
+			isPhoneTier: true,
+			onOpenBatch,
+			onWrapup,
+		}),
+	);
+	try {
+		await flush();
+		await act(async () =>
+			view.container
+				.querySelector<HTMLButtonElement>('[data-blocker-action="wrapup_manual"]')
+				?.click(),
+		);
+		expect(onOpenBatch).toHaveBeenCalledWith('batch-1');
+		expect(onWrapup).not.toHaveBeenCalled();
+	} finally {
+		await view.unmount();
+	}
+});
+
 it('keeps document switching available during an active plan without starting another document', async () => {
 	const api = client({
 		listDocuments: async () => ({

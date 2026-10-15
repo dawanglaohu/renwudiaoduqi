@@ -5,6 +5,7 @@ import type { LaneView } from '@agent-scheduler/shared/api/lanes';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { eventBus } from '../src/api/event-bus.ts';
 import { httpClient } from '../src/api/http-client.ts';
 import { clearResourceCache } from '../src/api/resource-cache.ts';
 import { RunDeckContainer } from '../src/features/run-deck/run-deck-container.tsx';
@@ -238,7 +239,7 @@ it('selects the document from an active snapshot and reveals blocked task handli
 		state: 'running',
 	};
 	const base = {
-		documents: [doc],
+		documents: [{ ...doc, id: 'unreadable-doc', isSourceReadable: false }, doc],
 		batches: [batch],
 		tasks: [task],
 		runs: [],
@@ -248,7 +249,9 @@ it('selects the document from an active snapshot and reveals blocked task handli
 		latestEventId: 1,
 		lanes: [lane(1, 'active-run')],
 	};
+	let snapshotReads = 0;
 	vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route) => {
+		if (route.path === '/api/v1/snapshot') snapshotReads++;
 		if (route.path === '/api/v1/documents') return docs.promise;
 		if (route.path.endsWith('/execution')) return { execution: current };
 		return {
@@ -297,6 +300,24 @@ it('selects the document from an active snapshot and reveals blocked task handli
 			'task-a',
 		);
 		expect(scroll).toHaveBeenCalled();
+		for (const kind of ['task.landed', 'batch.advanced'] as const) {
+			const before = snapshotReads;
+			await act(async () => {
+				eventBus.push({
+					id: before + 100,
+					ts: '2026-10-15T13:00:00Z',
+					runId: null,
+					taskId: null,
+					scope: kind === 'task.landed' ? 'task' : 'batch',
+					kind,
+					seq: 1,
+					actorDeviceId: null,
+					payload: {},
+				});
+				for (let i = 0; i < 30; i++) await Promise.resolve();
+			});
+			expect(snapshotReads).toBeGreaterThan(before);
+		}
 	} finally {
 		await act(async () => root.unmount());
 		container.remove();
