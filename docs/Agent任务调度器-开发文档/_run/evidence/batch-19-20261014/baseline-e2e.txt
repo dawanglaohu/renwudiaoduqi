@@ -1,0 +1,279 @@
+
+
+> agent-scheduler@ e2e D:\xiangmu\agent-scheduler-batch-19
+
+> pnpm --filter @agent-scheduler/web build && vitest run --config vitest.e2e.config.ts
+
+
+
+
+
+> @agent-scheduler/web@0.0.0 build D:\xiangmu\agent-scheduler-batch-19\packages\web
+
+> vite build
+
+
+
+vite v5.4.21 building for production...
+
+<script src="./theme-init.js"> in "/index.html" can't be bundled without type="module" attribute
+
+transforming...
+
+../../node_modules/.pnpm/@radix-ui+react-select@2.3._17810f902be7f268a61046ec24c8ec35/node_modules/@radix-ui/react-select/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-select@2.3._17810f902be7f268a61046ec24c8ec35/node_modules/@radix-ui/react-select/dist/index.mjs" was ignored.
+
+../../node_modules/.pnpm/@radix-ui+react-direction@1_8310f062454398ef3b849e7d93575bcb/node_modules/@radix-ui/react-direction/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-direction@1_8310f062454398ef3b849e7d93575bcb/node_modules/@radix-ui/react-direction/dist/index.mjs" was ignored.
+
+../../node_modules/.pnpm/@radix-ui+react-focus-guard_a8eaafeba0fc2ebdfd1453bb92e9d869/node_modules/@radix-ui/react-focus-guards/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-focus-guard_a8eaafeba0fc2ebdfd1453bb92e9d869/node_modules/@radix-ui/react-focus-guards/dist/index.mjs" was ignored.
+
+../../node_modules/.pnpm/@radix-ui+react-collection@_e568781db46e6f5e62f713df7975a3a9/node_modules/@radix-ui/react-collection/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-collection@_e568781db46e6f5e62f713df7975a3a9/node_modules/@radix-ui/react-collection/dist/index.mjs" was ignored.
+
+../../node_modules/.pnpm/@radix-ui+react-dismissable_4f2024a88a120e800aa2287adeb24710/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-dismissable_4f2024a88a120e800aa2287adeb24710/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs" was ignored.
+
+../../node_modules/.pnpm/@radix-ui+react-focus-scope_161760c0d51338f080e5b66a9ea35f08/node_modules/@radix-ui/react-focus-scope/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-focus-scope_161760c0d51338f080e5b66a9ea35f08/node_modules/@radix-ui/react-focus-scope/dist/index.mjs" was ignored.
+
+../../node_modules/.pnpm/@radix-ui+react-portal@1.1._35c248e3d41b4a33144a8517e72175a4/node_modules/@radix-ui/react-portal/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-portal@1.1._35c248e3d41b4a33144a8517e72175a4/node_modules/@radix-ui/react-portal/dist/index.mjs" was ignored.
+
+../../node_modules/.pnpm/@radix-ui+react-presence@1._62e566fb7823886e0e3d5565144169f1/node_modules/@radix-ui/react-presence/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-presence@1._62e566fb7823886e0e3d5565144169f1/node_modules/@radix-ui/react-presence/dist/index.mjs" was ignored.
+
+../../node_modules/.pnpm/@radix-ui+react-popper@1.3._eb61390ffeb98719c4501fa966467838/node_modules/@radix-ui/react-popper/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-popper@1.3._eb61390ffeb98719c4501fa966467838/node_modules/@radix-ui/react-popper/dist/index.mjs" was ignored.
+
+✓ 242 modules transformed.
+
+rendering chunks...
+
+computing gzip size...
+
+dist/index.html                                   0.61 kB │ gzip:   0.36 kB
+
+dist/assets/index-BI0JgIzU.css                  407.99 kB │ gzip:  45.43 kB
+
+dist/assets/settings-page-header-DwEAUzUY.js      0.52 kB │ gzip:   0.29 kB │ map:     1.24 kB
+
+dist/assets/settings-pipeline-page-rvuj1NJa.js    0.59 kB │ gzip:   0.33 kB │ map:     1.67 kB
+
+dist/assets/landing-page-C80uIi2I.js             11.84 kB │ gzip:   3.79 kB │ map:    37.29 kB
+
+dist/assets/settings-devices-page-Dofm55-F.js    13.69 kB │ gzip:   4.68 kB │ map:    39.15 kB
+
+dist/assets/settings-agents-page-NcwswpTf.js     31.77 kB │ gzip:   7.83 kB │ map:   103.84 kB
+
+dist/assets/vendor-ui-DyLAjxV_.js               112.04 kB │ gzip:  37.39 kB │ map:   544.59 kB
+
+dist/assets/vendor-react-LFRYuL8Q.js            142.18 kB │ gzip:  45.56 kB │ map:   347.64 kB
+
+dist/assets/index-D-_LfVbf.js                   373.86 kB │ gzip: 107.66 kB │ map: 1,434.75 kB
+
+✓ built in 6.27s
+
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+
+
+ RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-19
+
+
+
+ ❯ e2e/batch-14-composition.test.ts (12 tests | 12 skipped) 12461ms
+
+ ❯ e2e/pipeline-settings.test.ts (13 tests | 13 skipped) 45776ms
+
+ ❯ e2e/batch-13-smoke.test.ts (13 tests | 13 skipped) 121326ms
+
+ ❯ e2e/smoke.test.ts (7 tests | 7 skipped) 46756ms
+
+
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 5 ⎯⎯⎯⎯⎯⎯⎯
+
+
+
+ FAIL  e2e/smoke.test.ts > M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流程 (AC 1-5, E-10, E-31, E-108, E-135, E-139, E-159, E-175, E-226, E-265)
+
+Error: Daemon failed to become healthy at http://127.0.0.1:56490/api/v1/health within 45000ms.
+
+STDOUT:
+
+
+
+STDERR:
+
+The lock file must be writable by Administrators and SYSTEM only. Run as Administrator or grant:
+
+icacls "C:\ProgramData\agent-scheduler" /inheritance:r /grant:r "*S-1-5-32-544:(OI)(CI)F" "*S-1-5-18:(OI)(CI)F"
+
+icacls "C:\ProgramData\agent-scheduler\daemon.lock" /inheritance:r /grant:r "*S-1-5-32-544:F" "*S-1-5-18:F"
+
+[startupFailure] AppError: The daemon instance lock could not be acquired.
+
+
+
+ ❯ startDaemon e2e/smoke.test.ts:282:9
+
+    280|   );
+
+    281|   await stopFn();
+
+    282|   throw new Error(
+
+       |         ^
+
+    283|    `Daemon failed to become healthy at ${healthUrl} within ${timeoutMs…
+
+    284|   );
+
+ ❯ e2e/smoke.test.ts:372:13
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+
+
+ FAIL  e2e/batch-13-smoke.test.ts > 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224)
+
+Error: Daemon failed to become healthy at http://127.0.0.1:55562/api/v1/health within 120000ms.
+
+STDOUT:
+
+
+
+STDERR:
+
+The lock file must be writable by Administrators and SYSTEM only. Run as Administrator or grant:
+
+icacls "C:\ProgramData\agent-scheduler" /inheritance:r /grant:r "*S-1-5-32-544:(OI)(CI)F" "*S-1-5-18:(OI)(CI)F"
+
+icacls "C:\ProgramData\agent-scheduler\daemon.lock" /inheritance:r /grant:r "*S-1-5-32-544:F" "*S-1-5-18:F"
+
+[startupFailure] AppError: The daemon instance lock could not be acquired.
+
+
+
+ ❯ startDaemon e2e/batch-13-smoke.test.ts:299:9
+
+    297|   );
+
+    298|   await stopFn();
+
+    299|   throw new Error(
+
+       |         ^
+
+    300|    `Daemon failed to become healthy at ${healthUrl} within ${timeoutMs…
+
+    301|   );
+
+ ❯ e2e/batch-13-smoke.test.ts:379:13
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+
+
+ FAIL  e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348)
+
+Error: Daemon process exited prematurely with code 1
+
+ ❯ startCompositionDaemon e2e/batch-14-composition.test.ts:895:11
+
+    893|   while (Date.now() < deadline) {
+
+    894|    if (exitResult) {
+
+    895|     throw new Error(`Daemon process exited prematurely with code ${exi…
+
+       |           ^
+
+    896|    }
+
+    897|    try {
+
+ ❯ e2e/batch-14-composition.test.ts:1128:13
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+
+
+ FAIL  e2e/batch-14-composition.test.ts > R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E-108, E-145)
+
+Error: Daemon process exited prematurely with code 1
+
+ ❯ startCompositionDaemon e2e/batch-14-composition.test.ts:895:11
+
+    893|   while (Date.now() < deadline) {
+
+    894|    if (exitResult) {
+
+    895|     throw new Error(`Daemon process exited prematurely with code ${exi…
+
+       |           ^
+
+    896|    }
+
+    897|    try {
+
+ ❯ e2e/batch-14-composition.test.ts:2579:12
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+
+
+ FAIL  e2e/pipeline-settings.test.ts > R16-T85823419 流水线设置 e2e：真 daemon 与真浏览器 (AC 1-5, E-26, E-157, E-159, E-175, E-265, E-306, E-312, E-318, E-356)
+
+Error: Daemon failed to become healthy at http://127.0.0.1:55228/api/v1/health within 45000ms.
+
+STDOUT:
+
+
+
+STDERR:
+
+The lock file must be writable by Administrators and SYSTEM only. Run as Administrator or grant:
+
+icacls "C:\ProgramData\agent-scheduler" /inheritance:r /grant:r "*S-1-5-32-544:(OI)(CI)F" "*S-1-5-18:(OI)(CI)F"
+
+icacls "C:\ProgramData\agent-scheduler\daemon.lock" /inheritance:r /grant:r "*S-1-5-32-544:F" "*S-1-5-18:F"
+
+[startupFailure] AppError: The daemon instance lock could not be acquired.
+
+
+
+ ❯ startDaemon e2e/pipeline-settings.test.ts:286:9
+
+    284|   );
+
+    285|   await stopFn();
+
+    286|   throw new Error(
+
+       |         ^
+
+    287|    `Daemon failed to become healthy at ${healthUrl} within ${timeoutMs…
+
+    288|   );
+
+ ❯ e2e/pipeline-settings.test.ts:443:14
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+
+ Test Files  4 failed (4)
+
+      Tests  45 skipped (45)
+
+   Start at  19:15:59
+
+   Duration  235.26s (transform 578ms, setup 0ms, collect 3.78s, tests 226.32s, environment 2ms, prepare 1.03s)
+
+
+
+ ELIFECYCLE  Command failed with exit code 1.

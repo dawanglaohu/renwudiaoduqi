@@ -1,0 +1,167 @@
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+
+
+ RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-19
+
+
+
+ ✓ packages/daemon/test/unit/worktree.test.ts (29 tests | 24 skipped) 27ms
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: landed work does not remain blocked by its unavailable Agent
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt
+
+[E-296] Document did not provide matching dispatchBatches for batch req_f7bdc749b914, falling back to builtin wrapup prompt
+
+
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot
+
+[E-296] Document did not provide matching dispatchBatches for batch req_7346ad2d7bb2, falling back to builtin wrapup prompt
+
+
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false)
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false)
+
+[E-296] Document did not provide matching dispatchBatches for batch req_f6d05d178371, falling back to builtin wrapup prompt
+
+
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false)
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false)
+
+[E-296] Document did not provide matching dispatchBatches for batch req_c30137b7c17d, falling back to builtin wrapup prompt
+
+
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+
+[E-296] Document did not provide matching dispatchBatches for batch req_9ce689e985a4, falling back to builtin wrapup prompt
+
+
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+
+[E-296] Document did not provide matching dispatchBatches for batch req_37c6f9973aec, falling back to builtin wrapup prompt
+
+
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+
+[daemon] Could not reclaim an unadmitted wrapup worktree. Path: C:\Users\admin\AppData\Local\Temp\agsched-document-plan-1x2rsK\owned-wrapup; branch: wrapup/owned-1
+
+
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+
+[E-296] Document did not provide matching dispatchBatches for batch req_aa66d47bbd42, falling back to builtin wrapup prompt
+
+
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+
+[daemon] Could not reclaim an unadmitted wrapup worktree. Path: C:\Users\admin\AppData\Local\Temp\agsched-document-plan-P9zzPG\owned-wrapup; branch: wrapup/owned-1
+
+
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+
+[E-296] Document did not provide matching dispatchBatches for batch req_39d760160009, falling back to builtin wrapup prompt
+
+
+
+ ✓ packages/daemon/test/integration/document-execution-routes.test.ts (86 tests | 77 skipped) 39547ms
+
+   ✓ M8-T12 document execution through the real container > E-365: landed work does not remain blocked by its unavailable Agent 3118ms
+
+   ✓ M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt 3866ms
+
+   ✓ M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot 3266ms
+
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false) 5182ms
+
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false) 6971ms
+
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false) 4189ms
+
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true) 4497ms
+
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false) 4208ms
+
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false) 4246ms
+
+ ✓ packages/daemon/test/unit/landing.test.ts (20 tests | 17 skipped) 56ms
+
+
+
+ Test Files  3 passed (3)
+
+      Tests  17 passed | 118 skipped (135)
+
+   Start at  20:51:49
+
+   Duration  45.00s (transform 2.84s, setup 0ms, collect 4.92s, tests 39.63s, environment 2ms, prepare 557ms)

@@ -1,5 +1,15 @@
-import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	realpathSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +24,7 @@ import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type { NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import { isExecutionStillCurrent } from '../../src/service/dispatch.ts';
+import { type CleanupWorktreeInput, createWorktreeManager } from '../../src/workspace/worktree.ts';
 import { writeTasksDocsData } from '../fixtures/task-docs-data.ts';
 
 const root = resolve(__dirname, '../../../..');
@@ -49,12 +60,60 @@ async function setup(
 		readonly modelCatalogUnavailable?: boolean;
 		readonly domainNeedsConfigRead?: boolean;
 		readonly withWrapupWorkspace?: boolean;
+		readonly ownedWrapup?: 'fresh' | 'reused' | 'cleanup_failure';
 		readonly agentConcurrencyLimit?: number;
 		readonly withImplementationProcess?: boolean;
 	} = {},
 ) {
-	const folder = mkdtempSync(join(tmpdir(), 'agsched-document-plan-'));
+	const createdFolder = mkdtempSync(join(tmpdir(), 'agsched-document-plan-'));
+	const folder = options.ownedWrapup ? realpathSync.native(createdFolder) : createdFolder;
 	folders.push(folder);
+	const workspaceRepoPath = options.ownedWrapup ? join(folder, 'owned-repo') : root;
+	if (options.ownedWrapup) {
+		mkdirSync(workspaceRepoPath);
+		execFileSync('git', ['init', workspaceRepoPath], { stdio: 'ignore' });
+		writeFileSync(join(workspaceRepoPath, 'README.md'), 'Wrapup allocation fixture\n');
+		execFileSync('git', ['-C', workspaceRepoPath, 'add', 'README.md']);
+		execFileSync(
+			'git',
+			[
+				'-C',
+				workspaceRepoPath,
+				'-c',
+				'user.name=Wrapup Test',
+				'-c',
+				'user.email=test@example.invalid',
+				'commit',
+				'-m',
+				'Fixture input',
+			],
+			{ stdio: 'ignore' },
+		);
+	}
+	let allocated: { worktreePath: string; branchName: string } | null = null;
+	let releaseAllocation = () => {};
+	let announceAllocation = () => {};
+	const allocationHeld = new Promise<void>((resolve) => {
+		releaseAllocation = resolve;
+	});
+	const allocationReady = new Promise<void>((resolve) => {
+		announceAllocation = resolve;
+	});
+	let cleanupAttempts = 0;
+	const warnings: string[] = [];
+	const ownedPlatform =
+		process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux';
+	const ownedManager = options.ownedWrapup
+		? createWorktreeManager({
+				platform: ownedPlatform,
+				hostInputs: {
+					platform: ownedPlatform,
+					homedir: folder,
+					pathEnv: process.env.Path ?? process.env.PATH,
+				},
+				ids: { newId: randomUUID },
+			})
+		: null;
 	const database = openDatabase(join(folder, 'app.db'));
 	databases.push(database);
 	const clock = { now: () => '2026-10-12T08:00:00.000Z' };
@@ -99,13 +158,28 @@ async function setup(
 		clock,
 		agentRegistry: registry,
 		worktreeManager:
-			options.withWrapupWorkspace || options.withImplementationProcess
+			options.withWrapupWorkspace || options.ownedWrapup || options.withImplementationProcess
 				? ({
-						prepareWrapupWorktree: async () => ({
-							worktreePath: root,
-							branchName: 'wrapup-test',
-							baseRef: 'HEAD',
-						}),
+						prepareWrapupWorktree: async () => {
+							if (!ownedManager)
+								return { worktreePath: root, branchName: 'wrapup-test', baseRef: 'HEAD' };
+							const prepared = await ownedManager.prepareWrapupWorktree({
+								repoPath: workspaceRepoPath,
+								batchId: 'owned',
+								round: 1,
+								targetWorktreePath: join(folder, 'owned-wrapup'),
+							});
+							allocated = prepared;
+							announceAllocation();
+							await allocationHeld;
+							return { ...prepared, isReused: options.ownedWrapup === 'reused' };
+						},
+						removeWorktree: async (input: CleanupWorktreeInput) => {
+							cleanupAttempts++;
+							if (!ownedManager || options.ownedWrapup === 'cleanup_failure')
+								throw new Error('Cleanup unavailable');
+							return ownedManager.removeWorktree(input);
+						},
 						prepareWorktree: async (input: { taskId: string; baseRef?: string }) => ({
 							worktreePath: root,
 							branchName: `task/${input.taskId}`,
@@ -150,7 +224,7 @@ async function setup(
 					await held.wait;
 				}
 				return gitAvailable
-					? { exitCode: 0, stdout: `true\n${root}\n`, stderr: '' }
+					? { exitCode: 0, stdout: `true\n${workspaceRepoPath}\n`, stderr: '' }
 					: { exitCode: 1, stdout: '', stderr: 'repository temporarily unavailable' };
 			},
 		},
@@ -180,6 +254,9 @@ async function setup(
 			},
 		} as never,
 		schedulerTickJob,
+		logViolation: (message: string) => {
+			warnings.push(message);
+		},
 	});
 	const server = createHttpServer({ container });
 	await server.instance.ready();
@@ -195,7 +272,7 @@ async function setup(
 		method: 'POST',
 		url: '/api/v1/documents',
 		headers,
-		payload: { docsPath, repoPath: root },
+		payload: { docsPath, repoPath: workspaceRepoPath },
 	});
 	expect(imported.statusCode, imported.body).toBe(200);
 	const docId = imported.json().document.id as string;
@@ -224,6 +301,12 @@ async function setup(
 			return { entered: enteredPromise, release };
 		},
 		getSpawnedRuns: () => [...spawnedRuns],
+		workspaceRepoPath,
+		allocationReady,
+		releaseAllocation,
+		getAllocation: () => allocated,
+		getCleanupAttempts: () => cleanupAttempts,
+		getWarnings: () => [...warnings],
 	};
 }
 
@@ -1782,6 +1865,326 @@ describe('M8-T12 document execution through the real container', () => {
 		});
 		await server.instance.close();
 	});
+
+	it('E-365: an unavailable queued wrapup waits and recovers without another attempt', async () => {
+		let available = true;
+		const env = await setup({
+			canDispatch: () => available,
+			withWrapupWorkspace: true,
+			withImplementationProcess: true,
+		});
+		const { container, server, headers, docId } = env;
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		if (!task || !batch) throw new Error('Imported task and batch are required');
+		seedImplementationRun(env, {
+			id: 'landed-before-offline-wrapup',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		const start = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(start.statusCode, start.body).toBe(200);
+		const wrapup = await container.services.wrapup?.triggerWrapup({
+			batchId: batch.id,
+			trigger: 'manual',
+		});
+		const runId = wrapup?.run.id ?? '';
+		const plan = container.repos.documentExecutions.findByDocId(docId)?.plan_json;
+		available = false;
+		await container.services.dispatch.tick();
+		expect(container.repos.runs.findById(runId)?.state).toBe('queued');
+		expect(env.getSpawnedRuns()).not.toContain(runId);
+		const waiting = container.services.documentExecution.get(docId).execution;
+		expect(waiting.state).toBe('running');
+		expect(waiting.blockers).toContainEqual({
+			code: 'agent_unavailable',
+			batchId: batch.id,
+			taskIds: [],
+		});
+		available = true;
+		const recovered = await container.services.dispatch.tick();
+		expect(recovered.runsDispatched).toContain(runId);
+		await vi.waitFor(() => expect(env.getSpawnedRuns()).toContain(runId));
+		expect(container.repos.documentExecutions.findByDocId(docId)?.plan_json).toBe(plan);
+		expect(container.repos.runs.listWrapupsByBatchId?.(batch.id)).toHaveLength(1);
+		await server.instance.close();
+	});
+
+	it('E-369: queued wrapup waits for readiness without holding a lane or Agent slot', async () => {
+		const env = await setup({
+			canDispatch: () => true,
+			withWrapupWorkspace: true,
+			withImplementationProcess: true,
+			agentConcurrencyLimit: 1,
+		});
+		const { server, container, headers, docId, docsPath, folder } = env;
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		expect(batch).toBeDefined();
+		expect(task).toBeDefined();
+		if (!batch || !task) throw new Error('Imported batch and task are required');
+		seedImplementationRun(env, {
+			id: 'landed-before-readiness-wrapup',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const wrapup = await container.services.wrapup?.triggerWrapup({
+			batchId: batch.id,
+			trigger: 'manual',
+		});
+		const runId = wrapup?.run.id ?? '';
+		expect(container.repos.runs.findById(runId)?.state).toBe('queued');
+		const original = readFileSync(docsPath, 'utf8');
+		const observed = container.repos.documentExecutions.findByDocId(docId);
+		writeFileSync(docsPath, original.replace('"ready":true', '"ready":false'));
+		const refresh = () =>
+			server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/refresh`,
+				headers,
+				payload: {},
+			});
+		expect((await refresh()).statusCode).toBe(200);
+		expect(container.repos.tasks.findById(task.id)?.is_contract_ready).toBe(0);
+		expect(container.repos.documentExecutions.findByDocId(docId)).toMatchObject({
+			state: 'running',
+			version: observed?.version,
+			plan_json: observed?.plan_json,
+		});
+		const eventCursor = container.events.ringBuffer.latest()?.id ?? 0;
+		await container.services.dispatch.tick();
+		expect(container.repos.runs.findById(runId)).toMatchObject({
+			state: 'queued',
+			queued_reason: 'contract_not_ready',
+			lane_no: null,
+		});
+		expect(env.getSpawnedRuns()).not.toContain(runId);
+		await container.services.dispatch.tick();
+		expect(
+			container.events.ringBuffer
+				.getAll()
+				.some(
+					(event) =>
+						event.id > eventCursor && event.kind === 'lane.released' && event.runId === runId,
+				),
+		).toBe(true);
+		const otherPath = join(folder, 'ready-docs-data.js');
+		writeTasksDocsData(otherPath, [{ id: 'M1-T2', hash: 'ready-contract' }]);
+		const imported = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/documents',
+			headers,
+			payload: { docsPath: otherPath, repoPath: root },
+		});
+		expect(imported.statusCode, imported.body).toBe(200);
+		const other = imported.json().document;
+		const otherStart = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${other.id}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: other.contentFingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(otherStart.statusCode, otherStart.body).toBe(200);
+		const otherTick = await container.services.dispatch.tick();
+		expect(otherTick.runsDispatched).toHaveLength(1);
+		const otherRunId = otherTick.runsDispatched[0] ?? '';
+		expect(container.repos.runs.findById(otherRunId)?.task_id).toBe(
+			container.repos.tasks.listByDocId(other.id)[0]?.id,
+		);
+		await vi.waitFor(() => expect(env.getSpawnedRuns()).toContain(otherRunId));
+		const otherPause = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${other.id}/execution/pause`,
+			headers,
+			payload: {
+				expectedVersion: container.services.documentExecution.get(other.id).execution.version,
+			},
+		});
+		expect(otherPause.statusCode, otherPause.body).toBe(200);
+		container.repos.runs.updateState({ id: otherRunId, toState: 'failed' });
+		writeFileSync(docsPath, original);
+		expect((await refresh()).statusCode).toBe(200);
+		const recovered = await container.services.dispatch.tick();
+		expect(recovered.runsDispatched).toContain(runId);
+		await vi.waitFor(() => expect(env.getSpawnedRuns()).toContain(runId));
+		expect(container.repos.documentExecutions.findByDocId(docId)?.plan_json).toBe(
+			observed?.plan_json,
+		);
+		expect(container.repos.runs.listWrapupsByBatchId?.(batch.id)).toHaveLength(1);
+		writeFileSync(docsPath, original.replace('"ready":true', '"ready":false'));
+		expect((await refresh()).statusCode).toBe(200);
+		await container.services.dispatch.tick();
+		expect(container.repos.runs.findById(runId)?.state).toBe('running');
+		expect(env.getSpawnedRuns().filter((id) => id === runId)).toHaveLength(1);
+		await server.instance.close();
+	});
+
+	it.each([
+		{ cause: 'pause', ownership: 'fresh', dirty: false, reclaimed: true },
+		{ cause: 'source', ownership: 'fresh', dirty: false, reclaimed: true },
+		{ cause: 'pause', ownership: 'reused', dirty: false, reclaimed: false },
+		{ cause: 'pause', ownership: 'fresh', dirty: true, reclaimed: false },
+		{ cause: 'pause', ownership: 'cleanup_failure', dirty: false, reclaimed: false },
+		{ cause: 'accepted', ownership: 'fresh', dirty: false, reclaimed: false },
+	] as const)(
+		'E-367/E-369: real Git wrapup allocation has durable ownership ($cause/$ownership/dirty=$dirty)',
+		async ({ cause, ownership, dirty, reclaimed }) => {
+			const env = await setup({ canDispatch: () => true, ownedWrapup: ownership });
+			const { container, server, headers, docId, docsPath } = env;
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			const batch = container.repos.batches.listByDocId(docId)[0];
+			if (!task || !batch) throw new Error('Imported task and batch are required');
+			seedImplementationRun(env, {
+				id: 'landed-before-owned-wrapup',
+				taskId: task.id,
+				batchId: batch.id,
+				attemptNo: 1,
+				contractHash: task.contract_hash,
+				createdAt: '2026-10-12T07:00:00.000Z',
+			});
+			const start = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(start.statusCode, start.body).toBe(200);
+			const triggering = container.services.wrapup?.triggerWrapup({
+				batchId: batch.id,
+				trigger: 'manual',
+			});
+			if (!triggering) throw new Error('Production wrapup service is required');
+			const outcome = triggering.then(
+				(result) => ({ result, error: null }),
+				(error: unknown) => ({ result: null, error }),
+			);
+			try {
+				await Promise.race([
+					env.allocationReady,
+					outcome.then((completed) => {
+						if (completed.error) throw completed.error;
+						throw new Error('Wrapup completed before its worktree allocation was observed');
+					}),
+				]);
+				const allocation = env.getAllocation();
+				if (!allocation) throw new Error('Real Git allocation is required');
+				expect(existsSync(join(allocation.worktreePath, '.git'))).toBe(true);
+				if (dirty)
+					writeFileSync(join(allocation.worktreePath, 'keep.txt'), 'Preserve this untracked input');
+				if (cause === 'pause') {
+					const paused = await server.instance.inject({
+						method: 'POST',
+						url: `/api/v1/documents/${docId}/execution/pause`,
+						headers,
+						payload: {
+							expectedVersion: container.services.documentExecution.get(docId).execution.version,
+						},
+					});
+					expect(paused.statusCode, paused.body).toBe(200);
+				} else if (cause === 'source') {
+					writeTasksDocsData(docsPath, [{ id: task.task_key, hash: 'changed-owned-contract' }]);
+					const refreshed = await server.instance.inject({
+						method: 'POST',
+						url: `/api/v1/documents/${docId}/refresh`,
+						headers,
+						payload: {},
+					});
+					expect(refreshed.statusCode, refreshed.body).toBe(200);
+				}
+				env.releaseAllocation();
+				const completed = await outcome;
+				if (cause === 'accepted') {
+					expect(completed?.error).toBeNull();
+					expect(completed?.result?.run.state).toBe('queued');
+				} else {
+					expect(completed?.error).toMatchObject({
+						code: cause === 'pause' ? 'E_VALIDATION' : 'E_WORKSPACE_UNAVAILABLE',
+					});
+					expect(
+						container.repos.runs.listAll().filter((run) => run.kind === 'wrapup'),
+					).toHaveLength(0);
+				}
+				const listing = execFileSync('git', ['worktree', 'list', '--porcelain'], {
+					cwd: env.workspaceRepoPath,
+					encoding: 'utf8',
+				});
+				const branch = execFileSync('git', ['branch', '--list', allocation.branchName], {
+					cwd: env.workspaceRepoPath,
+					encoding: 'utf8',
+				}).trim();
+				expect(
+					listing.includes(allocation.worktreePath.replaceAll('\\', '/')),
+					JSON.stringify({ expectedPath: allocation.worktreePath, listing }),
+				).toBe(!reclaimed);
+				expect(existsSync(allocation.worktreePath)).toBe(!reclaimed);
+				expect(branch.length > 0).toBe(!reclaimed);
+				expect(env.getCleanupAttempts()).toBe(
+					cause === 'accepted' || ownership === 'reused' ? 0 : 1,
+				);
+				if (dirty)
+					expect(readFileSync(join(allocation.worktreePath, 'keep.txt'), 'utf8')).toBe(
+						'Preserve this untracked input',
+					);
+				if (dirty || ownership === 'cleanup_failure')
+					expect(
+						env
+							.getWarnings()
+							.some((message) =>
+								message.includes('Could not reclaim an unadmitted wrapup worktree.'),
+							),
+					).toBe(true);
+			} finally {
+				env.releaseAllocation();
+				await outcome;
+				const allocation = env.getAllocation();
+				if (allocation && existsSync(allocation.worktreePath)) {
+					expect(allocation.worktreePath.startsWith(env.folder)).toBe(true);
+					execFileSync('git', ['worktree', 'remove', '--force', allocation.worktreePath], {
+						cwd: env.workspaceRepoPath,
+					});
+					execFileSync('git', ['branch', '-d', allocation.branchName], {
+						cwd: env.workspaceRepoPath,
+					});
+				}
+				await server.instance.close();
+			}
+		},
+		60000,
+	);
 
 	it('E-369: a refresh during wrapup preflight cannot freeze obsolete batch members', async () => {
 		const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });

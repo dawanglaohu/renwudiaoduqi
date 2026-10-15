@@ -1,0 +1,44 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T12": {
+      "contractHash": "b6175287149806368c4b1c7c29c1ad2055ffa130356835792b1813f2538390e9",
+      "evidence": [
+        "只核M8 supportPaths传播的依赖上下文；M8后端与M9-T30界面仍是M1-T12完整原生顺序端到端验收的前置，未改变requires、阶段、测试要求或有效路径。",
+        "本轮生产容器和当前浏览器/原生消息可达性证明的能力边界已在收口记录明确；完整两批原生模型交付仍由M1-T12实施，status保持todo。",
+        "独立review和Jev evidence-scope A/high0.98支持维持既定范围；未把当前fixture Agent链路算作M1-T12已验收。"
+      ],
+      "verdict": "pass"
+    },
+    "M8-T13": {
+      "contractHash": "dc13c00a3d97b3d8562120e4b114586b8d31215f1eef0ef003fe0c631b0013fe",
+      "evidence": [
+        "本补丁只在 supportPaths 新增 workspace/worktree.ts、test/unit/worktree.test.ts、test/unit/landing.test.ts；归属由真实预检撤销泄漏与 M5 精确回收消费方证明，未改 AC1-8、E360-370 或阶段/能力契约。",
+        "逐条 AC/边界及五类接缝的生产文件行与真实容器回归见 _run/batches/batch-19-20261014.md；当前运行时代码哈希及 red-green 日志见 _run/batch-19-20261014.proof.json。",
+        "de4915c：queued readiness 释放占用，预检撤销只回收明确新建未受理资源，queued Agent 离线保留同 run 与尝试；完整 Windows check 253文件/3313通过/3既有跳过。",
+        "独立修复代码复核 VERDICT PASS：49个M5 owning unit、9个真实容器精确回归、8文件Biome；七处回填行号已定点修正。",
+        "真实 bootstrap/built Web/Chromium/Git/SSE 主流程 batch13 13/13、batch14含R19 12/12通过；两个45秒冷启动套件失败明确记录，最终头远端原始E2E与三平台CI仍是合并门禁，未用fixture宣称原生完整交付。"
+      ],
+      "verdict": "pass"
+    },
+    "M9-T30": {
+      "contractHash": "d8646597a048ec8d0a897582610503bbd05e5cb5adcc1c426c93c58cf11ca66f",
+      "evidence": [
+        "只核本补丁影响的provider依赖：M8 document-sequential-dispatch能力、文档execution API和既有blocker枚举保持；agent_unavailable只扩展当前代queued收口的权威投影。",
+        "现有任务有效路径与新增M5支持路径无实施冲突；文档级完整控制界面仍属M9-T30，任务status保持todo，本契约复核不冒充代码交付。",
+        "取舍见 batch-19 evidence-scope Jev全部候选与最终review A/high0.98；未下调验收或新增UI替代实现。"
+      ],
+      "verdict": "pass"
+    },
+    "R19-T23428016": {
+      "contractHash": "583b424497200e7e2a5cf062ccde577085672e6dbe4bd68b2581385c5237efde",
+      "evidence": [
+        "复核本补丁传播的 M8 支持路径变化，无 Web、density_probe.js、R19验收或阈值改动；旧返工定义与stable-key保留。",
+        "R19已由main的PR219交付；本轮真实生产bootstrap/构建Web/Chromium复验4条R19用例全过：浅深主题两尺寸12px净距、真实超限40px负控、D1-D6与overflow、390x844入口和单栏。",
+        "本轮10个r19指标在 _run/batch-19-20261014.proof.json，实际截图已目视确认中文可读；8文件根因修复与完整3313通过检查未改变该界面实现。",
+        "原生GUI交付证明仍引用原PR219及 _run/R19-T23428016.review-round1-20261013.proof.json；本PR最终head额外可达性GIF为独立合并门禁，不提前声称完整文档顺序UI交付。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

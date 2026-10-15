@@ -1,0 +1,93 @@
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+
+
+ RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-19
+
+
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot
+
+[E-296] Document did not provide matching dispatchBatches for batch req_12483fb6d50a, falling back to builtin wrapup prompt
+
+
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts (79 tests | 1 failed | 78 skipped) 3774ms
+
+   × M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot 3770ms
+
+     → expected { id: 'run_req_fb95e02d2088', …(45) } to match object { state: 'queued', …(2) }
+
+(43 matching properties omitted from actual)
+
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+
+
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: queued wrapup waits for readiness without holding a lane or Agent slot
+
+AssertionError: expected { id: 'run_req_fb95e02d2088', …(45) } to match object { state: 'queued', …(2) }
+
+(43 matching properties omitted from actual)
+
+
+
+- Expected
+
++ Received
+
+
+
+  Object {
+
+-   "lane_no": null,
+
+-   "queued_reason": "contract_pending",
+
+-   "state": "queued",
+
++   "lane_no": 1,
+
++   "queued_reason": "process_spawned",
+
++   "state": "running",
+
+  }
+
+
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts:1843:48
+
+    1841|   const eventCursor = container.events.ringBuffer.latest()?.id ?? 0;
+
+    1842|   await container.services.dispatch.tick();
+
+    1843|   expect(container.repos.runs.findById(runId)).toMatchObject({
+
+       |                                                ^
+
+    1844|    state: 'queued',
+
+    1845|    queued_reason: 'contract_pending',
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+
+ Test Files  1 failed (1)
+
+      Tests  1 failed | 78 skipped (79)
+
+   Start at  19:20:18
+
+   Duration  9.73s (transform 3.15s, setup 0ms, collect 4.96s, tests 3.77s, environment 0ms, prepare 323ms)

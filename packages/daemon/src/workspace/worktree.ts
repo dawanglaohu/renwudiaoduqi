@@ -741,7 +741,10 @@ async function removeWorktreeUnlocked(
 	const force = input.force ?? false;
 	const deleteBranch = input.deleteBranch ?? false;
 
-	const existingWorktrees = await listWorktreesUnlocked(repoPath, runner).catch(() => []);
+	const existingWorktrees = await listWorktreesUnlocked(repoPath, runner).catch((error) => {
+		if (!force) throw error;
+		return [];
+	});
 	const targetPathKey = await worktreePathKey(worktreePath);
 	const matches = await Promise.all(
 		existingWorktrees.map(async (wt) => (await worktreePathKey(wt.path)) === targetPathKey),
@@ -781,11 +784,12 @@ async function removeWorktreeUnlocked(
 		}
 	}
 
-	await runner.run(['worktree', 'prune'], repoPath).catch(() => {});
-
 	const branchToDelete = input.branchName ?? matching?.branch;
 	if (deleteBranch && branchToDelete) {
-		const branchResult = await runner.run(['branch', '-D', branchToDelete], repoPath);
+		const branchResult = await runner.run(
+			['branch', force ? '-D' : '-d', branchToDelete],
+			repoPath,
+		);
 		if (branchResult.exitCode === 0) {
 			branchDeleted = true;
 		}

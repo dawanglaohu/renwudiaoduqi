@@ -595,7 +595,7 @@ detached
 	});
 
 	describe('Worktree Reclamation / Cleanup (removeWorktree)', () => {
-		it('executes git worktree remove and prune and returns { removed: true }', async () => {
+		it('removes only the selected worktree without pruning other registrations', async () => {
 			const executedCommands: string[][] = [];
 			const runner = createMockGitRunner((args) => {
 				executedCommands.push([...args]);
@@ -632,7 +632,59 @@ detached
 
 			expect(result.removed).toBe(true);
 			expect(executedCommands).toContainEqual(['worktree', 'remove', resolve('/repo-m5-t1')]);
-			expect(executedCommands).toContainEqual(['worktree', 'prune']);
+			expect(executedCommands).not.toContainEqual(['worktree', 'prune']);
+		});
+
+		it('does not force-delete an unmerged branch during non-forced cleanup', async () => {
+			const commands: string[][] = [];
+			const runner = createMockGitRunner((args) => {
+				commands.push([...args]);
+				if (args[0] === 'worktree' && args[1] === 'list')
+					return {
+						exitCode: 0,
+						stdout:
+							'worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /owned\nHEAD def\nbranch refs/heads/wrapup/1-1',
+						stderr: '',
+					};
+				return {
+					exitCode: args[0] === 'branch' && args[1] === '-d' ? 1 : 0,
+					stdout: '',
+					stderr: '',
+				};
+			});
+			const result = await removeWorktree(
+				{ repoPath: '/repo', worktreePath: '/owned', branchName: 'wrapup/1-1', deleteBranch: true },
+				runner,
+				{ platform: 'linux', ids: defaultTestIds },
+			);
+			expect(commands).toContainEqual(['branch', '-d', 'wrapup/1-1']);
+			expect(commands).not.toContainEqual(['branch', '-D', 'wrapup/1-1']);
+			expect(result.branchDeleted).toBe(false);
+		});
+
+		it('rejects non-forced cleanup when registrations cannot be inspected', async () => {
+			const commands: string[][] = [];
+			const runner = createMockGitRunner((args) => {
+				commands.push([...args]);
+				return {
+					exitCode: args[0] === 'worktree' && args[1] === 'list' ? 1 : 0,
+					stdout: '',
+					stderr: 'registration inspection failed',
+				};
+			});
+			await expect(
+				removeWorktree(
+					{
+						repoPath: '/repo',
+						worktreePath: '/owned',
+						branchName: 'wrapup/1-1',
+						deleteBranch: true,
+					},
+					runner,
+					{ platform: 'linux', ids: defaultTestIds },
+				),
+			).rejects.toMatchObject({ code: 'E_INTERNAL' });
+			expect(commands.some((args) => args[0] === 'branch' || args[1] === 'remove')).toBe(false);
 		});
 
 		it('supports force removal and deleting task branch', async () => {

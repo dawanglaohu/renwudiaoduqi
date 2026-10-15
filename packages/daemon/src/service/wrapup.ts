@@ -92,8 +92,14 @@ export interface WrapupServiceDeps {
 			readonly worktreePath: string;
 			readonly branchName: string;
 			readonly baseSha?: string;
+			readonly isReused?: boolean;
 		}>;
 		readonly getDiffStat?: (worktreePath: string) => Promise<string>;
+		readonly discardUnadmittedWorktree?: (input: {
+			readonly repoPath: string;
+			readonly worktreePath: string;
+			readonly branchName: string;
+		}) => Promise<void>;
 	};
 	readonly logstorePaths?: LogstorePaths;
 	readonly logFs?: LogFileSystem;
@@ -813,406 +819,443 @@ export function createWrapupService(deps: WrapupServiceDeps): WrapupService {
 				});
 			}
 
+			let ownsUnadmittedWorktree = false;
+			let admitted = false;
 			try {
-				const prepared = await deps.workspace.prepareWrapupWorktree({
-					repoPath,
-					batchId: batch.batch_no,
-					round: nextRound,
-				});
-				worktreePath = prepared.worktreePath;
-				branchName = prepared.branchName;
-				if (prepared.baseSha) baseSha = prepared.baseSha;
-			} catch (cause) {
-				if (batch.state !== 'needs_attention') {
-					deps.batchService.transitionBatch(
-						batchId,
-						'needs_attention',
-						'wrapup_workspace_unavailable',
-					);
-				}
-				throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Failed to prepare wrapup workspace.', {
-					cause,
-					details: { batchId, repoPath },
-				});
-			}
-
-			let diffStat = '';
-			if (!deps.workspace.getDiffStat) {
-				if (batch.state !== 'needs_attention') {
-					deps.batchService.transitionBatch(batchId, 'needs_attention', 'wrapup_diff_unavailable');
-				}
-				throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Wrapup diff reader is not available.', {
-					details: { batchId, worktreePath },
-				});
-			}
-			try {
-				diffStat = await deps.workspace.getDiffStat(worktreePath);
-			} catch (cause) {
-				if (batch.state !== 'needs_attention') {
-					deps.batchService.transitionBatch(batchId, 'needs_attention', 'wrapup_diff_unavailable');
-				}
-				throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Failed to read wrapup diff stat.', {
-					cause,
-					details: { batchId, worktreePath },
-				});
-			}
-
-			// If round >= 2, retrieve previous wrapup report for section 3
-			let previousReportText: string | null = null;
-			if (validRoundCount >= 1) {
-				const prevWrapupRecord = generationRecords
-					? generationRecords.at(-1)
-					: deps.batchWrapupsRepo.findLatestByBatchId(batchId);
-				previousReportText = prevWrapupRecord?.report_text ?? null;
-			}
-
-			// 6. Assemble wrapup prompt (AC 3, E-285, E-296)
-			const latestImplRunByTaskId = latestImplementationRunByTaskId(evidence.runs);
-			const taskItems: WrapupTaskItem[] = evidence.tasks.map((t) => {
-				const run = latestImplRunByTaskId.get(t.id);
-				return {
-					taskId: t.id,
-					taskKey: t.task_key,
-					title: t.title,
-					branchName: run?.branch_name ?? null,
-					worktreePath: run?.worktree_path ?? null,
-				};
-			});
-
-			const fullPrompt = assembleWrapupPrompt({
-				worktreePath,
-				branchName,
-				baseSha,
-				wrapupMaterial: wrapupContext.wrapup,
-				promptSource: wrapupContext.promptSource,
-				tasks: taskItems,
-				testCommands: null,
-				diffStat,
-				round: nextRound,
-				previousReportText,
-			});
-
-			// Deep copy launch spec from registry
-			let launchSpecJson = '{}';
-			if (deps.agentRegistry) {
-				const snapshot = deps.agentRegistry.getSnapshot();
-				const entry = snapshot.agents[assignment.agentId];
-				if (entry) {
-					const availability = deps.agentService?.getAvailability(assignment.agentId);
-					launchSpecJson = JSON.stringify({
-						...entry,
-						execPath: availability?.resolvedPath ?? entry.execPath,
-						effortOptions: availability?.effortOptions ?? [],
+				try {
+					const prepared = await deps.workspace.prepareWrapupWorktree({
+						repoPath,
+						batchId: batch.batch_no,
+						round: nextRound,
+					});
+					worktreePath = prepared.worktreePath;
+					branchName = prepared.branchName;
+					if (prepared.baseSha) baseSha = prepared.baseSha;
+					ownsUnadmittedWorktree = prepared.isReused === false;
+				} catch (cause) {
+					if (batch.state !== 'needs_attention') {
+						deps.batchService.transitionBatch(
+							batchId,
+							'needs_attention',
+							'wrapup_workspace_unavailable',
+						);
+					}
+					throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Failed to prepare wrapup workspace.', {
+						cause,
+						details: { batchId, repoPath },
 					});
 				}
-			}
 
-			const snapshotId = `snap_${deps.ids.newId().slice(0, 16)}`;
-			const runId = `run_${deps.ids.newId().slice(0, 16)}`;
-			const generatedIdempotencyKey = idempotencyKey ?? `wrapup-${batchId}-r${nextRound}-${runId}`;
-			const now = deps.clock.now();
+				let diffStat = '';
+				if (!deps.workspace.getDiffStat) {
+					if (batch.state !== 'needs_attention') {
+						deps.batchService.transitionBatch(
+							batchId,
+							'needs_attention',
+							'wrapup_diff_unavailable',
+						);
+					}
+					throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Wrapup diff reader is not available.', {
+						details: { batchId, worktreePath },
+					});
+				}
+				try {
+					diffStat = await deps.workspace.getDiffStat(worktreePath);
+				} catch (cause) {
+					if (batch.state !== 'needs_attention') {
+						deps.batchService.transitionBatch(
+							batchId,
+							'needs_attention',
+							'wrapup_diff_unavailable',
+						);
+					}
+					throw new AppError('E_WORKSPACE_UNAVAILABLE', 'Failed to read wrapup diff stat.', {
+						cause,
+						details: { batchId, worktreePath },
+					});
+				}
 
-			const assignmentJson = JSON.stringify({
-				agentId: assignment.agentId,
-				modelName: assignment.modelName,
-				effortTier: assignment.effortTier,
-				effortVendor: assignment.effortVendor ?? null,
-				source: assignment.source,
-				followedTaskId: assignment.followedTaskId,
-				capturedAt: now,
-			});
+				// If round >= 2, retrieve previous wrapup report for section 3
+				let previousReportText: string | null = null;
+				if (validRoundCount >= 1) {
+					const prevWrapupRecord = generationRecords
+						? generationRecords.at(-1)
+						: deps.batchWrapupsRepo.findLatestByBatchId(batchId);
+					previousReportText = prevWrapupRecord?.report_text ?? null;
+				}
 
-			let createdRunRow: RunRow | null = null;
-			const pendingEnvelopes: EventEnvelope[] = [];
-			const currentDoc = deps.documentsRepo.findById(doc.id);
-			if (currentDoc?.is_source_readable === 0) {
-				throw new AppError('E_DOC_SOURCE_UNREADABLE', '文档来源不可读，请刷新或重新绑定。', {
-					details: { docId: doc.id, docsPath: currentDoc.docs_path },
+				// 6. Assemble wrapup prompt (AC 3, E-285, E-296)
+				const latestImplRunByTaskId = latestImplementationRunByTaskId(evidence.runs);
+				const taskItems: WrapupTaskItem[] = evidence.tasks.map((t) => {
+					const run = latestImplRunByTaskId.get(t.id);
+					return {
+						taskId: t.id,
+						taskKey: t.task_key,
+						title: t.title,
+						branchName: run?.branch_name ?? null,
+						worktreePath: run?.worktree_path ?? null,
+					};
 				});
-			}
-			if (
-				currentDoc?.docs_path !== doc.docs_path ||
-				currentDoc.repo_path !== doc.repo_path ||
-				currentDoc.content_fingerprint !== doc.content_fingerprint ||
-				currentDoc.last_seen_at !== doc.last_seen_at ||
-				currentDoc.lane_count !== doc.lane_count
-			) {
-				throw new AppError('E_WORKSPACE_UNAVAILABLE', '文档绑定已变化，请重新触发收口。', {
-					details: { docId: doc.id },
-				});
-			}
-			const sortedMembers = (rows: readonly TaskRow[]) =>
-				rows
-					.filter((task) => task.is_removed_from_doc === 0)
-					.map((task) => ({
-						taskId: task.id,
-						taskKey: task.task_key,
-						contractHash: task.contract_hash,
-					}))
-					.sort((a, b) => a.taskKey.localeCompare(b.taskKey));
-			const frozenMembers = sortedMembers(tasks);
-			if (
-				JSON.stringify(sortedMembers(deps.tasksRepo.listByBatchId(batchId))) !==
-				JSON.stringify(frozenMembers)
-			)
-				throw new AppError(
-					'E_VALIDATION',
-					'Document batch members changed before wrapup admission.',
-				);
-			// 工作树与差异读取会等待；落库前再次同步检查，失败标记不随派发事务回滚。
-			deps.validateSourceAtCommit?.(doc.id);
 
-			// 7. Transaction: insert snapshot, insert wrapup run (queued), transitionBatch(->wrapping) (08 节, AC 1, AC 2, AC 7)
-			deps.unitOfWork.run(() => {
-				const currentExecutionPlan = currentPlanBatch(batchId, batch.doc_id);
-				const currentDocument = deps.documentsRepo.findById(batch.doc_id);
+				const fullPrompt = assembleWrapupPrompt({
+					worktreePath,
+					branchName,
+					baseSha,
+					wrapupMaterial: wrapupContext.wrapup,
+					promptSource: wrapupContext.promptSource,
+					tasks: taskItems,
+					testCommands: null,
+					diffStat,
+					round: nextRound,
+					previousReportText,
+				});
+
+				// Deep copy launch spec from registry
+				let launchSpecJson = '{}';
+				if (deps.agentRegistry) {
+					const snapshot = deps.agentRegistry.getSnapshot();
+					const entry = snapshot.agents[assignment.agentId];
+					if (entry) {
+						const availability = deps.agentService?.getAvailability(assignment.agentId);
+						launchSpecJson = JSON.stringify({
+							...entry,
+							execPath: availability?.resolvedPath ?? entry.execPath,
+							effortOptions: availability?.effortOptions ?? [],
+						});
+					}
+				}
+
+				const snapshotId = `snap_${deps.ids.newId().slice(0, 16)}`;
+				const runId = `run_${deps.ids.newId().slice(0, 16)}`;
+				const generatedIdempotencyKey =
+					idempotencyKey ?? `wrapup-${batchId}-r${nextRound}-${runId}`;
+				const now = deps.clock.now();
+
+				const assignmentJson = JSON.stringify({
+					agentId: assignment.agentId,
+					modelName: assignment.modelName,
+					effortTier: assignment.effortTier,
+					effortVendor: assignment.effortVendor ?? null,
+					source: assignment.source,
+					followedTaskId: assignment.followedTaskId,
+					capturedAt: now,
+				});
+
+				let createdRunRow: RunRow | null = null;
+				const pendingEnvelopes: EventEnvelope[] = [];
+				const currentDoc = deps.documentsRepo.findById(doc.id);
+				if (currentDoc?.is_source_readable === 0) {
+					throw new AppError('E_DOC_SOURCE_UNREADABLE', '文档来源不可读，请刷新或重新绑定。', {
+						details: { docId: doc.id, docsPath: currentDoc.docs_path },
+					});
+				}
 				if (
-					currentDocument?.is_source_readable !== 1 ||
-					currentDocument.content_fingerprint !== currentDoc?.content_fingerprint
-				)
-					throw new AppError('E_VALIDATION', 'Document source changed before wrapup admission.');
+					currentDoc?.docs_path !== doc.docs_path ||
+					currentDoc.repo_path !== doc.repo_path ||
+					currentDoc.content_fingerprint !== doc.content_fingerprint ||
+					currentDoc.last_seen_at !== doc.last_seen_at ||
+					currentDoc.lane_count !== doc.lane_count
+				) {
+					throw new AppError('E_WORKSPACE_UNAVAILABLE', '文档绑定已变化，请重新触发收口。', {
+						details: { docId: doc.id },
+					});
+				}
+				const sortedMembers = (rows: readonly TaskRow[]) =>
+					rows
+						.filter((task) => task.is_removed_from_doc === 0)
+						.map((task) => ({
+							taskId: task.id,
+							taskKey: task.task_key,
+							contractHash: task.contract_hash,
+						}))
+						.sort((a, b) => a.taskKey.localeCompare(b.taskKey));
+				const frozenMembers = sortedMembers(tasks);
 				if (
-					(currentExecutionPlan?.execution.version ?? null) !==
-					(executionPlan?.execution.version ?? null)
+					JSON.stringify(sortedMembers(deps.tasksRepo.listByBatchId(batchId))) !==
+					JSON.stringify(frozenMembers)
 				)
-					throw new AppError('E_VALIDATION', 'Document execution changed before wrapup admission.');
-				const members = sortedMembers(deps.tasksRepo.listByBatchId(batchId));
-				if (JSON.stringify(members) !== JSON.stringify(frozenMembers))
 					throw new AppError(
 						'E_VALIDATION',
 						'Document batch members changed before wrapup admission.',
 					);
-				if (currentExecutionPlan) {
-					if (JSON.stringify(members) !== JSON.stringify(currentExecutionPlan.entry.members))
+				// 工作树与差异读取会等待；落库前再次同步检查，失败标记不随派发事务回滚。
+				deps.validateSourceAtCommit?.(doc.id);
+
+				// 7. Transaction: insert snapshot, insert wrapup run (queued), transitionBatch(->wrapping) (08 节, AC 1, AC 2, AC 7)
+				deps.unitOfWork.run(() => {
+					const currentExecutionPlan = currentPlanBatch(batchId, batch.doc_id);
+					const currentDocument = deps.documentsRepo.findById(batch.doc_id);
+					if (
+						currentDocument?.is_source_readable !== 1 ||
+						currentDocument.content_fingerprint !== currentDoc?.content_fingerprint
+					)
+						throw new AppError('E_VALIDATION', 'Document source changed before wrapup admission.');
+					if (
+						(currentExecutionPlan?.execution.version ?? null) !==
+						(executionPlan?.execution.version ?? null)
+					)
+						throw new AppError(
+							'E_VALIDATION',
+							'Document execution changed before wrapup admission.',
+						);
+					const members = sortedMembers(deps.tasksRepo.listByBatchId(batchId));
+					if (JSON.stringify(members) !== JSON.stringify(frozenMembers))
 						throw new AppError(
 							'E_VALIDATION',
 							'Document batch members changed before wrapup admission.',
 						);
-					assertWrapupRoundAllowed({
-						validRound: new Set(
-							deps.batchWrapupsRepo
-								.listByBatchId(batchId)
-								.filter((record) => currentExecutionPlan.entry.wrapupRunIds.includes(record.run_id))
-								.map((record) => record.round),
-						).size,
-						physicalAttempts: currentExecutionPlan.entry.wrapupRunIds.length,
-						trigger,
-					});
-				}
-				// Re-verify no active wrapup in tx
-				const activeCheck = deps.runsRepo.findActiveWrapupByBatchId?.(batchId);
-				if (activeCheck) {
-					throw new AppError('E_BATCH_NOT_WRAPPABLE', 'Wrapup run is already in flight.', {
-						details: {
-							state: batch.state,
-							reason: 'wrapup_in_flight',
-							notLandedTaskKeys: [],
-							notInHeadTaskKeys: [],
-							activeWrapupRunId: activeCheck.id,
-						},
-					});
-				}
-
-				// insert snapshot
-				deps.dispatchSnapshotsRepo.insert({
-					id: snapshotId,
-					task_id: null,
-					batch_id: batchId,
-					input_text: currentExecutionPlan
-						? JSON.stringify({
-								generationId: currentExecutionPlan.entry.generationId,
-								membershipFingerprint: currentExecutionPlan.entry.membershipFingerprint,
-								members: currentExecutionPlan.entry.members.map((member) => ({
-									task_key: member.taskKey,
-									contractHash: member.contractHash,
-								})),
-							})
-						: null,
-					output_text: null,
-					accept_text: null,
-					impl_prompt: fullPrompt,
-					review_prompt: null,
-					contract_hash: currentExecutionPlan?.entry.membershipFingerprint ?? 'wrapup',
-					task_paths_json: '[]',
-					launch_spec_json: launchSpecJson,
-					assignmentJson,
-					created_at: now,
-				});
-
-				// Slot allocation for wrapup run (AC 6, E-283):
-				// If free lane available, hold slot immediately; otherwise queued_reason='lane_full'
-				const doc = deps.documentsRepo.findById(batch.doc_id);
-				const docLaneCount = doc?.lane_count ?? 2;
-				const docTasks = deps.tasksRepo.listByDocId(batch.doc_id);
-				const docRuns = deps.runsRepo.listAll();
-				const occupiedLanes = new Set<number>();
-				for (const t of docTasks) {
-					if (typeof t.lane_no === 'number' && t.lane_no >= 1) {
-						occupiedLanes.add(t.lane_no);
+					if (currentExecutionPlan) {
+						if (JSON.stringify(members) !== JSON.stringify(currentExecutionPlan.entry.members))
+							throw new AppError(
+								'E_VALIDATION',
+								'Document batch members changed before wrapup admission.',
+							);
+						assertWrapupRoundAllowed({
+							validRound: new Set(
+								deps.batchWrapupsRepo
+									.listByBatchId(batchId)
+									.filter((record) =>
+										currentExecutionPlan.entry.wrapupRunIds.includes(record.run_id),
+									)
+									.map((record) => record.round),
+							).size,
+							physicalAttempts: currentExecutionPlan.entry.wrapupRunIds.length,
+							trigger,
+						});
 					}
-				}
-				for (const r of docRuns) {
-					if (
-						r.kind === 'wrapup' &&
-						typeof r.lane_no === 'number' &&
-						r.lane_no >= 1 &&
-						!isTerminalRunState(r.state as RunState)
-					) {
-						occupiedLanes.add(r.lane_no);
+					// Re-verify no active wrapup in tx
+					const activeCheck = deps.runsRepo.findActiveWrapupByBatchId?.(batchId);
+					if (activeCheck) {
+						throw new AppError('E_BATCH_NOT_WRAPPABLE', 'Wrapup run is already in flight.', {
+							details: {
+								state: batch.state,
+								reason: 'wrapup_in_flight',
+								notLandedTaskKeys: [],
+								notInHeadTaskKeys: [],
+								activeWrapupRunId: activeCheck.id,
+							},
+						});
 					}
-				}
-				const availableLanes = freeLaneNumbers(docLaneCount, occupiedLanes);
-				const allocatedLaneNo = availableLanes.length > 0 ? (availableLanes[0] ?? null) : null;
-				const queuedReason = allocatedLaneNo === null ? 'lane_full' : null;
 
-				// insert wrapup run (AC 2: kind='wrapup', task_id=null, permission_tier='workspaceWrite', queued)
-				const insertWrapupRun = () => {
-					assertSessionRefFree(
-						{ taskId: runId, vendorSessionRef: null },
-						{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
-					);
-					deps.runsRepo.insert({
-						id: runId,
+					// insert snapshot
+					deps.dispatchSnapshotsRepo.insert({
+						id: snapshotId,
 						task_id: null,
 						batch_id: batchId,
-						attempt_no: nextAttemptNo,
-						kind: 'wrapup',
-						state: 'queued',
-						queued_reason: queuedReason,
-						lane_no: allocatedLaneNo,
-						agent_id: assignment.agentId,
-						model_name: assignment.modelName,
-						effort_tier: assignment.effortTier,
-						effort_vendor: assignment.effortVendor ?? null,
-						permission_tier: 'workspaceWrite',
-						snapshot_id: snapshotId,
-						worktree_path: worktreePath,
-						branch_name: branchName,
-						idempotency_key: generatedIdempotencyKey,
-						actor_device_id: actorDeviceId ?? null,
-						started_at: null,
-						last_event_at: now,
-						origin: 'dispatch',
-						prompt_source: wrapupContext.promptSource,
-						assignment_source: assignment.source,
+						input_text: currentExecutionPlan
+							? JSON.stringify({
+									generationId: currentExecutionPlan.entry.generationId,
+									membershipFingerprint: currentExecutionPlan.entry.membershipFingerprint,
+									members: currentExecutionPlan.entry.members.map((member) => ({
+										task_key: member.taskKey,
+										contractHash: member.contractHash,
+									})),
+								})
+							: null,
+						output_text: null,
+						accept_text: null,
+						impl_prompt: fullPrompt,
+						review_prompt: null,
+						contract_hash: currentExecutionPlan?.entry.membershipFingerprint ?? 'wrapup',
+						task_paths_json: '[]',
+						launch_spec_json: launchSpecJson,
+						assignmentJson,
+						created_at: now,
 					});
-				};
-				try {
-					insertWrapupRun();
-				} catch (cause) {
-					if (idempotencyKey) {
-						const existing = deps.runsRepo.findByIdempotencyKey(idempotencyKey.trim());
-						if (existing && existing.batch_id === batchId) {
-							throw new AppError(
-								'E_RUN_ALREADY_EXISTS',
-								`Run already exists for idempotency key: ${idempotencyKey}`,
-								{
-									details: { run: toRunDto(existing) },
-									cause,
-								},
-							);
+
+					// Slot allocation for wrapup run (AC 6, E-283):
+					// If free lane available, hold slot immediately; otherwise queued_reason='lane_full'
+					const doc = deps.documentsRepo.findById(batch.doc_id);
+					const docLaneCount = doc?.lane_count ?? 2;
+					const docTasks = deps.tasksRepo.listByDocId(batch.doc_id);
+					const docRuns = deps.runsRepo.listAll();
+					const occupiedLanes = new Set<number>();
+					for (const t of docTasks) {
+						if (typeof t.lane_no === 'number' && t.lane_no >= 1) {
+							occupiedLanes.add(t.lane_no);
 						}
 					}
-					throw cause;
-				}
+					for (const r of docRuns) {
+						if (
+							r.kind === 'wrapup' &&
+							typeof r.lane_no === 'number' &&
+							r.lane_no >= 1 &&
+							!isTerminalRunState(r.state as RunState)
+						) {
+							occupiedLanes.add(r.lane_no);
+						}
+					}
+					const availableLanes = freeLaneNumbers(docLaneCount, occupiedLanes);
+					const allocatedLaneNo = availableLanes.length > 0 ? (availableLanes[0] ?? null) : null;
+					const queuedReason = allocatedLaneNo === null ? 'lane_full' : null;
 
-				createdRunRow = deps.runsRepo.findById(runId);
-				if (currentExecutionPlan) {
-					deps.documentExecutionsRepo?.save({
-						...currentExecutionPlan.execution,
-						version: currentExecutionPlan.execution.version + 1,
-						plan_json: JSON.stringify(
-							currentExecutionPlan.plan.map((entry) =>
-								entry.batchId === batchId
-									? { ...entry, wrapupRunIds: [...entry.wrapupRunIds, runId] }
-									: entry,
+					// insert wrapup run (AC 2: kind='wrapup', task_id=null, permission_tier='workspaceWrite', queued)
+					const insertWrapupRun = () => {
+						assertSessionRefFree(
+							{ taskId: runId, vendorSessionRef: null },
+							{ runsRepo: deps.runsRepo, tasksRepo: deps.tasksRepo },
+						);
+						deps.runsRepo.insert({
+							id: runId,
+							task_id: null,
+							batch_id: batchId,
+							attempt_no: nextAttemptNo,
+							kind: 'wrapup',
+							state: 'queued',
+							queued_reason: queuedReason,
+							lane_no: allocatedLaneNo,
+							agent_id: assignment.agentId,
+							model_name: assignment.modelName,
+							effort_tier: assignment.effortTier,
+							effort_vendor: assignment.effortVendor ?? null,
+							permission_tier: 'workspaceWrite',
+							snapshot_id: snapshotId,
+							worktree_path: worktreePath,
+							branch_name: branchName,
+							idempotency_key: generatedIdempotencyKey,
+							actor_device_id: actorDeviceId ?? null,
+							started_at: null,
+							last_event_at: now,
+							origin: 'dispatch',
+							prompt_source: wrapupContext.promptSource,
+							assignment_source: assignment.source,
+						});
+					};
+					try {
+						insertWrapupRun();
+					} catch (cause) {
+						if (idempotencyKey) {
+							const existing = deps.runsRepo.findByIdempotencyKey(idempotencyKey.trim());
+							if (existing && existing.batch_id === batchId) {
+								throw new AppError(
+									'E_RUN_ALREADY_EXISTS',
+									`Run already exists for idempotency key: ${idempotencyKey}`,
+									{
+										details: { run: toRunDto(existing) },
+										cause,
+									},
+								);
+							}
+						}
+						throw cause;
+					}
+
+					createdRunRow = deps.runsRepo.findById(runId);
+					if (currentExecutionPlan) {
+						deps.documentExecutionsRepo?.save({
+							...currentExecutionPlan.execution,
+							version: currentExecutionPlan.execution.version + 1,
+							plan_json: JSON.stringify(
+								currentExecutionPlan.plan.map((entry) =>
+									entry.batchId === batchId
+										? { ...entry, wrapupRunIds: [...entry.wrapupRunIds, runId] }
+										: entry,
+								),
 							),
-						),
-						updated_at: now,
-					});
-				}
+							updated_at: now,
+						});
+					}
 
-				// Transition batch to wrapping via batchService (R1)
-				const currentBatch = deps.batchesRepo.findById(batchId);
-				if (currentBatch && currentBatch.state !== 'wrapping') {
-					const transRes = deps.batchService.transitionBatchInTx(
-						batchId,
-						'wrapping',
-						'wrapup_dispatched',
-					);
-					pendingEnvelopes.push(transRes.envelope);
-				}
+					// Transition batch to wrapping via batchService (R1)
+					const currentBatch = deps.batchesRepo.findById(batchId);
+					if (currentBatch && currentBatch.state !== 'wrapping') {
+						const transRes = deps.batchService.transitionBatchInTx(
+							batchId,
+							'wrapping',
+							'wrapup_dispatched',
+						);
+						pendingEnvelopes.push(transRes.envelope);
+					}
 
-				if (deps.bus && deps.envelopeFactory) {
-					pendingEnvelopes.push(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'batch.wrapup_started',
-							payload: {
-								batchId,
-								batchNo: currentBatch?.batch_no ?? batch.batch_no,
-								runId,
-								round: nextRound,
-								trigger,
-								promptSource: wrapupContext.promptSource,
-								branchName,
-							},
-						}),
-					);
-
-					if (allocatedLaneNo !== null) {
+					if (deps.bus && deps.envelopeFactory) {
 						pendingEnvelopes.push(
 							deps.envelopeFactory.createEnvelope({
-								kind: 'lane.assigned',
+								kind: 'batch.wrapup_started',
+								payload: {
+									batchId,
+									batchNo: currentBatch?.batch_no ?? batch.batch_no,
+									runId,
+									round: nextRound,
+									trigger,
+									promptSource: wrapupContext.promptSource,
+									branchName,
+								},
+							}),
+						);
+
+						if (allocatedLaneNo !== null) {
+							pendingEnvelopes.push(
+								deps.envelopeFactory.createEnvelope({
+									kind: 'lane.assigned',
+									actorDeviceId: actorDeviceId ?? null,
+									payload: {
+										docId: batch.doc_id,
+										laneNo: allocatedLaneNo,
+										taskId: null,
+										runId,
+									},
+								}),
+							);
+						}
+						pendingEnvelopes.push(
+							deps.envelopeFactory.createEnvelope({
+								kind: 'run.state_changed',
+								runId,
+								taskId: null,
 								actorDeviceId: actorDeviceId ?? null,
 								payload: {
-									docId: batch.doc_id,
-									laneNo: allocatedLaneNo,
-									taskId: null,
-									runId,
+									from: 'none',
+									to: 'queued',
+									reason: 'wrapup_dispatched',
 								},
 							}),
 						);
 					}
-					pendingEnvelopes.push(
-						deps.envelopeFactory.createEnvelope({
-							kind: 'run.state_changed',
-							runId,
-							taskId: null,
-							actorDeviceId: actorDeviceId ?? null,
-							payload: {
-								from: 'none',
-								to: 'queued',
-								reason: 'wrapup_dispatched',
-							},
-						}),
-					);
+
+					// If leaving needs_attention, mark any waiting gates superseded (E-288)
+					if (currentBatch?.state === 'needs_attention') {
+						const prevWrapups = deps.runsRepo.listWrapupsByBatchId?.(batchId) ?? [];
+						const prevRunIds = prevWrapups.map((r) => r.id);
+						deps.gatesRepo.supersedePendingByRunIds?.(prevRunIds, now);
+					}
+				});
+
+				admitted = true;
+
+				// Publish events outside transaction (08 节)
+				publishPendingEvents(pendingEnvelopes, deps);
+				if (executionPlan)
+					deps.publishDocumentExecutionChange?.(batch.doc_id, executionPlan.execution.version);
+
+				// Nudge tick
+				deps.nudgeTick?.();
+
+				const updatedBatch = await deps.batchService.getBatch(batchId);
+				if (!createdRunRow) {
+					throw new AppError('E_INTERNAL', 'Failed to retrieve created wrapup run.');
 				}
 
-				// If leaving needs_attention, mark any waiting gates superseded (E-288)
-				if (currentBatch?.state === 'needs_attention') {
-					const prevWrapups = deps.runsRepo.listWrapupsByBatchId?.(batchId) ?? [];
-					const prevRunIds = prevWrapups.map((r) => r.id);
-					deps.gatesRepo.supersedePendingByRunIds?.(prevRunIds, now);
+				return {
+					run: toRunDto(createdRunRow),
+					batch: updatedBatch,
+				};
+			} catch (error) {
+				if (!admitted && ownsUnadmittedWorktree && deps.workspace.discardUnadmittedWorktree) {
+					try {
+						await deps.workspace.discardUnadmittedWorktree({ repoPath, worktreePath, branchName });
+					} catch (cleanupError) {
+						try {
+							deps.warn?.(
+								`Could not reclaim an unadmitted wrapup worktree. Path: ${worktreePath}; branch: ${branchName}`,
+								{ batchId, error: cleanupError },
+							);
+						} catch {
+							// Cleanup diagnostics must not replace the admission rejection.
+						}
+					}
 				}
-			});
-
-			// Publish events outside transaction (08 节)
-			publishPendingEvents(pendingEnvelopes, deps);
-			if (executionPlan)
-				deps.publishDocumentExecutionChange?.(batch.doc_id, executionPlan.execution.version);
-
-			// Nudge tick
-			deps.nudgeTick?.();
-
-			const updatedBatch = await deps.batchService.getBatch(batchId);
-			if (!createdRunRow) {
-				throw new AppError('E_INTERNAL', 'Failed to retrieve created wrapup run.');
+				throw error;
 			}
-
-			return {
-				run: toRunDto(createdRunRow),
-				batch: updatedBatch,
-			};
 		},
 
 		async resumeDeferredFixes(docId: string): Promise<void> {

@@ -578,7 +578,16 @@ export function createDocumentExecutionService(
 					return !deps.isAgentAvailable(agentId);
 				})
 				.map((task) => task.id);
-			if (affected.length)
+			const unavailableQueuedWrapup =
+				current &&
+				runs.some(
+					(run) =>
+						run.kind === 'wrapup' &&
+						run.state === 'queued' &&
+						current.wrapupRunIds.includes(run.id) &&
+						!deps.isAgentAvailable(run.agent_id),
+				);
+			if (affected.length || unavailableQueuedWrapup)
 				blockers.push({
 					code: 'agent_unavailable',
 					batchId: current?.batchId ?? null,
