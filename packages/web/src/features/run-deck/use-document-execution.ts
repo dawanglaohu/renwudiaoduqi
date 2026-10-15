@@ -97,6 +97,8 @@ const snapshotListeners = new Set<SnapshotListener>();
 
 /** 重连或首屏快照里的 documentExecutions 交给当前订阅者，不另造状态。 */
 export function publishDocumentExecutions(rows: readonly DocumentExecutionDto[]): void {
+	// 手机详情可能卸掉面板；快照到达时仍须使同版本旧投影失效。
+	for (const row of rows) invalidate(CACHE_KEYS.documentExecutions(row.docId));
 	for (const listener of snapshotListeners) listener(rows);
 }
 
