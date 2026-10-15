@@ -408,7 +408,7 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 	});
 
 	describe('cleanupTaskWorktree (AC 2, E-73)', () => {
-		it('AC 2 & E-73: executes git worktree remove and prune on explicit cleanup, returning { removed: true }', async () => {
+		it('AC 2 & E-73: explicit cleanup removes only its worktree, returning { removed: true }', async () => {
 			const executedCommands: string[][] = [];
 			const worktreeDir = join(tempDir, 'repo-m5-t4');
 			mkdirSync(worktreeDir, { recursive: true });
@@ -445,7 +445,7 @@ describe('M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68
 				'--force',
 				resolve(worktreeDir),
 			]);
-			expect(executedCommands).toContainEqual(['worktree', 'prune']);
+			expect(executedCommands).not.toContainEqual(['worktree', 'prune']);
 
 			// Assert git branch was NOT deleted (deleteBranch: false by default for E-73)
 			expect(executedCommands.some((c) => c[0] === 'branch' && c[1] === '-D')).toBe(false);

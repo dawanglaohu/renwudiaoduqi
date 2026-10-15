@@ -573,7 +573,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		const candidatePaths = parseTaskPaths(task.task_paths_json);
 		for (const holding of runsRepo.listActive()) {
 			if (!holding.task_id || !isTaskPathHolding(holding.state)) continue;
-			if (isUnreadyQueuedTaskRun(holding)) continue;
+			if (isUnreadyQueuedRun(holding)) continue;
 			const heldTask = deps.tasksRepo.findById(holding.task_id);
 			if (!heldTask) continue;
 			if (
@@ -663,7 +663,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		let count = 0;
 		for (const run of runs) {
 			if (run.agent_id !== agentId) continue;
-			if (isUnreadyQueuedTaskRun(run)) continue;
+			if (isUnreadyQueuedRun(run)) continue;
 			if (!countsTowardAgentConcurrency(run.state as RunState, run.session_archived_at)) continue;
 			if (
 				run.kind === 'implement' &&
@@ -678,11 +678,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		return count;
 	}
 
-	function isUnreadyQueuedTaskRun(run: RunRow): boolean {
+	function isUnreadyQueuedRun(run: RunRow): boolean {
+		if (run.state !== 'queued') return false;
+		if (run.task_id) return deps.tasksRepo.findById(run.task_id)?.is_contract_ready !== 1;
 		return (
-			run.state === 'queued' &&
-			!!run.task_id &&
-			deps.tasksRepo.findById(run.task_id)?.is_contract_ready !== 1
+			run.kind === 'wrapup' &&
+			!!run.batch_id &&
+			deps.tasksRepo
+				.listByBatchId(run.batch_id)
+				.some((task) => task.is_removed_from_doc === 0 && task.is_contract_ready !== 1)
 		);
 	}
 
@@ -1895,7 +1899,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				// Step 3: 按槽位补位 (AC 2, AC 3, E-309, E-310, E-311, E-327)
 				const docTasks = deps.tasksRepo.listByDocId(doc.id);
 				const allRuns = runsRepo.listAll();
-				const activeRuns = runsRepo.listActive().filter((run) => !isUnreadyQueuedTaskRun(run));
+				const activeRuns = runsRepo.listActive().filter((run) => !isUnreadyQueuedRun(run));
 				const docBatches = deps.batchesRepo ? deps.batchesRepo.listByDocId(doc.id) : batches;
 				const docBatchIds = new Set(docBatches.map((b) => b.id));
 				const docTaskIds = new Set(docTasks.map((t) => t.id));
@@ -1936,6 +1940,45 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 				for (const wRun of queuedWrapups) {
 					if (!wRun.batch_id) continue;
+					if (isUnreadyQueuedRun(wRun)) {
+						let releasedLaneNo: number | null = null;
+						const park = () => {
+							if (!executionStillCurrent(doc.id, documentExecution ?? null)) return;
+							const current = runsRepo.findById(wRun.id);
+							if (!current || !isUnreadyQueuedRun(current)) return;
+							releasedLaneNo = current.lane_no ?? null;
+							if (releasedLaneNo !== null) runsRepo.updateLaneNo?.(current.id, null);
+							if (current.queued_reason !== 'contract_not_ready')
+								runsRepo.updateState({
+									id: current.id,
+									state: 'queued',
+									queuedReason: 'contract_not_ready',
+								});
+						};
+						if (deps.unitOfWork) deps.unitOfWork.run(park);
+						else park();
+						if (releasedLaneNo !== null) {
+							occupiedLanes.delete(releasedLaneNo);
+							if (!free.includes(releasedLaneNo)) free.push(releasedLaneNo);
+							free.sort((a, b) => a - b);
+							if (deps.bus && deps.envelopeFactory)
+								deps.bus.publish(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'lane.released',
+										runId: wRun.id,
+										taskId: null,
+										payload: {
+											docId: doc.id,
+											laneNo: releasedLaneNo,
+											taskId: null,
+											runId: wRun.id,
+											reason: 'contract_not_ready',
+										},
+									}),
+								);
+						}
+						continue;
+					}
 
 					// If wrapup has no lane, allocate from free if available
 					if (wRun.lane_no === null || wRun.lane_no === undefined) {
@@ -1969,6 +2012,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						if (pendingEvent) deps.bus?.publish(pendingEvent);
 					}
 
+					if (!isAgentDispatchable(wRun.agent_id)) continue;
+
 					// Check batch (at most 1 active starting/running wrapup per batch)
 					const activeWrapup = deps.runsRepo.findActiveWrapupByBatchId?.(wRun.batch_id);
 					if (
@@ -1987,6 +2032,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								(r) =>
 									r.agent_id === wRun.agent_id &&
 									r.id !== wRun.id &&
+									!isUnreadyQueuedRun(r) &&
 									countsTowardAgentConcurrency(r.state as RunState, r.session_archived_at),
 							)
 							.map((r) => r.state),
@@ -1998,6 +2044,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						const persist = () => {
 							if (!executionStillCurrent(doc.id, documentExecution ?? null)) return;
 							if (runsRepo.findById(wRun.id)?.state !== 'queued') return;
+							if (isUnreadyQueuedRun(wRun)) return;
+							if (!isAgentDispatchable(wRun.agent_id)) return;
 							runsRepo.updateState({
 								id: wRun.id,
 								state: 'starting',
@@ -2060,7 +2108,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 									(other) =>
 										other.id !== currentRun.id &&
 										other.lane_no === laneNo &&
-										!isUnreadyQueuedTaskRun(other) &&
+										!isUnreadyQueuedRun(other) &&
 										((other.task_id && deps.tasksRepo.findById(other.task_id)?.doc_id === doc.id) ||
 											(other.batch_id &&
 												deps.batchesRepo.findById(other.batch_id)?.doc_id === doc.id)) &&

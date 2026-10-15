@@ -662,7 +662,11 @@ export function createContainer(input: {
 						worktreePath: prepared.worktreePath,
 						branchName: prepared.branchName,
 						baseSha: prepared.baseRef,
+						isReused: prepared.isReused,
 					};
+				},
+				discardUnadmittedWorktree: async (params) => {
+					await worktreeManager.removeWorktree({ ...params, deleteBranch: true });
 				},
 				getDiffStat: async (worktreePath) => {
 					const stat = await getDiffStat(worktreePath, { deps: worktreeDeps });
