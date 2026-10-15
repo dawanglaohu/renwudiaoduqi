@@ -425,6 +425,7 @@ export function useDocumentExecution(
 					? UI_STRINGS.documentExecution.snapshotStale
 					: getErrorMessage(isApiError(cause) ? cause.code : null);
 			setError(toPanelError(cause, message));
+			invalidate(CACHE_KEYS.documentExecutions(observedDocId));
 			void reload(observedDocId).catch(() => undefined);
 		},
 		[reload],

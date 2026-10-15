@@ -379,8 +379,12 @@ function BlockerRow({
 			: blocker.batchId
 				? { label: COPY.openBatch, onClick: () => onOpenBatch(blocker.batchId as string) }
 				: null;
-	} else if (blocker.code === 'awaiting_landing' && taskId) {
-		action = { label: COPY.openLanding, onClick: () => onOpenLanding(taskId) };
+	} else if (blocker.code === 'awaiting_landing') {
+		action = taskId
+			? { label: COPY.openLanding, onClick: () => onOpenLanding(taskId) }
+			: blocker.batchId
+				? { label: COPY.openBatch, onClick: () => onOpenBatch(blocker.batchId as string) }
+				: null;
 	} else if (
 		(blocker.code === 'wrapup_manual' || blocker.code === 'wrapup_attention') &&
 		blocker.batchId

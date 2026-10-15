@@ -603,3 +603,39 @@ describe('document execution cache and snapshot ordering', () => {
 		},
 	);
 });
+
+it('refreshes the cached execution after a committed control loses its response', async () => {
+	let serverExecution = execution();
+	vi.mocked(httpClient.callRoute).mockImplementation(async (route: { path: string }) =>
+		route.path.endsWith('/execution')
+			? { execution: serverExecution }
+			: { models: [], isComplete: true, currentConfig: null },
+	);
+	const pause = vi.fn(async () => {
+		serverExecution = execution({
+			state: 'paused',
+			version: 4,
+			pauseReason: 'user_paused',
+			canPause: false,
+			canResume: true,
+		});
+		throw new ApiError({
+			code: 'E_NETWORK',
+			message: 'Response was lost.',
+			requestId: 'lost-response',
+		});
+	});
+	const view = await mount(
+		makeClient({ getExecution: httpDocumentExecutionClient.getExecution, pause }),
+	);
+	try {
+		await act(async () =>
+			view.container.querySelector<HTMLButtonElement>('[data-action="pause-document"]')?.click(),
+		);
+		expect(view.container.querySelector('[data-execution-state="paused"]')).not.toBeNull();
+		expect(pause).toHaveBeenCalledTimes(1);
+		expect(view.container.querySelector('[data-testid="document-execution-error"]')).not.toBeNull();
+	} finally {
+		await view.unmount();
+	}
+});

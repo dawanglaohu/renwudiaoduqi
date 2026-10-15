@@ -184,3 +184,127 @@ describe('M9-T30 selected document lanes', () => {
 		}
 	});
 });
+
+it('selects the document from an active snapshot and reveals blocked task handling', async () => {
+	clearResourceCache();
+	useConnectionStore.getState().reset();
+	useConnectionStore.getState().setStatus('online');
+	useSelectionStore.getState().reset();
+	const docs = deferred<unknown>();
+	const doc = {
+		id: 'active-doc',
+		docsPath: 'D:/docs/active',
+		projectName: 'Active',
+		repoPath: 'D:/repo',
+		mainBranch: 'main',
+		branchPrefix: 'task/',
+		laneCount: 2,
+		contentFingerprint: 'fp',
+		isSourceReadable: true,
+		isTakeoverNotified: false,
+		importedAt: '2026-10-15T00:00:00Z',
+		lastSeenAt: '2026-10-15T00:00:00Z',
+	};
+	const current = {
+		...execution(doc.id),
+		state: 'paused',
+		version: 3,
+		pauseReason: 'user_paused',
+		canStart: false,
+		canResume: true,
+		currentBatchId: 'active-batch',
+		currentBatchNo: 1,
+		blockers: [{ code: 'contract_pending', batchId: 'active-batch', taskIds: ['task-a'] }],
+	};
+	const batch = {
+		id: 'active-batch',
+		docId: doc.id,
+		batchNo: 1,
+		state: 'running',
+		startedAt: null,
+		finishedAt: null,
+		defaultExpanded: false,
+		canWrapup: false,
+	};
+	const task = {
+		id: 'task-a',
+		docId: doc.id,
+		batchId: batch.id,
+		taskKey: 'ACTIVE-T1',
+		title: 'Active task',
+		moduleKey: 'M9',
+		deps: [],
+		estDays: 1,
+		state: 'running',
+	};
+	const base = {
+		documents: [doc],
+		batches: [batch],
+		tasks: [task],
+		runs: [],
+		agents: [],
+		gates: [],
+		documentExecutions: [current],
+		latestEventId: 1,
+		lanes: [lane(1, 'active-run')],
+	};
+	vi.spyOn(httpClient, 'callRoute').mockImplementation(async (route) => {
+		if (route.path === '/api/v1/documents') return docs.promise;
+		if (route.path.endsWith('/execution')) return { execution: current };
+		return {
+			...base,
+			models: [],
+			isComplete: true,
+			isRefreshing: false,
+			currentConfig: null,
+			wrapups: [],
+		};
+	});
+	const frames: Array<FrameRequestCallback> = [];
+	vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+		frames.push(callback);
+		return frames.length;
+	});
+	const scroll = vi.fn();
+	vi.stubGlobal('ResizeObserver', undefined);
+	const oldScroll = Element.prototype.scrollIntoView;
+	Element.prototype.scrollIntoView = scroll;
+	const container = document.createElement('div');
+	document.body.append(container);
+	const root = createRoot(container);
+	try {
+		await act(async () => {
+			root.render(createElement(RunDeckContainer, { lanes: [], densityTier: 'full' }));
+			for (let i = 0; i < 20; i++) await Promise.resolve();
+		});
+		await act(async () => {
+			docs.resolve({ documents: [doc] });
+			for (let i = 0; i < 20; i++) await Promise.resolve();
+		});
+		expect(useSelectionStore.getState().selectedDocId).toBe(doc.id);
+		expect(
+			container.querySelector<HTMLButtonElement>('[data-action="resume-document"]')?.disabled,
+		).toBe(false);
+		await act(async () =>
+			container
+				.querySelector<HTMLButtonElement>('[data-blocker-action="contract_pending"]')
+				?.click(),
+		);
+		await act(async () => {
+			for (const frame of frames.splice(0)) frame(0);
+		});
+		expect(document.activeElement?.closest('[data-task-id]')?.getAttribute('data-task-id')).toBe(
+			'task-a',
+		);
+		expect(scroll).toHaveBeenCalled();
+	} finally {
+		await act(async () => root.unmount());
+		container.remove();
+		Element.prototype.scrollIntoView = oldScroll;
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+		clearResourceCache();
+		useConnectionStore.getState().reset();
+		useSelectionStore.getState().reset();
+	}
+});

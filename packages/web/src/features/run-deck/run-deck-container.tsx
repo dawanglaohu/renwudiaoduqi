@@ -234,6 +234,11 @@ export function RunDeckContainer(props: RunDeckProps) {
 					httpClient.callRoute<{ runs: readonly RunDto[] }>(RUNS_ROUTE),
 					loadGates(true),
 				]);
+				// 活跃泳道也需要文档初选，不能依赖仅在零运行时启用的指派向导。
+				if (!requestedDocId && canPublishDocument() && snapshot.documents[0]) {
+					useSelectionStore.getState().setSelectedDocId(snapshot.documents[0].id);
+					return;
+				}
 				const batchResponses = await Promise.all(
 					snapshot.documents.map((document) =>
 						httpClient.callRoute<ListDocumentBatchesResponse>(DOCUMENT_BATCHES_ROUTE, {

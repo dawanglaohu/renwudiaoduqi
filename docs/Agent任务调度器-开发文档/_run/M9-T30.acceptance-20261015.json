@@ -5,15 +5,19 @@
   "reviewedFixCommit": "a05667df4f22a83b9fcd26ee095c3f0aaf155902",
   "regressions": {
     "oldIndependentProbes": "3 passed",
-    "permanentUIRace": "10 passed",
-    "selectedDocumentLanes": "1 passed"
+    "permanentUIRace": "11 passed",
+    "selectedDocumentLanes": "1 passed",
+    "executionControls": "9 passed",
+    "selectedDocumentLanesAndActiveEntry": "2 passed",
+    "entrySupplement": "39 passed across5 files; fresh document selection, lost HTTP response, blocker handling included"
   },
   "checks": {
     "workspace": {
       "command": "pnpm -w check --maxWorkers=1 --minWorkers=1",
       "filesPassed": 256,
       "testsPassed": 3333,
-      "existingSkipped": 3
+      "existingSkipped": 3,
+      "scope": "Full local baseline before the final bounded entry fixes; final exact-head matrix is required on PR221 before merging."
     },
     "generatorBefore": {
       "tests": 215,
@@ -28,6 +32,12 @@
     "densityRegression": {
       "before": "avail.left expected282, actual0; D2/D6 failed",
       "after": "positive auto/explicit rail left10 passes; detached left40 remains D2/D6 fail"
+    },
+    "entrySupplement": {
+      "result": "39 passed",
+      "typescript": "pass",
+      "architecture": "0 violations",
+      "redBeforeFix": "3 regressions failed before repair"
     }
   },
   "browser": {
@@ -61,7 +71,7 @@
         "D1-D6": "pass"
       }
     },
-    "media": "PR #221 embeds m9-t30-round2-final.gif and its exact-head provenance; source viewport1440x900.",
+    "media": "PR #221正文的本轮GIF及精确提交来源，源视口1440x900。",
     "boundary": "Text-only native round proves this UI/control entry. Full native worktree writes, multi-batch completion, restart, dual-client and changed-membership acceptance remain M1-T12; M1-T12 is not landed."
   },
   "adjudications": "_run/M9-T30.review-round2-adjudications.json"

@@ -442,3 +442,31 @@ describe('M9-T30 document execution controls', () => {
 		await view.unmount();
 	});
 });
+
+it('opens the batch when awaiting-landing has no task IDs', async () => {
+	const onOpenBatch = vi.fn();
+	const api = client({
+		getExecution: async () => ({
+			execution: execution({
+				state: 'running',
+				canStart: false,
+				canPause: true,
+				blockers: [{ code: 'awaiting_landing', batchId: 'batch-1', taskIds: [] }],
+			}),
+		}),
+	});
+	const view = await render(
+		createElement(DocumentExecutionContainer, { client: api, onOpenBatch }),
+	);
+	try {
+		await flush();
+		const action = view.container.querySelector<HTMLButtonElement>(
+			'[data-blocker-action="awaiting_landing"]',
+		);
+		expect(action).not.toBeNull();
+		await act(async () => action?.click());
+		expect(onOpenBatch).toHaveBeenCalledWith('batch-1');
+	} finally {
+		await view.unmount();
+	}
+});
