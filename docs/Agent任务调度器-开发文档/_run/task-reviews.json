@@ -9067,6 +9067,26 @@
     "scope": "task-contract",
     "verdict": "pass"
   },
+  "R19-T23428016": {
+    "compiler": "eeddd07520a3431c9e3a6f44609ca79790d7653a1082674d6ca4e1c3f7107607",
+    "contractHash": "7efc0eda1fef6b859735ce81fc2b3af6ff91f415773e7932e1b78b538778e57f",
+    "evidence": [
+      "任务六项验收与四个边界均按原契约核对；支持路径包含 AC6 指纹及 E-319 手机视图和入口回归，未降低验收标准或修改历史批次 open 裁定。",
+      "真实前后证据见 _run/R19-T23428016.review-round1-20261013.proof.json：两桌面基线D4为20/24px，新回归红3failed/1passed、绿4passed，当前浅深两主题净距12px，40px及24px负控仍失败，阈值18px未变。",
+      "pnpm -w check 完整3302passed/3既有skipped，253files；初次负载超时已由独立5passed和全量复跑排除，未更改测试/超时。生成器完整前214/后215 OK各1skip，指纹匹配，真实浏览器pageErrors为空。",
+      "1920/1440 两主题 D1-D6及overflow全过，fill0.972/0.963、横向空带12px、overflowX0。真实粗指针390手机使用现有 tasks 分栏；导入、刷新200、idle/0runs、批次选择及0到197px实际内滚动均通过。",
+      "真实原生Codex0.157.1/app-server请求及原生确认模型gpt-6.1-sol，assistant delta与completed均返回动态验收标记，实际GUI可见；六帧均1440x900、真实服务和同一运行，已编码检查14秒GIF。最终PR头提交完成后再录该头并替换PR嵌入。",
+      "源入口：手机emptyConsole已有装配 run-deck-view.tsx:716-720，桌面:831-838；无服务/路由/注册点新增，接线“服务”仅是验收文字。Jev jev-1.13.0 实施两项全部候选复审均A、高置信、adopt=take；canonical路径A，手机完整源码复核后按A保留既有入口验收，未引入外部PR依赖。",
+      "代码位置及实施沉淀已按prose/trim技能核质量，代码/流程/测试范围与必要元数据一致。发现既有原生消息在GUI重复呈现，记录独立FOLLOW_UP证据；本任务仅修初始甲板间距，不修改适配器。",
+      "审查方补修未生效 rowGap 误报：新断言修复前40!=8；仅多视觉行才纳入显式rowGap，阈值及40px/24px负控未变。完整生成器215 OK、真实R19浏览器4passed复验通过，指纹更新34bb23157e1626ee5dd466ee5d882514bbfed54be5fee0c5efc82a68481f7e9e；代码位置逐条改为真实语句行。Jev完整A/B/C候选复核选A高置信，动作已落入diff。",
+      "E-319：daemon domain/lanes.ts:253/311/318 产出队列及未落地前置，run-deck-view.tsx:361 逐字段传递，stage-rows.ts:115 格式化空闲及本批已派完文案，pipeline-lane.tsx:135/178/240/292 不画假链且禁用停止，lane-run-strip.tsx:57 标手机空闲。入口缺陷已修在 run-deck-view.tsx:914；新增 run-deck-container.test.tsx:80 红1failed/4passed，修复后该入口及相邻3文件21passed。真实390粗指针 idle/0runs：stopDisabled false→true，按钮矩形完全不变、stageChains0；工作树证据在 proof.boundaryVerification，最终干净HEAD录像由PR正文登记。",
+      "E-356：shared/api/settings.ts:94-95 四键 required 与 additionalProperties:false；http/routes/settings.ts:77 接入，domain/pipeline-settings.ts:118/159 严格形状与只读默认/旧行补齐，service/settings.ts:178/186/289 校验注册表快照、强度、pipeline原子存储、完整事件和nudge；boot/container.ts:1098 生产装配。unit/pipeline-settings.test.ts:17、settings.test.ts:222、native-effort.test.ts:18 及 integration/agents-models-login.test.ts:560 具体验证；10文件125passed。当前e7103df真实 daemon/browser Pipeline Settings E2E CI通过，e2e/pipeline-settings.test.ts:877/1017 覆盖四键请求、SSE同步及第二次写入不携旧值。",
+      "Jev jev-1.13.0 以实际手机复现、全部A/B/C/D候选及最终diff核定A(high1.00)，spec_change=no、outside_stack=no、adopt=take。只登记两处必要支持路径并修一行能力位；PR209虽同文件但实查为不同修改区段，未引入依赖或覆盖其代码。"
+    ],
+    "reviewed": "2026-10-15T01:39:36.869511+00:00",
+    "scope": "task-contract",
+    "verdict": "pass"
+  },
   "R8-T54786768": {
     "changedEdges": [],
     "changedFields": [

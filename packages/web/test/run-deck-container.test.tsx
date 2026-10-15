@@ -21,7 +21,11 @@ const idleLane = {
 	overLimit: false,
 } as unknown as LaneView;
 
-function renderDeck(gates: readonly GateDto[] = [], runs: readonly RunDto[] = []) {
+function renderDeck(
+	gates: readonly GateDto[] = [],
+	runs: readonly RunDto[] = [],
+	tier: 'full' | 'phone' = 'full',
+) {
 	const task = {
 		id: 't1',
 		taskKey: 'TEST-T1',
@@ -41,9 +45,9 @@ function renderDeck(gates: readonly GateDto[] = [], runs: readonly RunDto[] = []
 			rawLanes: [idleLane],
 			gates,
 			runs,
-			tier: 'full',
-			isTouch: false,
-			width: 1200,
+			tier,
+			isTouch: tier === 'phone',
+			width: tier === 'phone' ? 390 : 1200,
 			expandedLaneNo: null,
 			toggleExpandLane: vi.fn(),
 			stoppingLanes: new Set<number>(),
@@ -72,6 +76,15 @@ describe('R13 browser entry wiring', () => {
 		expect(grid?.contains(onboarding)).toBe(false);
 		expect(grid?.querySelectorAll('[data-stream-column="true"]')).toHaveLength(1);
 		expect(grid?.querySelector('[data-action="stop-stream"]')).not.toBeNull();
+	});
+	it('E-319: the phone entry keeps the idle stop button present and disabled', () => {
+		const root = document.createElement('div');
+		root.innerHTML = renderDeck([], [], 'phone');
+		const stop = root.querySelector<HTMLButtonElement>('[data-thumb-bar] [data-action="stop"]');
+		expect(stop).not.toBeNull();
+		expect(stop?.disabled).toBe(true);
+		expect(root.querySelector('[data-component="lane-run-strip"]')?.textContent).toContain('空闲');
+		expect(root.querySelector('[data-component="stage-chain"]')).toBeNull();
 	});
 	it('renders unassigned waiting gates without changing authoritative lane identity or stage', () => {
 		const gate = {

@@ -911,7 +911,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 			    ───────────────────────────────────────────────────────────── */}
 				{isMobileMode && (
 					<ThumbBar
-						canStop={Boolean(currentMobileLane)}
+						canStop={Boolean(currentMobileLane && currentMobileLane.kind !== 'idle')}
 						isStopping={currentMobileLane ? stoppingLanes.has(currentMobileLane.laneNo) : false}
 						onStop={() => {
 							if (currentMobileLane) {

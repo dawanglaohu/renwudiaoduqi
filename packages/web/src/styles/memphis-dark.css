@@ -859,7 +859,8 @@
 	align-self: flex-start;
 	width: fit-content;
 	max-width: calc(100% - 52px);
-	margin-bottom: var(--sp-2);
+	/* 父容器已有 gap: 12px（块间距契约值）；这里再加外边距会叠成 20px 超出 D4 上限 */
+	margin-bottom: 0;
 	padding: 4px 12px;
 	background: var(--accent-soft);
 	border: 3px solid var(--ink-1);

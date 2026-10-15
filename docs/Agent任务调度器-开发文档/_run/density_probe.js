@@ -73,6 +73,51 @@ var densityProbe = (function () {
     return out;
   }
 
+  // 换行容器的行边界净距：把矩形按视觉行分组（同一行的矩形竖直方向有重叠），
+  // 再取上一行最底到下一行最顶的距离。
+  // 换行的 flex 行里子项高度常常不等（48px 输入框 + 32px 按钮）：按单个子项量会把
+  // 「同一行内的高度差」算进块间距，报出比真实行距大的数；按行边界量才是实际行距。
+  function lineGaps(rects) {
+    var boxes = (rects || []).filter(function (r) { return r && r.bottom > r.top; })
+      .map(function (r) { return {top: r.top, bottom: r.bottom}; })
+      .sort(function (a, b) { return a.top - b.top; });
+    var lines = [];
+    boxes.forEach(function (r) {
+      var last = lines[lines.length - 1];
+      if (last && r.top < last.bottom - 0.5) last.bottom = Math.max(last.bottom, r.bottom);
+      else lines.push({top: r.top, bottom: r.bottom});
+    });
+    var out = [];
+    for (var i = 1; i < lines.length; i++) out.push(lines[i].top - lines[i - 1].bottom);
+    return out;
+  }
+
+  // 一个容器的「最差相邻块净距」（D4）。rects 是参与排布的可见子项矩形。
+  // 竖向堆叠按兄弟净距量；换行的行容器按行边界量（见 lineGaps）；
+  // 行内间距（rowGap/columnGap）与 grid 的行列间距照常量。
+  // 超过 maxBetween（四分之一屏高）的是 mt-auto / align-content 一类的推挤，不算间距。
+  function blockGap(rects, o) {
+    var worst = 0;
+    if (o.spaced) return 0;
+    var rowGap = o.rowGap || 0, colGap = o.colGap || 0;
+    if (o.wraps) {
+      var gaps = lineGaps(rects);
+      gaps.forEach(function (g) {
+        if (g < o.maxBetween) worst = Math.max(worst, g);
+      });
+      if (gaps.length) worst = Math.max(worst, rowGap);
+    } else {
+      for (var j = 1; j < rects.length; j++) {
+        var a = rects[j - 1], b = rects[j];
+        var between = b.top - a.bottom;
+        if (b.top >= a.bottom - 1 && b.left < a.right && a.left < b.right && between < o.maxBetween) worst = Math.max(worst, between);
+      }
+    }
+    if (o.rowFlex) worst = Math.max(worst, colGap);
+    if (o.isGrid) worst = Math.max(worst, colGap, rowGap);
+    return worst;
+  }
+
   // 横向区间合并；相距不超过 tol 的并成一段
   function merge(intervals, tol) {
     var xs = (intervals || []).filter(function (i) { return i[1] - i[0] > 0; })
@@ -258,17 +303,15 @@ var densityProbe = (function () {
       var spaced = /space-(between|around|evenly)/.test(cs.justifyContent);
 
       // D4：相邻块间距（竖向堆叠的兄弟之间的净间距）。超过四分之一屏高的是 mt-auto 一类的推挤，不算间距
-      var worst = 0;
-      if (!spaced) {
-        for (var j = 1; j < kids.length; j++) {
-          var a = kids[j - 1].getBoundingClientRect(), b = kids[j].getBoundingClientRect();
-          var between = b.top - a.bottom;
-          if (b.top >= a.bottom - 1 && b.left < a.right && a.left < b.right && between < 0.25 * vh) worst = Math.max(worst, between);
-        }
-        var colGap = px(cs.columnGap);
-        if (cs.display.indexOf('flex') >= 0 && cs.flexDirection.indexOf('row') === 0) worst = Math.max(worst, colGap);
-        if (cs.display.indexOf('grid') >= 0) worst = Math.max(worst, colGap, px(cs.rowGap));
-      }
+      var worst = blockGap(kids.map(function (k) { return k.getBoundingClientRect(); }), {
+        spaced: spaced,
+        wraps: cs.display.indexOf('flex') >= 0 && cs.flexDirection.indexOf('row') === 0 && cs.flexWrap !== 'nowrap',
+        rowFlex: cs.display.indexOf('flex') >= 0 && cs.flexDirection.indexOf('row') === 0,
+        isGrid: cs.display.indexOf('grid') >= 0,
+        rowGap: px(cs.rowGap),
+        colGap: px(cs.columnGap),
+        maxBetween: 0.25 * vh
+      });
       if (worst > c.gap * 1.5 + 0.5) gapOffenders.push({path: path(el), gap: round(worst, 1), limit: c.gap * 1.5});
 
       // D3：多列网格里没被占用的宽度
@@ -334,6 +377,8 @@ var densityProbe = (function () {
   probe.spacingPx = spacingPx;
   probe.growthOf = growthOf;
   probe.merge = merge;
+  probe.lineGaps = lineGaps;
+  probe.blockGap = blockGap;
   probe.verdict = verdict;
   return probe;
 })();

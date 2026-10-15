@@ -246,6 +246,74 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out['empty']['D2'], 'fail')
         self.assertIn('note', out['empty'])
 
+    def test_row_gap_measured_on_line_boundaries_not_single_children(self):
+        """D4 的行间距按视觉行边界量：换行容器里不等高的同行子项不算块间距，真实超限仍失败。
+
+        几何取自第 19 批收口实测的导入区：48px 输入框与 32px 按钮同一行、按钮换到第二行、
+        第二行之后是另一个 48px 输入框。逐对子项量会报 24（32px 按钮的底 → 下一行输入框的顶），
+        按行边界量报 8（真实 rowGap）。负控是行间距真的超限的同一形状，必须仍然判失败。"""
+        script = r"""
+const p = require(%s);
+const c = p.contract({density: 8});
+// 第 19 批实测：输入框 48 高、按钮 32 高，同一行；换行后按钮与下一个输入框
+const measured = [{top: 1052.98, bottom: 1100.98, left: 0, right: 100},
+                  {top: 1052.98, bottom: 1084.98, left: 110, right: 200},
+                  {top: 1108.98, bottom: 1140.98, left: 0, right: 200},
+                  {top: 1148.98, bottom: 1196.98, left: 0, right: 200}];
+// 负控：同样四块、同行仍不等高，但第二行真的比第一行低 40px（远超 12px 契约）
+const overflowing = [{top: 0, bottom: 48, left: 0, right: 100},
+                     {top: 0, bottom: 32, left: 110, right: 200},
+                     {top: 88, bottom: 120, left: 0, right: 200},
+                     {top: 128, bottom: 176, left: 0, right: 200}];
+const wrap = (rects) => p.blockGap(rects, {spaced: false, wraps: true, rowFlex: true, isGrid: false,
+                                           rowGap: 8, colGap: 8, maxBetween: 270});
+const singleLine = p.blockGap(measured.slice(0, 2), {spaced: false, wraps: true, rowFlex: true,
+                           isGrid: false, rowGap: 40, colGap: 8, maxBetween: 270});
+// 非换行容器仍按兄弟净距：同形状不能因为改了分支就漏判
+const stacked = p.blockGap([{top: 0, bottom: 40, left: 0, right: 200},
+                            {top: 64, bottom: 104, left: 0, right: 200}],
+                           {spaced: false, wraps: false, rowFlex: false, isGrid: false,
+                            rowGap: 0, colGap: 0, maxBetween: 270});
+// 推挤（align-content: space-between 一类）：行间距超过四分之一屏高时不算间距，两个分支都不算
+const spread = [{top: 0, bottom: 40, left: 0, right: 100},
+                {top: 0, bottom: 40, left: 110, right: 200},
+                {top: 600, bottom: 640, left: 0, right: 200}];
+const spreadWrap = p.blockGap(spread, {spaced: false, wraps: true, rowFlex: true, isGrid: false,
+                                       rowGap: 0, colGap: 0, maxBetween: 270});
+const spreadStacked = p.blockGap([{top: 0, bottom: 40, left: 0, right: 200},
+                                  {top: 600, bottom: 640, left: 0, right: 200}],
+                                 {spaced: false, wraps: false, rowFlex: false, isGrid: false,
+                                  rowGap: 0, colGap: 0, maxBetween: 270});
+process.stdout.write(JSON.stringify({
+  lines: p.lineGaps(measured),
+  measured: wrap(measured),
+  singleLine: singleLine,
+  overflowing: wrap(overflowing),
+  stacked: stacked,
+  spreadWrap: spreadWrap,
+  spreadStacked: spreadStacked,
+  limit: c.gap * 1.5
+}));
+""" % json.dumps(str(PROBE))
+        result = self.node(script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        out = json.loads(result.stdout)
+        self.assertEqual(out['limit'], 18)
+        # 按行边界：两行之间各是真实的 8px rowGap，不是 24
+        self.assertEqual(out['lines'], [8, 8])
+        self.assertEqual(out['measured'], 8)
+        self.assertLessEqual(out['measured'], out['limit'])
+        # 只有一行时，未生效的 rowGap 不产生行间净距，仍检查列间距。
+        self.assertEqual(out['singleLine'], 8)
+        # 负控：真实超限的行间距仍然失败，改算法没有把超限一起放过去
+        self.assertEqual(out['overflowing'], 40)
+        self.assertGreater(out['overflowing'], out['limit'])
+        # 竖向堆叠分支不受影响：兄弟净距 24 照旧量出来
+        self.assertEqual(out['stacked'], 24)
+        # 推挤（> 四分之一屏高）不算间距：换行与堆叠两个分支都要排除，别只在一边过滤
+        self.assertEqual(out['spreadWrap'], 0)
+        self.assertEqual(out['spreadStacked'], 0)
+
     def test_cli_usage_and_missing_playwright_exit_2(self):
         result = self.node(None, args=[str(PROBE)])
         self.assertEqual(result.returncode, 2)
