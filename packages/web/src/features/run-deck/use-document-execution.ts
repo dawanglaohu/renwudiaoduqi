@@ -138,6 +138,7 @@ export interface DocumentExecutionError {
 export interface UseDocumentExecutionResult {
 	readonly execution: DocumentExecutionDto | null;
 	readonly document: DocumentDto | null;
+	readonly documents: readonly DocumentDto[];
 	readonly agents: readonly AssignableAgent[];
 	readonly assignment: DocumentDefaultAssignment;
 	readonly catalog: ListAgentModelsResponse | null;
@@ -203,6 +204,7 @@ export function useDocumentExecution(
 	const canControl = useCanDispatch();
 	const [execution, setExecution] = useState<DocumentExecutionDto | null>(null);
 	const [document, setDocument] = useState<DocumentDto | null>(null);
+	const [documents, setDocuments] = useState<readonly DocumentDto[]>([]);
 	const [agentEntries, setAgentEntries] = useState<readonly AgentEntryDto[]>([]);
 	const [pendingAction, setPendingAction] = useState<string | null>(null);
 	const [error, setError] = useState<DocumentExecutionError | null>(null);
@@ -230,13 +232,19 @@ export function useDocumentExecution(
 		executionRef.current = execution;
 	}
 
+	const currentExecution = execution?.docId === docId ? execution : null;
+	const currentDocument = document?.id === docId ? document : null;
 	const assignment = useMemo<DocumentDefaultAssignment>(() => {
 		if (!docId) return EMPTY_ASSIGNMENT;
-		if (execution && execution.state !== 'idle' && execution.defaultAssignment) {
-			return execution.defaultAssignment;
+		if (
+			currentExecution &&
+			currentExecution.state !== 'idle' &&
+			currentExecution.defaultAssignment
+		) {
+			return currentExecution.defaultAssignment;
 		}
-		return drafts[docId] ?? execution?.defaultAssignment ?? EMPTY_ASSIGNMENT;
-	}, [docId, drafts, execution]);
+		return drafts[docId] ?? currentExecution?.defaultAssignment ?? EMPTY_ASSIGNMENT;
+	}, [docId, drafts, currentExecution]);
 
 	const catalogs = useAgentModelCatalogs(assignment.agentId ? [assignment.agentId] : []);
 	const catalogEntry = assignment.agentId ? catalogs[assignment.agentId] : undefined;
@@ -253,6 +261,7 @@ export function useDocumentExecution(
 			const nextDocument =
 				documentsResponse.documents.find((item) => item.id === targetDocId) ?? null;
 			setDocument(nextDocument);
+			setDocuments(documentsResponse.documents);
 			const incoming = executionResponse.execution;
 			if (!isExecutionDto(incoming)) {
 				return { document: nextDocument, execution: executionRef.current };
@@ -549,12 +558,12 @@ export function useDocumentExecution(
 		}
 	}, [assignment.agentId, canControl, catalogEntry, client, docId, fail, reload]);
 
-	const needsSourceConfirm = needsSourceConfirmation(execution?.pauseReason);
+	const needsSourceConfirm = needsSourceConfirmation(currentExecution?.pauseReason);
 	const sourceConfirmed =
 		confirmation !== null &&
 		confirmation.docId === docId &&
-		confirmation.fingerprint === document?.contentFingerprint &&
-		confirmation.version === execution?.version;
+		confirmation.fingerprint === currentDocument?.contentFingerprint &&
+		confirmation.version === currentExecution?.version;
 	const idleControls = !pendingAction && canControl;
 	const agents = useMemo(() => {
 		const base = toAgents(agentEntries);
@@ -572,8 +581,9 @@ export function useDocumentExecution(
 	}, [agentEntries, assignment.agentId, catalogEntry]);
 
 	return {
-		execution,
-		document,
+		execution: currentExecution,
+		document: currentDocument,
+		documents,
 		agents,
 		assignment,
 		catalog: catalogEntry?.catalog ?? null,
@@ -583,14 +593,14 @@ export function useDocumentExecution(
 		canControl,
 		canStart:
 			idleControls &&
-			execution?.canStart === true &&
+			currentExecution?.canStart === true &&
 			assignment.agentId.length > 0 &&
-			Boolean(document?.contentFingerprint),
-		canPause: idleControls && execution?.canPause === true,
+			Boolean(currentDocument?.contentFingerprint),
+		canPause: idleControls && currentExecution?.canPause === true,
 		canResume:
 			idleControls &&
-			execution?.canResume === true &&
-			Boolean(document?.contentFingerprint) &&
+			currentExecution?.canResume === true &&
+			Boolean(currentDocument?.contentFingerprint) &&
 			(!needsSourceConfirm || sourceConfirmed),
 		needsSourceConfirm,
 		sourceConfirmed,

@@ -10,6 +10,7 @@ import type {
 	DocumentExecutionBlocker,
 	DocumentExecutionDto,
 } from '@agent-scheduler/shared/api/document-execution';
+import type { DocumentDto } from '@agent-scheduler/shared/api/documents';
 import { UI_STRINGS } from '../i18n/ui-strings.ts';
 import type { AssignableAgent } from './assign-panel.tsx';
 import { EffortPicker } from './effort-picker.tsx';
@@ -25,6 +26,9 @@ export interface DocumentBatchProgress {
 
 export interface DocumentExecutionControlsProps {
 	readonly docId: string | null;
+	readonly documents?: readonly Pick<DocumentDto, 'id' | 'projectName'>[];
+	readonly onDocumentId?: (docId: string) => void;
+	readonly onOpenAgents?: () => void;
 	readonly execution: DocumentExecutionDto | null;
 	readonly assignment: DocumentDefaultAssignment;
 	readonly agents: readonly AssignableAgent[];
@@ -82,6 +86,9 @@ function controlHeight(isTouch: boolean): string {
 
 export function DocumentExecutionControls({
 	docId,
+	documents = [],
+	onDocumentId,
+	onOpenAgents,
 	execution,
 	assignment,
 	agents,
@@ -141,6 +148,27 @@ export function DocumentExecutionControls({
 				<h2 className="font-ui text-dense font-semibold text-ink-1">{COPY.title}</h2>
 				<p className="font-ui text-meta text-ink-2">{COPY.summary}</p>
 			</div>
+
+			<label className="flex min-w-0 flex-col gap-1 font-ui text-meta text-ink-2">
+				{COPY.documentLabel}
+				<select
+					data-testid="document-execution-document"
+					aria-label={COPY.documentLabel}
+					value={docId ?? ''}
+					disabled={documents.length === 0}
+					onChange={(event) => onDocumentId?.(event.target.value)}
+					className={`${height} min-w-0 rounded border border-border bg-bg px-3 text-ink-1 disabled:opacity-50`}
+				>
+					<option value="" disabled>
+						{COPY.documentPlaceholder}
+					</option>
+					{documents.map((entry) => (
+						<option key={entry.id} value={entry.id}>
+							{entry.projectName}
+						</option>
+					))}
+				</select>
+			</label>
 
 			{!docId ? (
 				<p className="font-ui text-meta text-ink-3">{COPY.chooseDocument}</p>
@@ -212,6 +240,7 @@ export function DocumentExecutionControls({
 									onOpenBatch={onOpenBatch}
 									onConfirmSource={onConfirmSource}
 									onRefreshAgent={onRefreshAgent}
+									onOpenAgents={onOpenAgents}
 								/>
 							))}
 						</ul>
@@ -323,11 +352,13 @@ export function DocumentExecutionControls({
 							<button
 								type="button"
 								data-action="refresh-agent"
-								disabled={!canControl || pendingAction !== null || !assignment.agentId}
-								onClick={onRefreshAgent}
+								disabled={
+									!onOpenAgents && (!canControl || pendingAction !== null || !assignment.agentId)
+								}
+								onClick={onOpenAgents ?? onRefreshAgent}
 								className={`${height} rounded-sm border border-border px-3 font-ui text-meta text-ink-1 disabled:opacity-50`}
 							>
-								{COPY.refreshAgent}
+								{onOpenAgents ? COPY.openAgentSettings : COPY.refreshAgent}
 							</button>
 						)}
 					</div>
@@ -355,6 +386,7 @@ function BlockerRow({
 	onOpenBatch,
 	onConfirmSource,
 	onRefreshAgent,
+	onOpenAgents,
 }: {
 	readonly blocker: DocumentExecutionBlocker;
 	readonly height: string;
@@ -365,10 +397,15 @@ function BlockerRow({
 	readonly onOpenBatch: (batchId: string) => void;
 	readonly onConfirmSource: () => void;
 	readonly onRefreshAgent: () => void;
+	readonly onOpenAgents?: () => void;
 }) {
 	const label = COPY.blockers[blocker.code];
 	const taskId = blocker.taskIds[0];
-	let action: { readonly label: string; readonly onClick: () => void } | null = null;
+	let action: {
+		readonly label: string;
+		readonly onClick: () => void;
+		readonly requiresControl?: boolean;
+	} | null = null;
 	if (
 		blocker.code === 'gate_waiting' ||
 		blocker.code === 'task_failed' ||
@@ -389,11 +426,19 @@ function BlockerRow({
 		(blocker.code === 'wrapup_manual' || blocker.code === 'wrapup_attention') &&
 		blocker.batchId
 	) {
-		action = { label: COPY.openWrapup, onClick: () => onWrapup(blocker.batchId as string) };
+		action = {
+			label: COPY.openWrapup,
+			onClick: () => onWrapup(blocker.batchId as string),
+			requiresControl: true,
+		};
 	} else if (blocker.code === 'source_unreadable' || blocker.code === 'doc_changed') {
-		action = { label: COPY.confirmSource, onClick: onConfirmSource };
+		action = { label: COPY.confirmSource, onClick: onConfirmSource, requiresControl: true };
 	} else if (blocker.code === 'agent_unavailable') {
-		action = { label: COPY.refreshAgent, onClick: onRefreshAgent };
+		action = {
+			label: onOpenAgents ? COPY.openAgentSettings : COPY.refreshAgent,
+			onClick: onOpenAgents ?? onRefreshAgent,
+			requiresControl: !onOpenAgents,
+		};
 	} else if (blocker.code === 'legacy_batches_active' && blocker.batchId) {
 		action = { label: COPY.openBatch, onClick: () => onOpenBatch(blocker.batchId as string) };
 	}
@@ -408,7 +453,7 @@ function BlockerRow({
 				<button
 					type="button"
 					data-blocker-action={blocker.code}
-					disabled={disabled}
+					disabled={action.requiresControl === true && disabled}
 					onClick={action.onClick}
 					className={`${height} rounded-sm border border-border px-3 text-ink-1 disabled:opacity-50`}
 				>

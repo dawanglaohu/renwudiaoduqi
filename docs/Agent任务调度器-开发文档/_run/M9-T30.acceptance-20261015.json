@@ -7,7 +7,7 @@
     "oldIndependentProbes": "3 passed",
     "permanentUIRace": "11 passed",
     "selectedDocumentLanes": "1 passed",
-    "executionControls": "9 passed",
+    "executionControls": "12 passed",
     "selectedDocumentLanesAndActiveEntry": "2 passed",
     "entrySupplement": "39 passed across5 files; fresh document selection, lost HTTP response, blocker handling included"
   },
@@ -34,10 +34,11 @@
       "after": "positive auto/explicit rail left10 passes; detached left40 remains D2/D6 fail"
     },
     "entrySupplement": {
-      "result": "39 passed",
+      "result": "42 passed across5 files",
       "typescript": "pass",
       "architecture": "0 violations",
-      "redBeforeFix": "3 regressions failed before repair"
+      "redBeforeFix": "3 regressions failed before repair",
+      "navigationRedBeforeFix": "3 additional UI navigation regressions failed before repair"
     }
   },
   "browser": {

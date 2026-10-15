@@ -158,6 +158,7 @@ export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamL
 }
 
 interface RemoteDeckData {
+	readonly lanesDocId?: string | null;
 	readonly lanes: readonly DeckStreamLane[];
 	readonly batches: readonly BatchTreeItem[];
 	readonly error: string | null;
@@ -280,6 +281,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				// A login probe can finish while the other deck reads are still pending.
 				const gates = gatesRef.current;
 				setRemote({
+					lanesDocId: requestedDocId,
 					lanes: buildDeckLanes({
 						lanes: fetchedLanes,
 						// 快照里的运行没有 capabilities，能力位取 GET /runs 的那一份（E-117）
@@ -305,6 +307,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 			} catch (cause: unknown) {
 				if (!canPublishDocument()) return;
 				setRemote({
+					lanesDocId: requestedDocId,
 					lanes: Object.freeze([]) as readonly DeckStreamLane[],
 					batches: Object.freeze([]) as readonly BatchTreeItem[],
 					rawTasks: [],
@@ -447,8 +450,32 @@ export function RunDeckContainer(props: RunDeckProps) {
 		navigateTo(`#/run/${runId}`);
 	}, []);
 
-	const lanes = hasLocalLanes ? props.lanes : remote.lanes;
-	const batches = hasLocalBatches ? (props.batches as readonly BatchTreeItem[]) : remote.batches;
+	const lanesCurrent = remote.lanesDocId === selectedDocId;
+	const lanes = hasLocalLanes ? props.lanes : lanesCurrent ? remote.lanes : [];
+	const availableBatches = hasLocalBatches
+		? (props.batches as readonly BatchTreeItem[])
+		: remote.batches;
+	const batches = selectedDocId
+		? availableBatches.filter((batch) => !batch.docId || batch.docId === selectedDocId)
+		: availableBatches;
+	const tasks = selectedDocId
+		? remote.rawTasks?.filter((task) => task.docId === selectedDocId)
+		: remote.rawTasks;
+	const taskIds = new Set(tasks?.map((task) => task.id));
+	const batchIds = new Set(batches.map((batch) => batch.id));
+	const runs = selectedDocId
+		? remote.rawRuns?.filter(
+				(run) =>
+					(run.taskId && taskIds.has(run.taskId)) || (run.batchId && batchIds.has(run.batchId)),
+			)
+		: remote.rawRuns;
+	const runIds = new Set(runs?.map((run) => run.id));
+	const gates = selectedDocId
+		? remote.gates?.filter(
+				(gate) =>
+					(gate.taskId && taskIds.has(gate.taskId)) || (gate.runId && runIds.has(gate.runId)),
+			)
+		: remote.gates;
 	// The page passes no local lanes. Navigation and density must follow the fetched snapshot.
 	const deckState = useRunDeck({ ...props, lanes });
 
@@ -462,11 +489,11 @@ export function RunDeckContainer(props: RunDeckProps) {
 				lanes={lanes}
 				batches={batches}
 				error={remote.error ?? gateError}
-				tasks={remote.rawTasks}
-				runs={remote.rawRuns}
-				rawLanes={remote.rawLanes}
+				tasks={tasks}
+				runs={runs}
+				rawLanes={lanesCurrent ? remote.rawLanes : undefined}
 				wrapups={remote.wrapups}
-				gates={remote.gates}
+				gates={gates}
 				onSelectTask={props.onSelectTask}
 				toolbarSlot={props.toolbarSlot}
 				className={props.className}

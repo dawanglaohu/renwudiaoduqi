@@ -470,3 +470,102 @@ it('opens the batch when awaiting-landing has no task IDs', async () => {
 		await view.unmount();
 	}
 });
+
+it('keeps document switching available during an active plan without starting another document', async () => {
+	const api = client({
+		listDocuments: async () => ({
+			documents: [
+				documentDto(),
+				documentDto({ id: 'doc-2', projectName: 'Second', contentFingerprint: 'fp-2' }),
+			],
+		}),
+		getExecution: async (id) => ({
+			execution: execution({
+				docId: id,
+				state: id === 'doc-1' ? 'running' : 'idle',
+				version: id === 'doc-1' ? 3 : 0,
+				canStart: id === 'doc-2',
+				canPause: id === 'doc-1',
+				defaultAssignment:
+					id === 'doc-1' ? { agentId: 'agent-a', modelName: null, effort: null } : null,
+			}),
+		}),
+	});
+	const view = await render(createElement(DocumentExecutionContainer, { client: api }));
+	try {
+		await flush();
+		const picker = view.container.querySelector<HTMLSelectElement>(
+			'[data-testid="document-execution-document"]',
+		);
+		expect(picker).not.toBeNull();
+		expect(picker?.disabled).toBe(false);
+		await act(async () => {
+			if (picker) {
+				picker.value = 'doc-2';
+				picker.dispatchEvent(new Event('change', { bubbles: true }));
+			}
+		});
+		await flush();
+		expect(useSelectionStore.getState().selectedDocId).toBe('doc-2');
+		expect(view.container.querySelector('[data-execution-state="idle"]')).not.toBeNull();
+		expect(api.start).not.toHaveBeenCalled();
+	} finally {
+		await view.unmount();
+	}
+});
+it('keeps a read-only landing entry available while disconnected', async () => {
+	useConnectionStore.getState().setStatus('offline');
+	const api = client({
+		getExecution: async () => ({
+			execution: execution({
+				state: 'running',
+				canStart: false,
+				canPause: true,
+				blockers: [{ code: 'awaiting_landing', batchId: 'batch-1', taskIds: ['task-1'] }],
+			}),
+		}),
+	});
+	const view = await render(createElement(DocumentExecutionContainer, { client: api }));
+	try {
+		await flush();
+		const action = view.container.querySelector<HTMLButtonElement>(
+			'[data-blocker-action="awaiting_landing"]',
+		);
+		expect(action?.disabled).toBe(false);
+	} finally {
+		await view.unmount();
+	}
+});
+it('opens the existing registry instead of probing a default agent that may not own the blocker', async () => {
+	const previousHash = window.location.hash;
+	const api = client({
+		getExecution: async () => ({
+			execution: execution({
+				state: 'running',
+				canStart: false,
+				canPause: true,
+				defaultAssignment: { agentId: 'agent-a', modelName: null, effort: null },
+				blockers: [{ code: 'agent_unavailable', batchId: 'batch-1', taskIds: ['override-task'] }],
+			}),
+		}),
+	});
+	const view = await render(createElement(DocumentExecutionContainer, { client: api }));
+	try {
+		await flush();
+		await act(async () =>
+			view.container.querySelector<HTMLButtonElement>('[data-action="refresh-agent"]')?.click(),
+		);
+		expect(window.location.hash).toBe('#/settings/agents');
+		expect(api.probeAgent).not.toHaveBeenCalled();
+		await act(async () =>
+			view.container
+				.querySelector<HTMLButtonElement>('[data-blocker-action="agent_unavailable"]')
+				?.click(),
+		);
+		expect(window.location.hash).toBe('#/settings/agents');
+		expect(api.probeAgent).not.toHaveBeenCalled();
+	} finally {
+		await view.unmount();
+		window.location.hash = previousHash;
+	}
+});

@@ -3,7 +3,7 @@
  */
 
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
-import { navigateTo } from '../../app/routes.tsx';
+import { ROUTE_PATHS, navigateTo } from '../../app/routes.tsx';
 import type { BatchTreeItem } from '../../components/batch-tree.tsx';
 import { DocumentExecutionControls } from '../../components/document-execution-controls.tsx';
 import { useSelectionStore } from '../../store/selection-store.ts';
@@ -40,6 +40,14 @@ export function DocumentExecutionContainer({
 		<div data-component="document-execution-container" className="flex min-w-0 flex-col gap-3">
 			<DocumentExecutionControls
 				docId={docId}
+				documents={model.documents}
+				onDocumentId={(id) => {
+					const selection = useSelectionStore.getState();
+					if (selection.selectedDocId === id) return;
+					selection.setSelectedDocId(id);
+					selection.setSelectedBatchId(null);
+				}}
+				onOpenAgents={() => navigateTo(ROUTE_PATHS.settingsAgents)}
 				execution={model.execution}
 				assignment={model.assignment}
 				agents={model.agents}

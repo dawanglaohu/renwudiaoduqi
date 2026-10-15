@@ -118,5 +118,63 @@
         "output_tokens": 108
       }
     }
+  },
+  {
+    "state": {
+      "requirement": "M9-T30 must show daemon-owned blocker causes and provide the existing Agent refresh entry. Assignment precedence and effective Agent ownership are daemon business logic; the UI must not infer which Agent owns a task. Default assignment and task overrides may use different registered Agents. Keep work inside M9 frontend scope.",
+      "task": {
+        "title": "M9-T30 unavailable-Agent handling entry",
+        "accept": "A legal unavailable-Agent plan remains running and shows its reason; the user can reach a refresh entry for the actual unavailable Agent without silently replacing it."
+      },
+      "conflict": "DocumentExecutionBlocker has only code, batchId and taskIds; no agentId. Current refreshAgent always probes the document default Agent, which can be healthy while a local task override owns the actual agent_unavailable blocker. ModelPicker refresh still needs to refresh the selected default catalog.",
+      "options": {
+        "A": "Keep ModelPicker refresh for the selected default Agent, but make the unavailable-Agent blocker and extra handling action explicitly navigate to the existing Agent settings/registry page, with an accurate label. That existing page exposes per-Agent refresh and availability. Read-only navigation remains available offline; no new DTO or frontend assignment inference.",
+        "B": "Keep the blocker action as a real refresh operation but probe all currently registered Agents with all-settled error handling, then refresh registry state; do not infer assignment priority. Keep selected-model catalog refresh separate and keep writes disabled offline."
+      }
+    },
+    "judgment": {
+      "status": "ok",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "key_source": "C:/Users/admin/.typesafe/.env",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.96,
+          "band": "high",
+          "probabilities": {
+            "A": 0.98,
+            "B": 0.02
+          }
+        },
+        "spec_change": {
+          "p": 0.2,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.16,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.07,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.79,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "line": "adjudicate: pick=A(high 0.96) spec_change=no(0.20) outside_stack=no(0.16) needs_owner=no(0.07) reversible=yes(0.79) adopt=take(A)",
+      "usage": {
+        "input_tokens": 997,
+        "output_tokens": 101
+      }
+    }
   }
 ]
