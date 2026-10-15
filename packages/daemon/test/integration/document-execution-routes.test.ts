@@ -6,6 +6,7 @@ import {
 	mkdtempSync,
 	readFileSync,
 	readdirSync,
+	realpathSync,
 	rmSync,
 	writeFileSync,
 } from 'node:fs';
@@ -64,7 +65,8 @@ async function setup(
 		readonly withImplementationProcess?: boolean;
 	} = {},
 ) {
-	const folder = mkdtempSync(join(tmpdir(), 'agsched-document-plan-'));
+	const createdFolder = mkdtempSync(join(tmpdir(), 'agsched-document-plan-'));
+	const folder = options.ownedWrapup ? realpathSync.native(createdFolder) : createdFolder;
 	folders.push(folder);
 	const workspaceRepoPath = options.ownedWrapup ? join(folder, 'owned-repo') : root;
 	if (options.ownedWrapup) {
@@ -2144,7 +2146,10 @@ describe('M8-T12 document execution through the real container', () => {
 					cwd: env.workspaceRepoPath,
 					encoding: 'utf8',
 				}).trim();
-				expect(listing.includes(allocation.worktreePath.replaceAll('\\', '/'))).toBe(!reclaimed);
+				expect(
+					listing.includes(allocation.worktreePath.replaceAll('\\', '/')),
+					JSON.stringify({ expectedPath: allocation.worktreePath, listing }),
+				).toBe(!reclaimed);
 				expect(existsSync(allocation.worktreePath)).toBe(!reclaimed);
 				expect(branch.length > 0).toBe(!reclaimed);
 				expect(env.getCleanupAttempts()).toBe(

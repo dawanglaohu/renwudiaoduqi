@@ -1,0 +1,3 @@
+pnpm exec tsc -b --noEmit
+exitCode: 0 (asserted by the command chain before the6-test run)
+No diagnostics.

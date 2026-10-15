@@ -10,7 +10,7 @@
     "packages/daemon/src/service/document-execution.ts": "d63e49bd6d0e30864e270a469aedcfd98d1ca4d082c0ee7964a2dc662ee39f7f",
     "packages/daemon/src/service/wrapup.ts": "41dd3f0bf1b01a0930493b3cbb135b30230e2821f473f2fa1e07c9ba1b925008",
     "packages/daemon/src/workspace/worktree.ts": "da11315602730616314221fa14020ed7640139f8be0bd48315893c1438b51dd3",
-    "packages/daemon/test/integration/document-execution-routes.test.ts": "a38e4c8cee06dd2adb60aac851fa41aa35a1aa5ca8d4013c1939bd05cace1d24",
+    "packages/daemon/test/integration/document-execution-routes.test.ts": "76d4504847fdef74b30367015b422f17c84bf8e50908fccb1b207e4f48b81acb",
     "packages/daemon/test/unit/landing.test.ts": "510c114c50c85d5133462a43507ac85eea9c003217bfccda92e0172a73e0ab96",
     "packages/daemon/test/unit/worktree.test.ts": "a6f731056b8fad9ecbfb6b04acabfe06f8a1fc7deb6ec22f3d59f320f4db3b54"
   },
@@ -98,6 +98,36 @@
       "artifact": "_run/evidence/batch-19-20261014/windows-ci-38682310123.txt",
       "artifactSha256": "46751eff9fbf1c0bda71de208a6eee4744a97b8d9432260ccb519563ddbbc13d",
       "artifactWorkingCopySha256": "88d91ce9f0c5f7a18e83307f1ee72a3a06f220b60333cdfa789ffa572bf06500"
+    },
+    "red-ci-path-alias.log": {
+      "originalSha256": "737d3fd806296377c13c780ca7abd807e973b153aa29fb1f96570cd0e049a950",
+      "artifact": "_run/evidence/batch-19-20261014/red-ci-path-alias.txt",
+      "artifactSha256": "b337af13021574a516d7ec40dc0513822190f228f8c82d0023bf59ae5ebd7bf6",
+      "artifactWorkingCopySha256": "f6ef800505d98946d4473979035828a22da4ca15e0351b561fbefa73e637d22b"
+    },
+    "green-ci-path-alias.log": {
+      "originalSha256": "e73131c4df7a9167beceb39eb663f0f3b24a65634101f07630fe0bfcd6b6d56d",
+      "artifact": "_run/evidence/batch-19-20261014/green-ci-path-alias.txt",
+      "artifactSha256": "527ba88545e552ecb369dc7e4d41260575283c45479a59dd3a386ea880d5527c",
+      "artifactWorkingCopySha256": "ced8b25a2de9a4edb878c37233b2244e9c5df7a5b0bf2acafd58bc15eac39c06"
+    },
+    "ci-path-alias-biome.log": {
+      "originalSha256": "c114dccd0d798dc1668e4817ec913238a8ce933852709f02dc4fbab18cce241b",
+      "artifact": "_run/evidence/batch-19-20261014/ci-path-alias-biome.txt",
+      "artifactSha256": "eef251428fd50bb9d9950d354d999ac40d0ba2a79d8ea571019f00cb03b5a37d",
+      "artifactWorkingCopySha256": "bb3fc0a06dd04850ce1ad15ddfa5ffc41ebe8df9a6440081d042ba849da28336"
+    },
+    "ci-path-alias-typecheck.log": {
+      "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": "_run/evidence/batch-19-20261014/ci-path-alias-typecheck.txt",
+      "artifactSha256": "389ea809e13e35249a29708214575362e3b8a714cced96a4059e043fcd62f37b",
+      "artifactWorkingCopySha256": "c7635dda62269f362999b1e5ddfc0c7439cc6802164edd3d155eceb034c701a0"
+    },
+    "windows-ci-38685874146": {
+      "originalSha256": "5ca3280b3f3eed2c9f82ecd79fc4d176f5017048af77266875a35201e97f4256",
+      "artifact": "_run/evidence/batch-19-20261014/windows-ci-38685874146.txt",
+      "artifactSha256": "8ca06e89727ae51de227a527ee723e7c6173a7226892e37c558cbd63ca5b87cc",
+      "artifactWorkingCopySha256": "86dee9b13e82de18dafdcc4e6f3177d3f552bde6ae089710ec7124c6c63f3fbf"
     }
   },
   "check": {
@@ -1792,18 +1822,18 @@
           }
         }
       },
-      "action": "夹具显式传隔离 home 与真实 Path/PATH，使用生产默认 runner；受理结果竞速直接抛提前异常；六态与 60 秒期限保留，红绿复验通过。",
+      "action": "夹具显式传隔离 home 与真实 Path/PATH，临时根解析物理路径；生产 runner、六态三项资源断言和 60 秒期限不变，原始提前异常直接抛；真实 PATH 缺失及 junction 别名均有红绿证据。",
       "status": "ok",
       "model": "jev-1.13.0",
-      "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.07) outside_stack=no(0.15) needs_owner=no(0.06) reversible=yes(0.74) adopt=take(A)",
+      "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.07) outside_stack=no(0.13) needs_owner=no(0.05) reversible=yes(0.79) adopt=take(A)",
       "verdicts": {
         "pick": {
           "choice": "A",
-          "confidence": 0.98,
+          "confidence": 1.0,
           "band": "high",
           "probabilities": {
-            "A": 0.99,
-            "B": 0.01,
+            "A": 1.0,
+            "B": 0.0,
             "C": 0.0
           }
         },
@@ -1812,15 +1842,15 @@
           "verdict": "no"
         },
         "outside_stack": {
-          "p": 0.15,
+          "p": 0.13,
           "verdict": "no"
         },
         "needs_owner": {
-          "p": 0.06,
+          "p": 0.05,
           "verdict": "no"
         },
         "reversible": {
-          "p": 0.74,
+          "p": 0.79,
           "verdict": "yes"
         },
         "adopt": {
@@ -1831,7 +1861,46 @@
         }
       },
       "finalReviewFacts": {
-        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate."
+        "final_fixture_review": "The seven runtime/source files remain unchanged from the previously passing 3313-test Windows complete check. Windows CI on old head73a84a6 passed3306/skipped4 but six new allocation fixtures timed out; macOS/Linux desktop and original Ubuntu E2E/settings/pairing passed. A second bounded independent review established a fixture-only omission: the standalone ownedManager lacked hostInputs.pathEnv. Local Windows found a user-home git.cmd shim while CI only had Program Files/Git; Linux has fixed /usr/bin fallback. A real Windows reproduction with the same isolated fresh homedir and omitted PATH gives six immediate E_NOT_A_GIT_REPO -> E_WORKSPACE_UNAVAILABLE failures in19.96s despite real Git CLI init/commit succeeding. The fixture now passes real Path/PATH through normal manager hostInputs, uses the unchanged production default runner, and races its allocation notification with the real trigger outcome so preparation failures are thrown. All six ownership assertions and the60000ms limit remain unchanged. Production container already supplies the correct host input, so no production scope expansion occurred. The second independent review has closed both fixture blockers with VERDICT PASS. Final exact-head CI remains a mandatory merge gate.",
+        "actual_path_alias_followup": "After PATH repair, the next exact-head Windows CI reaches real allocation and two reclaimed cases pass; four preserved cases fail only the raw path-string registration assertion. A task-local real NTFS junction used as child TEMP reproduces exactly4 failed/2 passed in27.92s. The diagnostic prints expected alias path and Git listing of the same physical real path; no fixture/mock filesystem or altered assertion is used. Canonicalizing only the owned-wrapup fixture temporary root with fs.realpathSync.native makes all6 cases pass in28.10s under the same alias, with real production runner, directory/registration/branch checks and60000ms deadline unchanged. Other80 document tests keep their old temporary-root behavior, and no runtime code changed. Biome and TypeScript pass. A path/listing diagnostic message is retained for future actual failures. This remains the original bounded fixture-diagnosis optionA, and final exact-head CI and fresh native evidence are still required before merge."
+      },
+      "previousPathReview": {
+        "model": "jev-1.13.0",
+        "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.07) outside_stack=no(0.15) needs_owner=no(0.06) reversible=yes(0.74) adopt=take(A)",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.98,
+            "band": "high",
+            "probabilities": {
+              "A": 0.99,
+              "B": 0.01,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.07,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.15,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.06,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.74,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        }
       }
     }
   ],
@@ -1916,7 +1985,7 @@
     "packages/daemon/src/service/document-execution.ts": "a2c269bda46f9cd40f2d55459a2a8d24e951b13e",
     "packages/daemon/src/service/wrapup.ts": "ff87113113e749180626bc4df694c94c8f6c5e7d",
     "packages/daemon/src/workspace/worktree.ts": "2aaf2995aeb085a81d2610ea60cb9a227be1c629",
-    "packages/daemon/test/integration/document-execution-routes.test.ts": "7c9e7d3c809836921851a6b01e95bcb40814160c",
+    "packages/daemon/test/integration/document-execution-routes.test.ts": "3b56e062311c9321689c6595cb3a88cfddc3f691",
     "packages/daemon/test/unit/landing.test.ts": "6bd9b7a3df7d391fe78938a76665aa00dd0e1577",
     "packages/daemon/test/unit/worktree.test.ts": "897b6c85790ac27e9d6d9b92396ab6118f9eeb71"
   },
@@ -1956,6 +2025,24 @@
       "60000ms deadline",
       "all runtime source files"
     ],
-    "independentReview": "second bounded review original blockers closed; VERDICT PASS; exact-head final CI remains required"
+    "independentReview": "second bounded review original blockers closed; VERDICT PASS; exact-head final CI remains required",
+    "pathAlias": {
+      "secondFailedCi": 38685874146,
+      "oldHead": "32ffc7f8081234fe60b70dfcaa6ecee4eee82768",
+      "ciFailedCases": 4,
+      "localRealJunctionRed": {
+        "failed": 4,
+        "passed": 2,
+        "durationSeconds": 27.92
+      },
+      "sameAliasGreen": {
+        "passed": 6,
+        "filtered": 80,
+        "durationSeconds": 28.1
+      },
+      "fix": "Only owned-wrapup fixture temporary roots use fs.realpathSync.native; real runner and all assertions/deadlines unchanged",
+      "newDiagnostic": "Failure message includes actual expected path and complete Git registration listing",
+      "inferenceLimit": "The second CI log itself reports only false/true; equivalent-path behavior is directly reproduced with the real NTFS junction."
+    }
   }
 }

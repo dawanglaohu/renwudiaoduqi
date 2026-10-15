@@ -1,0 +1,146 @@
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+ RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-19
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_9a63596277c8, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_5b1a943071cb, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_614cdf8aa73a, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+[E-296] Document did not provide matching dispatchBatches for batch req_d701c9403258, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+[daemon] Could not reclaim an unadmitted wrapup worktree. Path: D:\xiangmu\.codex-plans\agent-scheduler-batch-19\round2\ci-path-probe-alias\agsched-document-plan-bpH7Nh\owned-wrapup; branch: wrapup/owned-1
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_5ff14268b51e, falling back to builtin wrapup prompt
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+[daemon] Could not reclaim an unadmitted wrapup worktree. Path: D:\xiangmu\.codex-plans\agent-scheduler-batch-19\round2\ci-path-probe-alias\agsched-document-plan-JiYSDD\owned-wrapup; branch: wrapup/owned-1
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+[E-296] Document did not provide matching dispatchBatches for batch req_3ede25c94773, falling back to builtin wrapup prompt
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts (86 tests | 4 failed | 80 skipped) 23719ms
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=false) 4583ms
+   ✓ M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('source'/'fresh'/dirty=false) 4100ms
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false) 3683ms
+     → {"expectedPath":"D:\\xiangmu\\.codex-plans\\agent-scheduler-batch-19\\round2\\ci-path-probe-alias\\agsched-document-plan-BUHPd3\\owned-wrapup","listing":"worktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-BUHPd3/owned-repo\nHEAD 72ff8b910b7dedb3bc60258bc0da76b95eb565ba\nbranch refs/heads/master\n\nworktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-BUHPd3/owned-wrapup\nHEAD 72ff8b910b7dedb3bc60258bc0da76b95eb565ba\nbranch refs/heads/wrapup/owned-1\n\n"}: expected false to be true // Object.is equality
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true) 3770ms
+     → {"expectedPath":"D:\\xiangmu\\.codex-plans\\agent-scheduler-batch-19\\round2\\ci-path-probe-alias\\agsched-document-plan-bpH7Nh\\owned-wrapup","listing":"worktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-bpH7Nh/owned-repo\nHEAD 2e79641e116716cec952c8fb0909da6be681ea0a\nbranch refs/heads/master\n\nworktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-bpH7Nh/owned-wrapup\nHEAD 2e79641e116716cec952c8fb0909da6be681ea0a\nbranch refs/heads/wrapup/owned-1\n\n"}: expected false to be true // Object.is equality
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false) 3845ms
+     → {"expectedPath":"D:\\xiangmu\\.codex-plans\\agent-scheduler-batch-19\\round2\\ci-path-probe-alias\\agsched-document-plan-JiYSDD\\owned-wrapup","listing":"worktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-JiYSDD/owned-repo\nHEAD e1131c300cb608b230288a3ba80e2cf8236f3d88\nbranch refs/heads/master\n\nworktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-JiYSDD/owned-wrapup\nHEAD e1131c300cb608b230288a3ba80e2cf8236f3d88\nbranch refs/heads/wrapup/owned-1\n\n"}: expected false to be true // Object.is equality
+   × M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false) 3736ms
+     → {"expectedPath":"D:\\xiangmu\\.codex-plans\\agent-scheduler-batch-19\\round2\\ci-path-probe-alias\\agsched-document-plan-2wkTGV\\owned-wrapup","listing":"worktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-2wkTGV/owned-repo\nHEAD c1a4813c52525e934d48a261b9567f6a6b889750\nbranch refs/heads/master\n\nworktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-2wkTGV/owned-wrapup\nHEAD c1a4813c52525e934d48a261b9567f6a6b889750\nbranch refs/heads/wrapup/owned-1\n\n"}: expected false to be true // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'reused'/dirty=false)
+AssertionError: {"expectedPath":"D:\\xiangmu\\.codex-plans\\agent-scheduler-batch-19\\round2\\ci-path-probe-alias\\agsched-document-plan-BUHPd3\\owned-wrapup","listing":"worktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-BUHPd3/owned-repo\nHEAD 72ff8b910b7dedb3bc60258bc0da76b95eb565ba\nbranch refs/heads/master\n\nworktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-BUHPd3/owned-wrapup\nHEAD 72ff8b910b7dedb3bc60258bc0da76b95eb565ba\nbranch refs/heads/wrapup/owned-1\n\n"}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts:2150:7
+    2148|      listing.includes(allocation.worktreePath.replaceAll('\\', '/')),
+    2149|      JSON.stringify({ expectedPath: allocation.worktreePath, listing }…
+    2150|     ).toBe(!reclaimed);
+       |       ^
+    2151|     expect(existsSync(allocation.worktreePath)).toBe(!reclaimed);
+    2152|     expect(branch.length > 0).toBe(!reclaimed);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'fresh'/dirty=true)
+AssertionError: {"expectedPath":"D:\\xiangmu\\.codex-plans\\agent-scheduler-batch-19\\round2\\ci-path-probe-alias\\agsched-document-plan-bpH7Nh\\owned-wrapup","listing":"worktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-bpH7Nh/owned-repo\nHEAD 2e79641e116716cec952c8fb0909da6be681ea0a\nbranch refs/heads/master\n\nworktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-bpH7Nh/owned-wrapup\nHEAD 2e79641e116716cec952c8fb0909da6be681ea0a\nbranch refs/heads/wrapup/owned-1\n\n"}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts:2150:7
+    2148|      listing.includes(allocation.worktreePath.replaceAll('\\', '/')),
+    2149|      JSON.stringify({ expectedPath: allocation.worktreePath, listing }…
+    2150|     ).toBe(!reclaimed);
+       |       ^
+    2151|     expect(existsSync(allocation.worktreePath)).toBe(!reclaimed);
+    2152|     expect(branch.length > 0).toBe(!reclaimed);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('pause'/'cleanup_failure'/dirty=false)
+AssertionError: {"expectedPath":"D:\\xiangmu\\.codex-plans\\agent-scheduler-batch-19\\round2\\ci-path-probe-alias\\agsched-document-plan-JiYSDD\\owned-wrapup","listing":"worktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-JiYSDD/owned-repo\nHEAD e1131c300cb608b230288a3ba80e2cf8236f3d88\nbranch refs/heads/master\n\nworktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-JiYSDD/owned-wrapup\nHEAD e1131c300cb608b230288a3ba80e2cf8236f3d88\nbranch refs/heads/wrapup/owned-1\n\n"}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts:2150:7
+    2148|      listing.includes(allocation.worktreePath.replaceAll('\\', '/')),
+    2149|      JSON.stringify({ expectedPath: allocation.worktreePath, listing }…
+    2150|     ).toBe(!reclaimed);
+       |       ^
+    2151|     expect(existsSync(allocation.worktreePath)).toBe(!reclaimed);
+    2152|     expect(branch.length > 0).toBe(!reclaimed);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-367/E-369: real Git wrapup allocation has durable ownership ('accepted'/'fresh'/dirty=false)
+AssertionError: {"expectedPath":"D:\\xiangmu\\.codex-plans\\agent-scheduler-batch-19\\round2\\ci-path-probe-alias\\agsched-document-plan-2wkTGV\\owned-wrapup","listing":"worktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-2wkTGV/owned-repo\nHEAD c1a4813c52525e934d48a261b9567f6a6b889750\nbranch refs/heads/master\n\nworktree D:/xiangmu/.codex-plans/agent-scheduler-batch-19/round2/ci-path-probe-real/agsched-document-plan-2wkTGV/owned-wrapup\nHEAD c1a4813c52525e934d48a261b9567f6a6b889750\nbranch refs/heads/wrapup/owned-1\n\n"}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts:2150:7
+    2148|      listing.includes(allocation.worktreePath.replaceAll('\\', '/')),
+    2149|      JSON.stringify({ expectedPath: allocation.worktreePath, listing }…
+    2150|     ).toBe(!reclaimed);
+       |       ^
+    2151|     expect(existsSync(allocation.worktreePath)).toBe(!reclaimed);
+    2152|     expect(branch.length > 0).toBe(!reclaimed);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 2 passed | 80 skipped (86)
+   Start at  22:29:09
+   Duration  27.92s (transform 2.30s, setup 0ms, collect 3.63s, tests 23.72s, environment 0ms, prepare 172ms)
