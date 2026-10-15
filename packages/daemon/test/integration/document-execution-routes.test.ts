@@ -3846,6 +3846,76 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('E-364: reports a real run review gate without a manual task override', async () => {
+		const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+		const { server, container, headers, docId, getSpawnedRuns } = env;
+		try {
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			const batch = container.repos.batches.listByDocId(docId)[0];
+			expect(task).toBeDefined();
+			expect(batch).toBeDefined();
+			if (!task || !batch) throw new Error('Document members missing');
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			await container.services.dispatch.tick();
+			await vi.waitFor(() => expect(getSpawnedRuns()).toHaveLength(1));
+			const runId = getSpawnedRuns()[0];
+			if (!runId) throw new Error('Implementation run missing');
+			for (const targetState of ['exited', 'reviewing', 'awaiting_human'] as const) {
+				await container.services.run.transitionState({
+					runId,
+					targetState,
+					reason: 'review_gate',
+				});
+			}
+			await container.services.gates.createWaitingGate({
+				taskId: task.id,
+				runId,
+				kind: 'review',
+			});
+			expect(container.repos.tasks.findById(task.id)?.manual_state).toBeNull();
+			const expected = { code: 'gate_waiting', batchId: batch.id, taskIds: [task.id] };
+			const execution = await server.instance.inject({
+				method: 'GET',
+				url: `/api/v1/documents/${docId}/execution`,
+				headers,
+			});
+			expect(execution.json().execution.blockers).toContainEqual(expected);
+			const snapshot = await server.instance.inject({
+				method: 'GET',
+				url: '/api/v1/snapshot',
+				headers,
+			});
+			expect(
+				snapshot.json().documentExecutions.find((row: { docId: string }) => row.docId === docId)
+					.blockers,
+			).toContainEqual(expected);
+			const previous = container.repos.runs.findById(runId);
+			if (!previous) throw new Error('Implementation run missing');
+			container.repos.runs.insert({
+				...previous,
+				id: `${runId}-newer`,
+				idempotency_key: null,
+				attempt_no: previous.attempt_no + 1,
+				state: 'running',
+			});
+			expect(container.services.documentExecution.get(docId).execution.blockers).not.toContainEqual(
+				expected,
+			);
+		} finally {
+			await server.instance.close();
+		}
+	});
+
 	it('E-364: a current pre-dispatch human gate stays visible without a run', async () => {
 		const { server, container, headers, docId } = await setup({ canDispatch: () => true });
 		const task = container.repos.tasks.listByDocId(docId)[0];

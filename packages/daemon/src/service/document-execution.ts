@@ -10,7 +10,7 @@ import type {
 	StartDocumentExecutionBody,
 } from '@agent-scheduler/shared/api/document-execution';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
-import { summarizeBatchLanding } from '../domain/batch-landing.ts';
+import { latestImplementationRunByTaskId, summarizeBatchLanding } from '../domain/batch-landing.ts';
 import {
 	type DocumentPlan,
 	type DocumentPlanBatch,
@@ -487,9 +487,17 @@ export function createDocumentExecutionService(
 			blockers.push({ code: 'awaiting_landing', batchId: current?.batchId ?? null, taskIds: [] });
 		if (currentBatch?.state === 'needs_attention')
 			blockers.push({ code: 'wrapup_attention', batchId: current?.batchId ?? null, taskIds: [] });
-		const gateTasks = currentEvidence.tasks.filter(
-			(task) => task.manual_state === 'awaiting_human',
-		);
+		// 收口修复的人工闸门也需要处理入口，不能沿用落地计数忽略在途修复的口径。
+		const latestImplementations = latestImplementationRunByTaskId(currentEvidence.runs, {
+			ignoreWrapupFix: false,
+		});
+		const gateTasks = currentEvidence.tasks.filter((task) => {
+			const run = latestImplementations.get(task.id);
+			return (
+				task.manual_state === 'awaiting_human' ||
+				(run?.batch_id === task.batch_id && run.state === 'awaiting_human')
+			);
+		});
 		if (gateTasks.length)
 			blockers.push({
 				code: 'gate_waiting',
