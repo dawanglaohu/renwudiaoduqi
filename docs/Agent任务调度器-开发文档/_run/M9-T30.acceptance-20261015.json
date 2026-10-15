@@ -2,7 +2,7 @@
   "task": "M9-T30",
   "round": 2,
   "scope": "implementation-acceptance",
-  "reviewedFixCommit": "a05667df4f22a83b9fcd26ee095c3f0aaf155902",
+  "reviewedFixCommit": "6116f4d06a4fab78f46b3f62542571fb82376f49",
   "regressions": {
     "oldIndependentProbes": "3 passed",
     "permanentUIRace": "11 passed",
