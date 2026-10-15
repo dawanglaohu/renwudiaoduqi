@@ -100,6 +100,13 @@ export function publishDocumentExecutions(rows: readonly DocumentExecutionDto[])
 	for (const listener of snapshotListeners) listener(rows);
 }
 
+// 手机详情会卸掉执行面板，但甲板仍在。另端暂停必须清掉缓存，回到任务或运行流时重新读取。
+eventBus.subscribeMilestone((event) => {
+	if (event.kind === 'document.execution_changed' || event.kind === 'system.docs_changed') {
+		invalidateForEvent(event.kind);
+	}
+});
+
 export interface DocumentExecutionClient {
 	getExecution(docId: string): Promise<DocumentExecutionResponse>;
 	start(docId: string, body: StartDocumentExecutionBody): Promise<DocumentExecutionResponse>;
@@ -213,7 +220,15 @@ export function useDocumentExecution(
 	const loadSeq = useRef(0);
 	const eventSerial = useRef(0);
 	docIdRef.current = docId;
-	executionRef.current = execution;
+	if (execution === null) {
+		executionRef.current = null;
+	} else if (
+		executionRef.current === null ||
+		executionRef.current.docId !== execution.docId ||
+		execution.version >= executionRef.current.version
+	) {
+		executionRef.current = execution;
+	}
 
 	const assignment = useMemo<DocumentDefaultAssignment>(() => {
 		if (!docId) return EMPTY_ASSIGNMENT;
@@ -261,6 +276,7 @@ export function useDocumentExecution(
 	useEffect(() => {
 		requestSeq.current += 1;
 		pendingRef.current = false;
+		executionRef.current = null;
 		setPendingAction(null);
 		setError(null);
 		setExecution(null);
@@ -301,7 +317,10 @@ export function useDocumentExecution(
 			const match = rows.find((row) => row.docId === selected);
 			if (!match || !isExecutionDto(match)) return;
 			eventSerial.current += 1;
-			setExecution((current) => (shouldAdoptExecution(selected, current, match) ? match : current));
+			// 同一轮提交里，旧的 GET 会在这次 setState 刷新生效前读 ref。
+			if (!shouldAdoptExecution(selected, executionRef.current, match)) return;
+			executionRef.current = match;
+			setExecution(match);
 		};
 		snapshotListeners.add(onSnapshot);
 		const unsubscribe = eventBus.subscribeMilestone((event: EventEnvelope) => {
@@ -323,11 +342,9 @@ export function useDocumentExecution(
 				}
 				if (incoming.docId !== selected) return;
 				eventSerial.current += 1;
-				setExecution((current) => {
-					if (!shouldAdoptExecution(selected, current, incoming)) return current;
-					executionRef.current = incoming;
-					return incoming;
-				});
+				if (!shouldAdoptExecution(selected, executionRef.current, incoming)) return;
+				executionRef.current = incoming;
+				setExecution(incoming);
 				return;
 			}
 			void reload(selected).catch(() => undefined);
@@ -393,9 +410,10 @@ export function useDocumentExecution(
 				const incoming = readExecutionPayload({ execution: cause.details?.execution });
 				if (incoming) {
 					eventSerial.current += 1;
-					setExecution((current) =>
-						shouldAdoptExecution(observedDocId, current, incoming) ? incoming : current,
-					);
+					if (shouldAdoptExecution(observedDocId, executionRef.current, incoming)) {
+						executionRef.current = incoming;
+						setExecution(incoming);
+					}
 				}
 				setError(toPanelError(cause, UI_STRINGS.documentExecution.versionConflict));
 				invalidate(CACHE_KEYS.documentExecutions(observedDocId));
