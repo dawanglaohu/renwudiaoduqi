@@ -2,7 +2,6 @@
   "task": "M9-T30",
   "round": 2,
   "scope": "implementation-acceptance",
-  "reviewedFixCommit": "6116f4d06a4fab78f46b3f62542571fb82376f49",
   "regressions": {
     "oldIndependentProbes": "3 passed",
     "permanentUIRace": "11 passed",
@@ -34,7 +33,7 @@
       "after": "positive auto/explicit rail left10 passes; detached left40 remains D2/D6 fail"
     },
     "entrySupplement": {
-      "result": "42 passed across5 files",
+      "result": "42 passed across5 files after scoping identity repair",
       "typescript": "pass",
       "architecture": "0 violations",
       "redBeforeFix": "3 regressions failed before repair",
@@ -75,5 +74,13 @@
     "media": "PR #221正文的本轮GIF及精确提交来源，源视口1440x900。",
     "boundary": "Text-only native round proves this UI/control entry. Full native worktree writes, multi-batch completion, restart, dual-client and changed-membership acceptance remain M1-T12; M1-T12 is not landed."
   },
-  "adjudications": "_run/M9-T30.review-round2-adjudications.json"
+  "adjudications": "_run/M9-T30.review-round2-adjudications.json",
+  "reviewedSourceSha256": {
+    "packages/web/src/features/run-deck/run-deck-container.tsx": "072ce8650fc6351786b34be5b407f9d69da81a4f1f7b2e3d4c49d27528f44646",
+    "packages/web/src/features/run-deck/use-document-execution.ts": "cfa80759c80dcb41f0c914e73bedacd59c9f9c929ada10a9422bfe3f02498cda",
+    "packages/web/src/features/run-deck/document-execution-container.tsx": "be10dd6ea04df3cde3a1056d1f1f1ac888210389c4f7ac8bf0ba98e77b7559ab",
+    "packages/web/src/features/run-deck/run-deck-view.tsx": "3663cbcc2806ddee5f4b68fc96cddb473c9027dbb193ceab7cca17c7675de60d",
+    "packages/web/src/components/document-execution-controls.tsx": "e72df7b03d722637c9dfcd27582eed7d0884077bf2a2b8e9d6dcbc4b1264cecd",
+    "packages/web/src/i18n/ui-strings.ts": "67e6d79aff7742be57f75941f80914a867a4f8974a011107eaa1148eec5cc516"
+  }
 }

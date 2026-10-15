@@ -26,7 +26,7 @@ import { ROUTES, type RouteDefinition } from '@agent-scheduler/shared/api/routes
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { eventBus } from '../../api/event-bus.ts';
 import { httpClient } from '../../api/http-client.ts';
 import { fetchLanes, markLanesCacheInvalidated } from '../../api/lanes.ts';
@@ -451,31 +451,35 @@ export function RunDeckContainer(props: RunDeckProps) {
 	}, []);
 
 	const lanesCurrent = remote.lanesDocId === selectedDocId;
-	const lanes = hasLocalLanes ? props.lanes : lanesCurrent ? remote.lanes : [];
-	const availableBatches = hasLocalBatches
-		? (props.batches as readonly BatchTreeItem[])
-		: remote.batches;
-	const batches = selectedDocId
-		? availableBatches.filter((batch) => !batch.docId || batch.docId === selectedDocId)
-		: availableBatches;
-	const tasks = selectedDocId
-		? remote.rawTasks?.filter((task) => task.docId === selectedDocId)
-		: remote.rawTasks;
-	const taskIds = new Set(tasks?.map((task) => task.id));
-	const batchIds = new Set(batches.map((batch) => batch.id));
-	const runs = selectedDocId
-		? remote.rawRuns?.filter(
-				(run) =>
-					(run.taskId && taskIds.has(run.taskId)) || (run.batchId && batchIds.has(run.batchId)),
-			)
-		: remote.rawRuns;
-	const runIds = new Set(runs?.map((run) => run.id));
-	const gates = selectedDocId
-		? remote.gates?.filter(
-				(gate) =>
-					(gate.taskId && taskIds.has(gate.taskId)) || (gate.runId && runIds.has(gate.runId)),
-			)
-		: remote.gates;
+	const lanes = hasLocalLanes ? props.lanes : lanesCurrent ? remote.lanes : INITIAL_REMOTE.lanes;
+	const { batches, tasks, runs, gates } = useMemo(() => {
+		const availableBatches = hasLocalBatches
+			? (props.batches as readonly BatchTreeItem[])
+			: remote.batches;
+		const batches = selectedDocId
+			? availableBatches.filter((batch) => !batch.docId || batch.docId === selectedDocId)
+			: availableBatches;
+		const tasks = selectedDocId
+			? remote.rawTasks?.filter((task) => task.docId === selectedDocId)
+			: remote.rawTasks;
+		const taskIds = new Set(tasks?.map((task) => task.id));
+		const batchIds = new Set(batches.map((batch) => batch.id));
+		const runs = selectedDocId
+			? remote.rawRuns?.filter(
+					(run) =>
+						(run.taskId && taskIds.has(run.taskId)) || (run.batchId && batchIds.has(run.batchId)),
+				)
+			: remote.rawRuns;
+		const runIds = new Set(runs?.map((run) => run.id));
+		const gates = selectedDocId
+			? remote.gates?.filter(
+					(gate) =>
+						(gate.taskId && taskIds.has(gate.taskId)) || (gate.runId && runIds.has(gate.runId)),
+				)
+			: remote.gates;
+		return { batches, tasks, runs, gates };
+	}, [hasLocalBatches, props.batches, remote, selectedDocId]);
+
 	// The page passes no local lanes. Navigation and density must follow the fetched snapshot.
 	const deckState = useRunDeck({ ...props, lanes });
 
