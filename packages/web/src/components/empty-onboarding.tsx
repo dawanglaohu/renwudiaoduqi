@@ -14,6 +14,7 @@
  */
 
 import { type ReactNode, useState } from 'react';
+import { UI_STRINGS } from '../i18n/ui-strings.ts';
 
 /**
  * 文档选项数据模型。
@@ -67,6 +68,8 @@ export interface EmptyOnboardingProps {
 	readonly step3Summary?: string;
 	/** 步骤 4 槽位（正文由 M9-T18 扩展，本任务保留外壳与槽位） */
 	readonly step4Slot?: ReactNode;
+	/** 文档级开始、暂停与进度。导入后即显示，不占用单批派发按钮。 */
+	readonly documentExecutionSlot?: ReactNode;
 	/** 有效并行并发容量（读 daemon 下发字段，缺失显示「—」，严禁前端计算） */
 	readonly effectiveCapacity?: number | string | null;
 	/** 并行窗口数上限（读 daemon 下发字段，缺失显示「—」） */
@@ -173,6 +176,7 @@ export function EmptyOnboarding({
 	step3Slot,
 	step3Summary,
 	step4Slot,
+	documentExecutionSlot,
 	effectiveCapacity = null,
 	laneCount = null,
 	agentConcurrencyLimit = null,
@@ -322,6 +326,8 @@ export function EmptyOnboarding({
 					当前暂无活跃运行流。请按四步指引完成文档、批次与任务配置，直接进入多流监看工作台。
 				</p>
 			</header>
+
+			{documentExecutionSlot}
 
 			{/* ─────────────────────────────────────────────────────────────
 			    四步导航条（AC 1 / E-108）
@@ -762,24 +768,30 @@ export function EmptyOnboarding({
 						</div>
 					</div>
 
-					<div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-2">
-						<button
-							type="button"
-							data-action="prev-step"
-							onClick={() => changeStep(2)}
-							className="h-btn px-4 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense"
-						>
-							← 返回修改指派
-						</button>
-						<button
-							type="button"
-							data-action="confirm-dispatch"
-							disabled={!canDispatch || !selectedBatchId || !onDispatch}
-							onClick={handleTriggerDispatch}
-							className="h-btn-lg px-8 rounded-sm bg-needs text-on-needs font-bold text-body shadow-glow transition-all hover:brightness-105 active:scale-98 disabled:opacity-50"
-						>
-							启动批次派发
-						</button>
+					<div className="flex min-w-0 flex-col gap-2 pt-2">
+						<p className="font-ui text-micro text-ink-3">
+							{UI_STRINGS.documentExecution.legacyBatchNote}
+						</p>
+						<div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+							<button
+								type="button"
+								data-action="prev-step"
+								onClick={() => changeStep(2)}
+								className="h-btn px-4 rounded-sm border border-border bg-panel-2 text-ink-2 hover:text-ink-1 text-dense"
+							>
+								← 返回修改指派
+							</button>
+							<button
+								type="button"
+								data-action="confirm-dispatch"
+								data-legacy-batch="true"
+								disabled={!canDispatch || !selectedBatchId || !onDispatch}
+								onClick={handleTriggerDispatch}
+								className="h-btn px-4 rounded-sm border border-border-strong bg-panel-2 text-ink-1 text-dense disabled:opacity-50"
+							>
+								{UI_STRINGS.documentExecution.legacyBatchStart}
+							</button>
+						</div>
 					</div>
 				</section>
 			)}

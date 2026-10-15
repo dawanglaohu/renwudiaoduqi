@@ -33,8 +33,9 @@ export const EVENT_CACHE_INVALIDATIONS: Partial<Record<EventKind, readonly Cache
 	'settings.gates_changed': ['settings'],
 	'settings.pipeline_changed': ['settings'],
 	'document.settings_changed': ['lanes', 'documents'],
+	'document.execution_changed': ['documentExecutions'],
 	'agent.availability_changed': ['agents', 'agentModels'],
-	'system.docs_changed': ['documents', 'batches', 'tasks'],
+	'system.docs_changed': ['documents', 'batches', 'tasks', 'documentExecutions'],
 };
 
 /**

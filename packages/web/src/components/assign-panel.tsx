@@ -1200,16 +1200,21 @@ export function AssignPanel({
 		<div data-testid="assign-panel-root" className={`flex flex-col gap-4 ${className}`}>
 			{/* 第 3 步正文：逐任务指派面板（AC 1, AC 2, AC 4, E-108, E-31, E-47） */}
 			{(effectiveMode === 'step3' || effectiveMode === 'all') && (
-				<TaskAssignmentList
-					tasks={tasks}
-					agents={agents}
-					assignments={assignments}
-					agentCapacities={agentCapacities}
-					onAssignTask={onAssignTask}
-					onResetAssignment={onResetAssignment}
-					onRefreshAgentModels={onRefreshAgentModels}
-					reassignTaskId={reassignTaskId}
-				/>
+				<>
+					<p data-testid="draft-priority-note" className="font-ui text-micro text-ink-3">
+						{UI_STRINGS.documentExecution.draftNote}
+					</p>
+					<TaskAssignmentList
+						tasks={tasks}
+						agents={agents}
+						assignments={assignments}
+						agentCapacities={agentCapacities}
+						onAssignTask={onAssignTask}
+						onResetAssignment={onResetAssignment}
+						onRefreshAgentModels={onRefreshAgentModels}
+						reassignTaskId={reassignTaskId}
+					/>
+				</>
 			)}
 
 			{/* 第 4 步正文：并发瓶颈审计说明卡片（AC 3, E-52） */}

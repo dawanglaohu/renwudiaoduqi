@@ -36,6 +36,7 @@ import { registerResyncHandler } from '../../store/connection-store.ts';
 import { mapSnapshotToBatches } from './batch-expansion.ts';
 import { RunDeckView } from './run-deck-view.tsx';
 import type { DeckStreamLane, RunDeckProps } from './types.ts';
+import { publishDocumentExecutions } from './use-document-execution.ts';
 import { useRunDeck } from './use-run-deck.ts';
 import { startBatchWrapup, useBatchWrapupOverview } from './wrapup-panel-container.tsx';
 
@@ -264,6 +265,9 @@ export function RunDeckContainer(props: RunDeckProps) {
 				}
 
 				if (!canPublish()) return;
+				if (Array.isArray(snapshot.documentExecutions)) {
+					publishDocumentExecutions(snapshot.documentExecutions);
+				}
 				// A login probe can finish while the other deck reads are still pending.
 				const gates = gatesRef.current;
 				setRemote({
@@ -388,6 +392,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 				envelope.kind === 'lane.released' ||
 				envelope.kind === 'task.sessions_archived' ||
 				envelope.kind === 'document.settings_changed' ||
+				envelope.kind === 'document.execution_changed' ||
 				envelope.kind === 'system.docs_changed' ||
 				envelope.kind === 'task.gate_waiting' ||
 				envelope.kind === 'task.gate_passed' ||

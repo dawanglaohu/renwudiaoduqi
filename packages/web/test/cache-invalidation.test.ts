@@ -35,6 +35,12 @@ describe('cache-invalidation (M9-T21 / E-333)', () => {
 		expect(prefixes).toContain('documents');
 	});
 
+	it('document.execution_changed invalidates the execution cache', () => {
+		expect(getInvalidationPrefixesForEvent('document.execution_changed')).toEqual([
+			'documentExecutions',
+		]);
+	});
+
 	it('settings.pipeline_changed maps to settings prefix (AC 2)', () => {
 		const prefixes = getInvalidationPrefixesForEvent('settings.pipeline_changed');
 		expect(prefixes).toEqual(['settings']);

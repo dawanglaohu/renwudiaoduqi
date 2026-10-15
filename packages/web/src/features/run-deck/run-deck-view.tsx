@@ -37,6 +37,7 @@ import { PayloadSheetProvider } from '../../hooks/use-payload-sheet.ts';
 import { UI_STRINGS } from '../../i18n/ui-strings.ts';
 import { useCanDispatch } from '../../store/connection-store.ts';
 import { useSelectionStore } from '../../store/selection-store.ts';
+import { DocumentExecutionContainer } from './document-execution-container.tsx';
 import type { LaneStepItem } from './lane-steps-container.tsx';
 import { LanesContainer } from './lanes-container.tsx';
 import { MobileBottomSheet } from './mobile-bottom-sheet.tsx';
@@ -471,6 +472,17 @@ export function RunDeckView(props: RunDeckViewProps) {
 		);
 	};
 
+	const executionPanel = (
+		<DocumentExecutionContainer
+			lanes={rawLanes}
+			batches={batches as readonly BatchTreeItem[] | undefined}
+			isTouch={isTouch}
+			onOpenTask={(taskId) => handleSelectTaskAndJump(taskId)}
+			onOpenBatch={toggleBatch}
+			onWrapup={onWrapup}
+		/>
+	);
+
 	const emptyConsole = (
 		<>
 			{/* 取数失败就地提示，不整页替换（07 节错误体系） */}
@@ -684,6 +696,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 									data-pane-view="tasks"
 									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3 select-none"
 								>
+									{executionPanel}
 									{batchTreeError && (
 										<InlineNotice
 											tone="down"
@@ -727,6 +740,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 									data-pane-view="stream"
 									className="flex flex-col h-full w-full overflow-y-auto flex-1 p-3 gap-3"
 								>
+									{executionPanel}
 									<LanesContainer
 										lanes={pipelineLanes}
 										tasks={tasks}
@@ -794,6 +808,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 								className="w-[var(--rail-w,272px)] min-w-[var(--rail-w,272px)] shrink-0 border-r border-[var(--border)] bg-[var(--bg)] flex flex-col overflow-y-auto p-3 gap-3 select-none h-full"
 							>
 								<div className="deck-batch-tree flex flex-col gap-3">
+									{executionPanel}
 									<div className="font-ui text-dense font-semibold text-[var(--ink-1)] px-1">
 										批次与任务
 									</div>
