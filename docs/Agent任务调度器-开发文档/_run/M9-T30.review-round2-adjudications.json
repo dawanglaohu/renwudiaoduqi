@@ -1,0 +1,180 @@
+[
+  {
+    "state": {
+      "requirement": "Review only R1-R4 of PR 221 for M9-T30. The task delivers real document start/pause/resume controls with daemon state, safe races, selected-document occupancy, responsive UI, real-service GIF, and passing pnpm workspace check. The original contract says browser evidence is shared with downstream M1-T12, which depends on M9-T30 and owns the full native multi-batch acceptance. Do not lower acceptance, mock the production service, or claim end-to-end delivery without evidence. Ordinary technical choices must be adjudicated by Jev.",
+      "task": {
+        "title": "M9-T30 document-level start, pause, resume and batch progress",
+        "accept": "Fix prior R1 cache lifetime, R2 snapshot race, R3 lane scope, and R4 missing authentic UI evidence. Real-model GIF required; full feature usability requires M1-T12. At most two reviewer rounds; reviewer fixes remaining concrete defects."
+      },
+      "conflict": "Current head a2b5419 fixes all three old failing probes, but only R3 has a committed regression. The existing GIF uses paired-token sessionStorage setup, shows idle/theme/window settings with no real model round, and is Pillow encoded. Existing mechanical density JSON reports no content/D2-D6 failure (potential wrong selector). On this machine, formal Windows bootstrap fails machine-lock ACL, without changing system permissions. WSL Node22/ffmpeg/ffprobe/compiler exist, but repository better-sqlite3 native addon is for Windows. Native Linux bootstrap can potentially run with an isolated Linux dependency resolution and existing real native Agent entry. Current CI is green on Windows/macOS/Linux, regular browser E2E, settings and pairing, while native-provider E2E was skipped.",
+      "options": {
+        "A": "Retain the existing contract and complete R4 in this review: use an isolated platform-correct dependency runtime with unchanged production bootstrap, pair/import via normal UI in a fresh browser, record at least one actual installed-provider round and start/pause/resume controls, measure three sizes correctly, fix bounded concrete R4 issues and add permanent R1/R2 tests. Land M9-T30 after evidence/checks pass; leave M1-T12 and the complete multi-batch/restart/dual-client/new-membership acceptance explicitly unlanded. If the authentic runtime remains unavailable, do not claim pass.",
+        "B": "Require all M1-T12 native multi-batch/restart/dual-client/new-membership evidence before landing M9-T30 despite the downstream dependency. Complete that proof now without changing task states or weakening checks, then land only M9-T30 if every requirement passes.",
+        "C": "Keep the PR unmerged and record doc-issue with the exact missing runtime/evidence, preserve the three code fixes, and leave R4 pending until production execution can be proven; do not substitute mock screenshots or ask the user to decide ordinary engineering details."
+      }
+    },
+    "judgment": {
+      "status": "ok",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "key_source": "C:/Users/admin/.typesafe/.env",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.97,
+          "band": "high",
+          "probabilities": {
+            "A": 0.98,
+            "B": 0.0,
+            "C": 0.02
+          }
+        },
+        "spec_change": {
+          "p": 0.17,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.4,
+          "verdict": "unsure"
+        },
+        "needs_owner": {
+          "p": 0.08,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.79,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "line": "adjudicate: pick=A(high 0.97) spec_change=no(0.17) outside_stack=unsure(0.40) needs_owner=no(0.08) reversible=yes(0.79) adopt=take(A)",
+      "usage": {
+        "input_tokens": 1469,
+        "output_tokens": 108
+      }
+    }
+  },
+  {
+    "state": {
+      "requirement": "R4 requires real daemon/browser density evidence at 1920x1080 and 1440x900 using the unchanged DENSITY=8 contract: page gutter 16, block gap 12, card padding14. Work surfaces must fill at least85% of available width outside the left rail and have no horizontal empty band over15%. Do not lower thresholds or fake evidence. The reviewer may apply local documentation/support-path patches on the existing PR and must run all generator tests before and after a generator fix. Only R1-R4 are reviewed in round2.",
+      "task": {
+        "title": "M9-T30 R4 real UI/density evidence",
+        "accept": "Correctly measure the live work surface outside the existing rail, retain D1-D6 and real negative controls. Native production bootstrap/pair/import/start/pause/resume and an installed Codex round already ran, exit0, waiting at review gate with batch2 idle."
+      },
+      "conflict": "Actual DOM: viewport1440, main and run-deck left0,width1440; deck-desktop-layout padding8px16px16px10px; rail left10,right282,width272; lane work area left298,right1424. density_probe.js line239 hardcodes railRect.left<=8 to subtract the rail. With the correct visible rail selector it excludes all rail contents yet does not subtract its width, reporting fill0.76/D2-D6 fail; real content fills the area to the right. At1920 the same issue reports0.82. The current page gutter10 is within the specified16 maximum. This is a tool/contract inconsistency, not a centered/max-width product surface.",
+      "options": {
+        "A": "Fix only the probe dock criterion from fixed8px to the declared contract gutter (preserve an8px minimum if needed for compatibility). Add a regression for left10/gutter16 being subtracted and a real negative for a rail beyond the allowed gutter not hiding genuine left whitespace. Keep fill85%, interior-band15%, all geometry/content checks unchanged. Add necessary support paths and update tool fingerprints through the existing documentation patch, run generator tests before/after, then remeasure the real page.",
+        "B": "Keep the probe unchanged and move the existing product rail from left10 to left0 by changing the product layout. Keep main content spacing and all UI controls usable, add visual evidence for the layout change, and rerun the unchanged probe.",
+        "C": "Keep both product and probe unchanged, record doc-issue and do not merge because the required mechanical gate contradicts the allowed gutter; leave the concrete probe defect for its owning workflow task."
+      }
+    },
+    "judgment": {
+      "status": "ok",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "key_source": "C:/Users/admin/.typesafe/.env",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 1.0,
+          "band": "high",
+          "probabilities": {
+            "A": 1.0,
+            "B": 0.0,
+            "C": 0.0
+          }
+        },
+        "spec_change": {
+          "p": 0.14,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.1,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.07,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.78,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.14) outside_stack=no(0.10) needs_owner=no(0.07) reversible=yes(0.78) adopt=take(A)",
+      "usage": {
+        "input_tokens": 1390,
+        "output_tokens": 108
+      }
+    }
+  },
+  {
+    "state": {
+      "requirement": "M9-T30 must show daemon-owned blocker causes and provide the existing Agent refresh entry. Assignment precedence and effective Agent ownership are daemon business logic; the UI must not infer which Agent owns a task. Default assignment and task overrides may use different registered Agents. Keep work inside M9 frontend scope.",
+      "task": {
+        "title": "M9-T30 unavailable-Agent handling entry",
+        "accept": "A legal unavailable-Agent plan remains running and shows its reason; the user can reach a refresh entry for the actual unavailable Agent without silently replacing it."
+      },
+      "conflict": "DocumentExecutionBlocker has only code, batchId and taskIds; no agentId. Current refreshAgent always probes the document default Agent, which can be healthy while a local task override owns the actual agent_unavailable blocker. ModelPicker refresh still needs to refresh the selected default catalog.",
+      "options": {
+        "A": "Keep ModelPicker refresh for the selected default Agent, but make the unavailable-Agent blocker and extra handling action explicitly navigate to the existing Agent settings/registry page, with an accurate label. That existing page exposes per-Agent refresh and availability. Read-only navigation remains available offline; no new DTO or frontend assignment inference.",
+        "B": "Keep the blocker action as a real refresh operation but probe all currently registered Agents with all-settled error handling, then refresh registry state; do not infer assignment priority. Keep selected-model catalog refresh separate and keep writes disabled offline."
+      }
+    },
+    "judgment": {
+      "status": "ok",
+      "template": "adjudicate",
+      "model": "jev-1.13.0",
+      "key_source": "C:/Users/admin/.typesafe/.env",
+      "verdicts": {
+        "pick": {
+          "choice": "A",
+          "confidence": 0.96,
+          "band": "high",
+          "probabilities": {
+            "A": 0.98,
+            "B": 0.02
+          }
+        },
+        "spec_change": {
+          "p": 0.2,
+          "verdict": "no"
+        },
+        "outside_stack": {
+          "p": 0.16,
+          "verdict": "no"
+        },
+        "needs_owner": {
+          "p": 0.07,
+          "verdict": "no"
+        },
+        "reversible": {
+          "p": 0.79,
+          "verdict": "yes"
+        },
+        "adopt": {
+          "action": "take",
+          "option": "A",
+          "confidence": "high",
+          "why": "Jev 选 A（high）"
+        }
+      },
+      "line": "adjudicate: pick=A(high 0.96) spec_change=no(0.20) outside_stack=no(0.16) needs_owner=no(0.07) reversible=yes(0.79) adopt=take(A)",
+      "usage": {
+        "input_tokens": 997,
+        "output_tokens": 101
+      }
+    }
+  }
+]

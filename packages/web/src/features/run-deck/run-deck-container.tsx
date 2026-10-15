@@ -26,16 +26,18 @@ import { ROUTES, type RouteDefinition } from '@agent-scheduler/shared/api/routes
 import type { RunDto } from '@agent-scheduler/shared/api/runs';
 import type { SnapshotResponse } from '@agent-scheduler/shared/api/snapshot';
 import type { TaskDto } from '@agent-scheduler/shared/api/tasks';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { eventBus } from '../../api/event-bus.ts';
 import { httpClient } from '../../api/http-client.ts';
 import { fetchLanes, markLanesCacheInvalidated } from '../../api/lanes.ts';
 import { navigateTo } from '../../app/routes.tsx';
 import type { BatchTreeItem } from '../../components/batch-tree.tsx';
 import { registerResyncHandler } from '../../store/connection-store.ts';
+import { useSelectionStore } from '../../store/selection-store.ts';
 import { mapSnapshotToBatches } from './batch-expansion.ts';
 import { RunDeckView } from './run-deck-view.tsx';
 import type { DeckStreamLane, RunDeckProps } from './types.ts';
+import { publishDocumentExecutions } from './use-document-execution.ts';
 import { useRunDeck } from './use-run-deck.ts';
 import { startBatchWrapup, useBatchWrapupOverview } from './wrapup-panel-container.tsx';
 
@@ -156,6 +158,7 @@ export function buildDeckLanes(input: BuildDeckLanesInput): readonly DeckStreamL
 }
 
 interface RemoteDeckData {
+	readonly lanesDocId?: string | null;
 	readonly lanes: readonly DeckStreamLane[];
 	readonly batches: readonly BatchTreeItem[];
 	readonly error: string | null;
@@ -222,13 +225,23 @@ export function RunDeckContainer(props: RunDeckProps) {
 
 	const loadOnce = useCallback(
 		async (canPublish: () => boolean) => {
+			const requestedDocId = useSelectionStore.getState().selectedDocId;
+			const canPublishDocument = () =>
+				canPublish() && useSelectionStore.getState().selectedDocId === requestedDocId;
 			try {
 				const [snapshot, fetchedLanes, runsResponse] = await Promise.all([
 					httpClient.callRoute<SnapshotResponse>(SNAPSHOT_ROUTE),
-					fetchLanes(),
+					fetchLanes(requestedDocId),
 					httpClient.callRoute<{ runs: readonly RunDto[] }>(RUNS_ROUTE),
 					loadGates(true),
 				]);
+				// 活跃泳道也需要文档初选，不能依赖仅在零运行时启用的指派向导。
+				const initialDocument =
+					snapshot.documents.find((document) => document.isSourceReadable) ?? snapshot.documents[0];
+				if (!requestedDocId && canPublishDocument() && initialDocument) {
+					useSelectionStore.getState().setSelectedDocId(initialDocument.id);
+					return;
+				}
 				const batchResponses = await Promise.all(
 					snapshot.documents.map((document) =>
 						httpClient.callRoute<ListDocumentBatchesResponse>(DOCUMENT_BATCHES_ROUTE, {
@@ -251,7 +264,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 							BATCH_WRAPUPS_ROUTE,
 							{ params: { batchId } },
 						);
-						if (!canPublish()) return;
+						if (!canPublishDocument()) return;
 						for (const wrapup of response.wrapups) {
 							wrapupRoundsRef.current.set(wrapup.runId, wrapup.round);
 							wrapupsByRunIdRef.current.set(wrapup.runId, wrapup);
@@ -263,10 +276,14 @@ export function RunDeckContainer(props: RunDeckProps) {
 					throw new Error('泳道数据不可用');
 				}
 
-				if (!canPublish()) return;
+				if (!canPublishDocument()) return;
+				if (Array.isArray(snapshot.documentExecutions)) {
+					publishDocumentExecutions(snapshot.documentExecutions);
+				}
 				// A login probe can finish while the other deck reads are still pending.
 				const gates = gatesRef.current;
 				setRemote({
+					lanesDocId: requestedDocId,
 					lanes: buildDeckLanes({
 						lanes: fetchedLanes,
 						// 快照里的运行没有 capabilities，能力位取 GET /runs 的那一份（E-117）
@@ -290,8 +307,9 @@ export function RunDeckContainer(props: RunDeckProps) {
 					error: null,
 				});
 			} catch (cause: unknown) {
-				if (!canPublish()) return;
+				if (!canPublishDocument()) return;
 				setRemote({
+					lanesDocId: requestedDocId,
 					lanes: Object.freeze([]) as readonly DeckStreamLane[],
 					batches: Object.freeze([]) as readonly BatchTreeItem[],
 					rawTasks: [],
@@ -335,6 +353,8 @@ export function RunDeckContainer(props: RunDeckProps) {
 		return promise;
 	}, [loadOnce]);
 
+	const selectedDocId = useSelectionStore((state) => state.selectedDocId);
+
 	// 首屏取数；之后只在运行/批次事件到达时重取（07 节：失效由事件驱动，禁止轮询）
 	useEffect(() => {
 		if (hasLocalLanes && hasLocalBatches) return;
@@ -342,7 +362,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 		remoteMountedRef.current = true;
 		void load();
 		const unregisterResync = registerResyncHandler(() => {
-			markLanesCacheInvalidated();
+			markLanesCacheInvalidated(selectedDocId);
 			return load();
 		});
 		const unsubscribe = eventBus.subscribeMilestone((envelope) => {
@@ -368,9 +388,11 @@ export function RunDeckContainer(props: RunDeckProps) {
 				envelope.kind === 'lane.assigned' ||
 				envelope.kind === 'lane.released' ||
 				envelope.kind === 'task.sessions_archived' ||
+				envelope.kind === 'task.landed' ||
+				envelope.kind === 'batch.advanced' ||
 				envelope.kind === 'document.settings_changed'
 			) {
-				markLanesCacheInvalidated();
+				markLanesCacheInvalidated(selectedDocId);
 			}
 			if (envelope.kind === 'batch.wrapup_started') {
 				const payload = envelope.payload as { runId?: string; round?: number } | undefined;
@@ -384,10 +406,13 @@ export function RunDeckContainer(props: RunDeckProps) {
 				envelope.kind === 'run.started' ||
 				envelope.kind === 'run.state_changed' ||
 				envelope.kind === 'run.exited' ||
+				envelope.kind === 'task.landed' ||
+				envelope.kind === 'batch.advanced' ||
 				envelope.kind === 'lane.assigned' ||
 				envelope.kind === 'lane.released' ||
 				envelope.kind === 'task.sessions_archived' ||
 				envelope.kind === 'document.settings_changed' ||
+				envelope.kind === 'document.execution_changed' ||
 				envelope.kind === 'system.docs_changed' ||
 				envelope.kind === 'task.gate_waiting' ||
 				envelope.kind === 'task.gate_passed' ||
@@ -405,7 +430,7 @@ export function RunDeckContainer(props: RunDeckProps) {
 			unsubscribe();
 			unregisterResync();
 		};
-	}, [hasLocalLanes, hasLocalBatches, load, loadGates]);
+	}, [hasLocalLanes, hasLocalBatches, load, loadGates, selectedDocId]);
 
 	/** 闸门裁定：走 POST /gates/:gateId/decide，界面状态一律等回流事件（E-157）。 */
 	const decideGate = useCallback(
@@ -431,8 +456,36 @@ export function RunDeckContainer(props: RunDeckProps) {
 		navigateTo(`#/run/${runId}`);
 	}, []);
 
-	const lanes = hasLocalLanes ? props.lanes : remote.lanes;
-	const batches = hasLocalBatches ? (props.batches as readonly BatchTreeItem[]) : remote.batches;
+	const lanesCurrent = remote.lanesDocId === selectedDocId;
+	const lanes = hasLocalLanes ? props.lanes : lanesCurrent ? remote.lanes : INITIAL_REMOTE.lanes;
+	const { batches, tasks, runs, gates } = useMemo(() => {
+		const availableBatches = hasLocalBatches
+			? (props.batches as readonly BatchTreeItem[])
+			: remote.batches;
+		const batches = selectedDocId
+			? availableBatches.filter((batch) => !batch.docId || batch.docId === selectedDocId)
+			: availableBatches;
+		const tasks = selectedDocId
+			? remote.rawTasks?.filter((task) => task.docId === selectedDocId)
+			: remote.rawTasks;
+		const taskIds = new Set(tasks?.map((task) => task.id));
+		const batchIds = new Set(batches.map((batch) => batch.id));
+		const runs = selectedDocId
+			? remote.rawRuns?.filter(
+					(run) =>
+						(run.taskId && taskIds.has(run.taskId)) || (run.batchId && batchIds.has(run.batchId)),
+				)
+			: remote.rawRuns;
+		const runIds = new Set(runs?.map((run) => run.id));
+		const gates = selectedDocId
+			? remote.gates?.filter(
+					(gate) =>
+						(gate.taskId && taskIds.has(gate.taskId)) || (gate.runId && runIds.has(gate.runId)),
+				)
+			: remote.gates;
+		return { batches, tasks, runs, gates };
+	}, [hasLocalBatches, props.batches, remote, selectedDocId]);
+
 	// The page passes no local lanes. Navigation and density must follow the fetched snapshot.
 	const deckState = useRunDeck({ ...props, lanes });
 
@@ -446,11 +499,11 @@ export function RunDeckContainer(props: RunDeckProps) {
 				lanes={lanes}
 				batches={batches}
 				error={remote.error ?? gateError}
-				tasks={remote.rawTasks}
-				runs={remote.rawRuns}
-				rawLanes={remote.rawLanes}
+				tasks={tasks}
+				runs={runs}
+				rawLanes={lanesCurrent ? remote.rawLanes : undefined}
 				wrapups={remote.wrapups}
-				gates={remote.gates}
+				gates={gates}
 				onSelectTask={props.onSelectTask}
 				toolbarSlot={props.toolbarSlot}
 				className={props.className}

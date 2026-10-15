@@ -1,0 +1,91 @@
+{
+  "task": "M9-T30",
+  "round": 2,
+  "scope": "implementation-acceptance",
+  "regressions": {
+    "oldIndependentProbes": "3 passed",
+    "permanentUIRace": "16 passed",
+    "selectedDocumentLanes": "1 passed",
+    "executionControls": "13 passed",
+    "selectedDocumentLanesAndActiveEntry": "2 passed",
+    "entrySupplement": "39 passed across5 files; fresh document selection, lost HTTP response, blocker handling included"
+  },
+  "checks": {
+    "workspace": {
+      "command": "pnpm -w check --maxWorkers=1 --minWorkers=1",
+      "filesPassed": 256,
+      "testsPassed": 3333,
+      "existingSkipped": 3,
+      "scope": "Full local baseline before the final bounded entry fixes; final exact-head matrix is required on PR221 before merging."
+    },
+    "generatorBefore": {
+      "tests": 215,
+      "existingSkipped": 1,
+      "result": "pass"
+    },
+    "generatorAfter": {
+      "tests": 216,
+      "existingSkipped": 1,
+      "result": "pass"
+    },
+    "densityRegression": {
+      "before": "avail.left expected282, actual0; D2/D6 failed",
+      "after": "positive auto/explicit rail left10 passes; detached left40 remains D2/D6 fail"
+    },
+    "entrySupplement": {
+      "result": "57 passed across6 files including cache invalidation",
+      "typescript": "pass: pnpm exec tsc -b --noEmit; project references including tests",
+      "architecture": "0 violations",
+      "redBeforeFix": "3 regressions failed before repair",
+      "navigationRedBeforeFix": "3 additional UI navigation regressions failed before repair",
+      "lateControlCache": "red before fix, green after target-cache invalidation independent of selected document",
+      "eventAndMobileRedBeforeFix": "6 failures before repair: same-version availability/landing/batch projections, unmounted capacity cache, phone wrap-up, first readable initial selection",
+      "eventAndMobileAfterFix": "57 passed; event-driven deck reload and first-readable source selected; phone blocker reveals batch without wrap-up mutation",
+      "typedEventCorrection": "CI found incomplete typed test payloads at549823b; corrected discriminated kind/scope/payload samples, then checked all project references and reran the two changed files"
+    }
+  },
+  "browser": {
+    "bootstrap": "packages/daemon/bootstrap.mjs, native Linux adapter, same better-sqlite3@13.0.3 built for GLIBC2.31",
+    "transport": "real HTTP/SSE; normal browser pairing and UI document import; no state or event injection",
+    "provider": "installed codex.exe 0.157.1 through WSL interoperation; no credential files copied",
+    "nativeMessage": {
+      "kind": "item/completed",
+      "itemType": "agentMessage",
+      "text": "M9_T30_NATIVE_OK",
+      "exitCode": 0
+    },
+    "observed": [
+      "import idle and zero runs",
+      "document start observed running",
+      "pause observed paused",
+      "resume observed running",
+      "one occupied lane during native execution",
+      "review human gate waiting with batch2 idle",
+      "390 phone-xs coarse input; no overflow; document and approval actions44px; Enter sends pause"
+    ],
+    "density": {
+      "1920x1080": {
+        "fill": 0.961,
+        "interiorBandRatio": 0.007,
+        "D1-D6": "pass"
+      },
+      "1440x900": {
+        "fill": 0.944,
+        "interiorBandRatio": 0.01,
+        "D1-D6": "pass"
+      }
+    },
+    "media": "PR #221正文的本轮GIF及精确提交来源，源视口1440x900。",
+    "boundary": "Text-only native round proves this UI/control entry. Full native worktree writes, multi-batch completion, restart, dual-client and changed-membership acceptance remain M1-T12; M1-T12 is not landed."
+  },
+  "adjudications": "_run/M9-T30.review-round2-adjudications.json",
+  "reviewedSourceSha256": {
+    "packages/web/src/features/run-deck/run-deck-container.tsx": "b02c80bc45ede376f35cd65b74a7a2778b398db8ec75ee5de351395aa13deb25",
+    "packages/web/src/features/run-deck/use-document-execution.ts": "f01c15882a094caf20c737269bc62f39fa637c23a6efb176867d88d5bfcf6c43",
+    "packages/web/src/features/run-deck/document-execution-container.tsx": "899ea028e1d527807fcbd8e8db0ee42540f014689b65f30fd7d30c0e8107b460",
+    "packages/web/src/features/run-deck/run-deck-view.tsx": "f1ea2ee4fdcbaf6af930744b32c99669f403e829be68f23a9902ee450531dc6f",
+    "packages/web/src/components/document-execution-controls.tsx": "0b53794adbb5efa1c13c837dc40eac5bcb0212a26ec195e9c1fdded3991e7775",
+    "packages/web/src/i18n/ui-strings.ts": "67e6d79aff7742be57f75941f80914a867a4f8974a011107eaa1148eec5cc516",
+    "packages/web/src/api/cache-invalidation.ts": "ad8e1771df3801952fead214196307efc337b85769300d8d7e2add500da7055c"
+  }
+}

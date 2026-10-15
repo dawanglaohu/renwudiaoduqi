@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T30": {
+      "contractHash": "ce9f0a6e113bd0a913c71f5165efba9a0de0e86b6bede93d665db7b1de144b6f",
+      "verdict": "pass",
+      "evidence": [
+        "第二轮沿用PR221与task/M9-T30，仅复核原R1-R4及其直接回归。M8-T13提供执行DTO、控制接口、来源与成员证据；M9-T23提供真实Agent/模型能力；M9-T29提供既定DENSITY8。页面只呈现daemon字段和能力位，不另算调度或完成状态。",
+        "有效范围补丁m9-t30-review-regression-scope-20261015补齐必要泳道回归、密度探针及其测试和工具指纹路径；已检查冲突并同步，M9-T30与M1-T12分别复核。13/17/19/22节、七条验收和E-360至E-370相关边界未降低。",
+        "永久竞态覆盖面板卸载、快照与旧GET、同版本阻断、跨文档迟到回包、响应丢失与迟到控制缓存；窗口和任务上下文随选中文档。Agent可用性、落地、批次事件刷新同版本投影，窗口设置在面板卸载期间仍清缓存；首屏选择与daemon首份可读文档一致；手机收口入口只展示批次。新增直接回归修复前6失败，修复后相关6文件57通过，TypeScript/Biome/架构守护通过。",
+        "完整本地check基线256文件3333通过、3项既有跳过；最终补丁需在PR221准确head的三平台CI与发布闸门通过后才合并。生成器修改前215项、修改后216项通过，各1项既有跳过，85%填充率与15%空带阈值未变。",
+        "生产bootstrap与原生Linux锁通过正常配对、页面导入和真实HTTP/SSE控制；真实已安装Codex文本轮次退出0，agentMessage为M9_T30_NATIVE_OK，人工审查等待且第二批idle。最终GIF需与合并head一致并附于PR。完整原生文件操作、跨批完成、重启、双端幂等与成员变化仍由未落地M1-T12验收；本层不据此宣称完整功能可用。",
+        "事件注册packages/shared/src/api/events.ts:66/499及既有EventKind复用，缓存表与use-document-execution订阅接入真实事件，run-deck-container发布首屏及重连快照。normalized source fingerprints、真实界面边界和三次Jev完整候选与结果分别见M9-T30.acceptance-20261015.json及M9-T30.review-round2-adjudications.json。"
+      ]
+    }
+  }
+}
