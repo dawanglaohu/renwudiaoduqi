@@ -639,3 +639,57 @@ it('refreshes the cached execution after a committed control loses its response'
 		await view.unmount();
 	}
 });
+
+it('invalidates a settled control for a document that is no longer selected', async () => {
+	const response = deferred<{ execution: DocumentExecutionDto }>();
+	let first = execution({
+		state: 'idle',
+		canStart: true,
+		canPause: false,
+		defaultAssignment: null,
+	});
+	vi.mocked(httpClient.callRoute).mockImplementation(async (route: { path: string }, options) =>
+		route.path.endsWith('/execution')
+			? {
+					execution:
+						options?.params?.docId === 'doc-1'
+							? first
+							: execution({
+									docId: 'doc-2',
+									state: 'idle',
+									version: 0,
+									canStart: true,
+									canPause: false,
+									defaultAssignment: null,
+								}),
+				}
+			: { models: [], isComplete: true, currentConfig: null },
+	);
+	const api = makeClient({
+		getExecution: httpDocumentExecutionClient.getExecution,
+		start: () => response.promise,
+		listDocuments: async () => ({
+			documents: [documentDto(), documentDto({ id: 'doc-2', contentFingerprint: 'fp-2' })],
+		}),
+	});
+	const view = await mount(api);
+	try {
+		await act(async () =>
+			view.container.querySelector<HTMLButtonElement>('[data-action="pick-vendor"]')?.click(),
+		);
+		await act(async () =>
+			view.container.querySelector<HTMLButtonElement>('[data-action="start-document"]')?.click(),
+		);
+		await act(async () => useSelectionStore.getState().setSelectedDocId('doc-2'));
+		await act(async () => {
+			first = execution({ version: 4 });
+			response.resolve({ execution: first });
+			await response.promise;
+		});
+		expect(view.container.querySelector('[data-execution-state="idle"]')).not.toBeNull();
+		await act(async () => useSelectionStore.getState().setSelectedDocId('doc-1'));
+		expect(view.container.querySelector('[data-execution-state="running"]')).not.toBeNull();
+	} finally {
+		await view.unmount();
+	}
+});

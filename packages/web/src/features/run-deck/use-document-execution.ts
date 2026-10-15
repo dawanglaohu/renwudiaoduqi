@@ -414,6 +414,8 @@ export function useDocumentExecution(
 
 	const fail = useCallback(
 		(cause: unknown, observedDocId: string, seq: number) => {
+			invalidate(CACHE_KEYS.documentExecutions(observedDocId));
+			invalidate(CACHE_KEYS.documents());
 			if (requestSeq.current !== seq || docIdRef.current !== observedDocId) return;
 			if (isApiError(cause) && isVersionConflict(cause)) {
 				const incoming = readExecutionPayload({ execution: cause.details?.execution });
@@ -455,8 +457,8 @@ export function useDocumentExecution(
 			setError(null);
 			try {
 				await send(observedDocId, frozen as never);
-				if (requestSeq.current !== seq || docIdRef.current !== observedDocId) return;
 				invalidate(CACHE_KEYS.documentExecutions(observedDocId));
+				if (requestSeq.current !== seq || docIdRef.current !== observedDocId) return;
 				await reload(observedDocId);
 			} catch (cause) {
 				fail(cause, observedDocId, seq);
@@ -509,9 +511,9 @@ export function useDocumentExecution(
 		setError(null);
 		try {
 			await client.refreshDocument(observedDocId);
-			if (requestSeq.current !== seq || docIdRef.current !== observedDocId) return;
 			invalidate(CACHE_KEYS.documents());
 			invalidate(CACHE_KEYS.documentExecutions(observedDocId));
+			if (requestSeq.current !== seq || docIdRef.current !== observedDocId) return;
 			const loaded = await reload(observedDocId);
 			if (requestSeq.current !== seq || docIdRef.current !== observedDocId || !loaded?.document)
 				return;
@@ -539,6 +541,7 @@ export function useDocumentExecution(
 		setError(null);
 		try {
 			await client.probeAgent(assignment.agentId);
+			invalidate(CACHE_KEYS.agents());
 			await catalogEntry?.refresh();
 			if (observedDocId && requestSeq.current === seq && docIdRef.current === observedDocId) {
 				invalidate('agents');
