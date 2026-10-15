@@ -11,6 +11,8 @@ import { clearResourceCache } from '../src/api/resource-cache.ts';
 import { DocumentExecutionControls } from '../src/components/document-execution-controls.tsx';
 import {
 	type DocumentExecutionClient,
+	httpDocumentExecutionClient,
+	publishDocumentExecutions,
 	useDocumentExecution,
 } from '../src/features/run-deck/use-document-execution.ts';
 import { UI_STRINGS } from '../src/i18n/ui-strings.ts';
@@ -496,4 +498,108 @@ describe('M9-T30 document execution races', () => {
 		expect(view.container.querySelector('[data-testid="source-runs-pending"]')).not.toBeNull();
 		await view.unmount();
 	});
+});
+
+function makeClient(overrides: Partial<DocumentExecutionClient> = {}): DocumentExecutionClient {
+	return {
+		getExecution: async () => ({ execution: execution() }),
+		start: async () => ({ execution: execution() }),
+		pause: async () => ({ execution: execution() }),
+		resume: async () => ({ execution: execution() }),
+		listDocuments: async () => ({ documents: [documentDto()] }),
+		refreshDocument: async () => ({}),
+		listAgents: async () => ({ agents: [] }),
+		probeAgent: async () => ({}),
+		...overrides,
+	};
+}
+
+describe('document execution cache and snapshot ordering', () => {
+	it('reads the current execution when remounting after an event while the panel was absent', async () => {
+		let serverExecution = execution();
+		let executionGets = 0;
+		vi.mocked(httpClient.callRoute).mockImplementation(async (route: { path: string }) => {
+			if (route.path.endsWith('/execution')) {
+				executionGets++;
+				return { execution: serverExecution };
+			}
+			return {
+				models: [],
+				isComplete: true,
+				refreshedAt: null,
+				liveFailure: null,
+				isRefreshing: false,
+				currentConfig: null,
+			};
+		});
+		const client = makeClient({ getExecution: httpDocumentExecutionClient.getExecution });
+		const first = await mount(client);
+		expect(first.container.querySelector('[data-execution-state="running"]')).not.toBeNull();
+		await first.unmount();
+		serverExecution = execution({
+			state: 'paused',
+			version: 4,
+			pauseReason: 'user_paused',
+			canPause: false,
+			canResume: true,
+		});
+		eventBus.push({
+			id: 14,
+			ts: '2026-10-15T10:00:00Z',
+			runId: null,
+			taskId: null,
+			scope: 'document',
+			kind: 'document.execution_changed',
+			seq: 1,
+			actorDeviceId: null,
+			payload: { execution: serverExecution },
+		});
+		// Mobile details keeps the deck alive while the execution panel is absent.
+		publishDocumentExecutions([serverExecution]);
+		const second = await mount(client);
+		try {
+			expect({
+				executionGets,
+				state: second.container
+					.querySelector('[data-execution-state]')
+					?.getAttribute('data-execution-state'),
+			}).toEqual({ executionGets: 2, state: 'paused' });
+		} finally {
+			await second.unmount();
+		}
+	});
+	it.each([4, 5])(
+		'preserves a version-%i snapshot against an older version-4 read in the same React batch',
+		async (version) => {
+			const docs = deferred<{ documents: DocumentDto[] }>();
+			const client = makeClient({
+				getExecution: async () => ({ execution: execution({ version: 4 }) }),
+				listDocuments: () => docs.promise,
+			});
+			const view = await mount(client);
+			await act(async () => {
+				publishDocumentExecutions([
+					execution({
+						state: 'paused',
+						version,
+						pauseReason: 'user_paused',
+						canPause: false,
+						canResume: true,
+					}),
+				]);
+				docs.resolve({ documents: [documentDto()] });
+				await docs.promise;
+				await Promise.resolve();
+			});
+			try {
+				expect(
+					view.container
+						.querySelector('[data-execution-state]')
+						?.getAttribute('data-execution-state'),
+				).toBe('paused');
+			} finally {
+				await view.unmount();
+			}
+		},
+	);
 });

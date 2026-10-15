@@ -190,6 +190,52 @@ class DensityProbeTests(unittest.TestCase):
                               text=True, encoding='utf-8', capture_output=True, timeout=60,
                               env=dict(os.environ, **(env or {})))
 
+
+    def test_rail_docking_uses_the_page_gutter_without_hiding_real_whitespace(self):
+        script = r"""
+const p = require(%s);
+function scene(left, explicit) {
+  const css = {display:'block', visibility:'visible', opacity:'1', position:'static',
+    backgroundColor:'transparent', backgroundImage:'none', maxWidth:'none',
+    marginLeft:'0px', marginRight:'0px', paddingLeft:'0px', paddingRight:'0px',
+    paddingTop:'0px', paddingBottom:'0px', borderLeftWidth:'0px', borderRightWidth:'0px',
+    borderTopWidth:'0px', borderBottomWidth:'0px', rowGap:'0px', columnGap:'0px',
+    flexDirection:'column', flexWrap:'nowrap', justifyContent:'normal', gridTemplateColumns:'none',
+    getPropertyValue:()=>''};
+  function element(tag, rect, children=[]) {
+    const el = {nodeType:1, tagName:tag, id:'', children, childNodes:[], parentElement:null,
+      getBoundingClientRect:()=>({...rect,right:rect.left+rect.width,bottom:rect.top+rect.height}),
+      getAttribute:()=>'', matches:selector=>selector.includes(tag.toLowerCase()),
+      querySelectorAll:()=>children,
+      contains(node) {return node===this || children.some(child=>child.contains(node));}};
+    children.forEach(child=>child.parentElement=el);
+    return el;
+  }
+  const field=element('INPUT',{left:left+304,top:250,width:1104-left,height:32});
+  const main=element('MAIN',{left:left+288,top:80,width:1136-left,height:800},[field]);
+  const rail=element('ASIDE',{left,top:80,width:272,height:800});
+  const body=element('BODY',{left:0,top:0,width:1440,height:900},[rail,main]);
+  global.document={body, documentElement:{clientWidth:1440,scrollWidth:1440},
+    querySelector:selector=>selector==='main'?main:selector==='aside'?rail:null,
+    querySelectorAll:selector=>selector==='body *'?[rail,main,field]:[],
+    createRange:()=>({selectNodeContents:()=>{},getBoundingClientRect:()=>({width:0})})};
+  global.window={innerWidth:1440,innerHeight:900,location:{href:'http://localhost/'},getComputedStyle:()=>css};
+  return p({type:'work',density:8,main:'main',...(explicit?{rail:'aside'}:{})});
+}
+process.stdout.write(JSON.stringify({auto:scene(10,false),explicit:scene(10,true),
+  detachedAuto:scene(40,false),detachedExplicit:scene(40,true)}));
+""" % json.dumps(str(PROBE))
+        result = self.node(script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        out = json.loads(result.stdout)
+        for name in ('auto', 'explicit'):
+            self.assertEqual(out[name]['avail']['left'], 282, (name, out[name]))
+            self.assertGreaterEqual(out[name]['fill'], 0.85)
+            self.assertEqual((out[name]['verdict']['D2'], out[name]['verdict']['D6']), ('pass', 'pass'))
+        for name in ('detachedAuto', 'detachedExplicit'):
+            self.assertEqual(out[name]['avail']['left'], 0)
+            self.assertEqual((out[name]['verdict']['D2'], out[name]['verdict']['D6']), ('fail', 'fail'))
+
     def test_probe_parses_and_pure_helpers_behave(self):
         self.assertEqual(self.node(None, args=['--check', str(PROBE)]).returncode, 0)
         script = r"""

@@ -211,11 +211,12 @@ var densityProbe = (function () {
 
     var main = pick(opts.main) || doc.querySelector('main') || doc.querySelector('[role=main]') || doc.body;
     var everything = Array.prototype.slice.call(doc.querySelectorAll('body *'));
-    // 左栏：贴左边、高 >= 60% 视口、宽 <= 35% 视口；先认语义标签，认不到再按几何找，且不能是 main 的祖先
+    // 左栏位于契约页边距内、高 >= 60% 视口、宽 <= 35% 视口；先认语义标签，再按几何找，且不能是 main 的祖先
+    var railInsetLimit = Math.max(8, c.gutter);
     function railLike(el) {
       if (el === main || el.contains(main)) return false;
       var rr = el.getBoundingClientRect();
-      return rr.left <= 8 && rr.height >= 0.6 * vh && rr.width > 40 && rr.width <= 0.35 * vw && shown(el);
+      return rr.left <= railInsetLimit && rr.height >= 0.6 * vh && rr.width > 40 && rr.width <= 0.35 * vw && shown(el);
     }
     var rail = opts.rail ? pick(opts.rail) : null;
     if (!opts.rail) {
@@ -231,7 +232,7 @@ var densityProbe = (function () {
       }
     }
     var railRect = rail && shown(rail) ? rail.getBoundingClientRect() : null;
-    var availLeft = railRect && railRect.left <= 8 ? Math.max(0, railRect.right) : 0;
+    var availLeft = railRect && railRect.left <= railInsetLimit ? Math.max(0, railRect.right) : 0;
     var avail = {left: availLeft, right: vw, width: Math.max(1, vw - availLeft)};
 
     var fixed = everything.filter(function (el) { return style(el).position === 'fixed'; });

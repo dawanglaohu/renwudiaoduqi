@@ -1861,7 +1861,11 @@
         "packages/web/src/components/model-picker.tsx",
         "packages/web/src/components/effort-picker.tsx",
         "packages/web/src/i18n/ui-strings.ts",
-        "packages/web/test/cache-invalidation.test.ts"
+        "packages/web/test/cache-invalidation.test.ts",
+        "packages/web/test/run-deck-document-lanes.test.tsx",
+        "docs/Agent任务调度器-开发文档/_run/density_probe.js",
+        "docs/Agent任务调度器-开发文档/_run/tests/test_release_1_7_density.py",
+        "docs/Agent任务调度器-开发文档/_run/tool-version.json"
       ]
     },
     "M1-T12": {
