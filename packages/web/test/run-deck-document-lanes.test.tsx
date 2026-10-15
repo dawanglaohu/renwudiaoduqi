@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { DocumentExecutionDto } from '@agent-scheduler/shared/api/document-execution';
 import type { LaneView } from '@agent-scheduler/shared/api/lanes';
+import postcss from 'postcss';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -72,6 +75,61 @@ describe('M9-T30 selected document lanes', () => {
 		useSelectionStore.getState().reset();
 		document.body.innerHTML = '';
 	});
+
+	it.each(['light', 'dark'] as const)(
+		'keeps the %s document controls outside the batch title width cap',
+		async (theme) => {
+			vi.spyOn(httpClient, 'callRoute').mockResolvedValue({
+				documents: [],
+				agents: [],
+				batches: [],
+				tasks: [],
+				runs: [],
+				lanes: [],
+			});
+			const frame = document.createElement('div');
+			frame.dataset.theme = theme;
+			const page = document.createElement('div');
+			page.dataset.component = 'deck-page';
+			frame.appendChild(page);
+			document.body.appendChild(frame);
+			const root = createRoot(page);
+			try {
+				await act(async () =>
+					root.render(
+						createElement(RunDeckContainer, { lanes: [], batches: [], densityTier: 'full' }),
+					),
+				);
+				const controls = frame.querySelector(
+					'.deck-batch-tree > [data-component="document-execution-container"]',
+				);
+				expect(controls).not.toBeNull();
+				const title = [...frame.querySelectorAll('.deck-batch-tree > div')].find(
+					(element) => element.textContent === '批次与任务',
+				);
+				expect(title).toBeDefined();
+				const capped: string[] = [];
+				const titleCaps: string[] = [];
+				const file = theme === 'light' ? 'memphis.css' : 'memphis-dark.css';
+				const css = readFileSync(resolve(__dirname, '../src/styles', file), 'utf8');
+				postcss.parse(css).walkRules((rule) => {
+					if (!rule.selector.includes('.deck-batch-tree')) return;
+					if (
+						!rule.nodes.some(
+							(node) => node.type === 'decl' && node.prop === 'max-width' && node.value !== 'none',
+						)
+					)
+						return;
+					if (controls?.matches(rule.selector)) capped.push(rule.selector);
+					if (title?.matches(rule.selector)) titleCaps.push(rule.selector);
+				});
+				expect(capped, 'The title chip must not constrain the document form').toEqual([]);
+				expect(titleCaps.length, 'The batch title retains its chip style').toBeGreaterThan(0);
+			} finally {
+				await act(async () => root.unmount());
+			}
+		},
+	);
 
 	it('drops a late lane snapshot from the document that was selected when the read started', async () => {
 		const documents = [
