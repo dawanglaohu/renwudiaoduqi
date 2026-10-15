@@ -551,5 +551,130 @@
       "fingerprint": "34bb23157e1626ee5dd466ee5d882514bbfed54be5fee0c5efc82a68481f7e9e",
       "jev": "jev-1.13.0 / adjudicate: pick=A(high 1.00) spec_change=no(0.09) outside_stack=no(0.06) needs_owner=no(0.04) reversible=yes(0.90) adopt=take(A)"
     }
-  ]
+  ],
+  "boundaryVerification": {
+    "contractHash": "7efc0eda1fef6b859735ce81fc2b3af6ff91f415773e7932e1b78b538778e57f",
+    "E-319": {
+      "code": [
+        "packages/daemon/src/domain/lanes.ts:253",
+        "packages/daemon/src/domain/lanes.ts:311",
+        "packages/web/src/features/run-deck/run-deck-view.tsx:361",
+        "packages/web/src/lib/stage-rows.ts:115",
+        "packages/web/src/components/pipeline-lane.tsx:135",
+        "packages/web/src/components/pipeline-lane.tsx:240",
+        "packages/web/src/components/lane-run-strip.tsx:57",
+        "packages/web/src/features/run-deck/run-deck-view.tsx:914"
+      ],
+      "tests": [
+        "packages/daemon/test/unit/lanes.test.ts:6",
+        "packages/daemon/test/integration/pipeline-lanes.test.ts:1271",
+        "packages/web/src/lib/stage-rows.test.ts:56",
+        "packages/web/test/pipeline-lane.test.tsx:177",
+        "packages/web/test/lane-run-strip.test.tsx:71",
+        "packages/web/test/run-deck-container.test.tsx:80"
+      ],
+      "phoneBefore": {
+        "head": "e7103df456a27cbd307065097fd77bf1d7ce6c3e",
+        "treeState": null,
+        "base": "http://127.0.0.1:38673",
+        "root": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r19-t23428016/review-live-b05dd005-19f3-4e26-b0cb-d7b401fc00cc",
+        "platform": "linux",
+        "phoneAudit": {
+          "coarsePointer": true,
+          "width": 390,
+          "height": 844,
+          "paneCount": 1,
+          "overflowX": 0,
+          "scroll": {
+            "before": 0,
+            "after": 197,
+            "moved": true,
+            "scrollHeight": 829,
+            "clientHeight": 632
+          },
+          "refreshStatus": 200,
+          "state": "idle",
+          "runs": 0,
+          "batchSelected": "true"
+        },
+        "phoneBoundary": {
+          "stopDisabled": false,
+          "stopBox": {
+            "x": 16,
+            "y": 788.5,
+            "width": 81.625,
+            "height": 44
+          },
+          "strip": "◀泳道 1/2 · 空闲排队▶",
+          "stageChains": 0
+        },
+        "ok": true
+      },
+      "phoneAfterWorkingTree": {
+        "head": "e7103df456a27cbd307065097fd77bf1d7ce6c3e",
+        "treeState": "e7103df-plus-uncommitted-E319-fix",
+        "base": "http://127.0.0.1:40357",
+        "root": "/mnt/d/xiangmu/.codex-plans/agent-scheduler-r19-t23428016/review-live-1cad2f2f-50d2-463e-a17c-1484ec7a295d",
+        "platform": "linux",
+        "phoneAudit": {
+          "coarsePointer": true,
+          "width": 390,
+          "height": 844,
+          "paneCount": 1,
+          "overflowX": 0,
+          "scroll": {
+            "before": 0,
+            "after": 197,
+            "moved": true,
+            "scrollHeight": 829,
+            "clientHeight": 632
+          },
+          "refreshStatus": 200,
+          "state": "idle",
+          "runs": 0,
+          "batchSelected": "true"
+        },
+        "phoneBoundary": {
+          "stopDisabled": true,
+          "stopBox": {
+            "x": 16,
+            "y": 788.5,
+            "width": 81.625,
+            "height": 44
+          },
+          "strip": "◀泳道 1/2 · 空闲排队▶",
+          "stageChains": 0
+        },
+        "ok": true
+      },
+      "red": "New phone-entry regression: 1 failed / 4 passed, expected stop.disabled true, received false.",
+      "green": "Entry and adjacent lane suites: 3 files / 21 passed; Biome two affected source/test files passed.",
+      "fix": "The existing idle lane object is excluded from canStop; button remains present at identical x16,y788.5,width81.625,height44."
+    },
+    "E-356": {
+      "code": [
+        "packages/shared/src/api/settings.ts:94",
+        "packages/daemon/src/http/routes/settings.ts:77",
+        "packages/daemon/src/domain/pipeline-settings.ts:118",
+        "packages/daemon/src/domain/pipeline-settings.ts:159",
+        "packages/daemon/src/service/settings.ts:178",
+        "packages/daemon/src/service/settings.ts:186",
+        "packages/daemon/src/service/settings.ts:289",
+        "packages/daemon/src/boot/container.ts:1098"
+      ],
+      "tests": [
+        "packages/daemon/test/unit/pipeline-settings.test.ts:17",
+        "packages/daemon/test/unit/settings.test.ts:222",
+        "packages/daemon/test/unit/native-effort.test.ts:18",
+        "packages/daemon/test/integration/agents-models-login.test.ts:560",
+        "e2e/pipeline-settings.test.ts:877",
+        "e2e/pipeline-settings.test.ts:1017"
+      ],
+      "verified": "Strict four keys and no extras; absent/legacy/corrupt rows; registry snapshot validation; effort validation; pipeline-only atomic storage; full event payload and nudge. The real-container HTTP/native-effort tests also pass. No product changes to pipeline settings.",
+      "testRun": "10 focused E-319/E-356 suites: 125 passed; current e7103df Pipeline Settings E2E CI SUCCESS.",
+      "ci": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38663128052"
+    },
+    "scopeConflictCheck": "Open PR209 shares view/test files but changes imports/document controls and a different test body; it does not touch this predicate or new regression. No dependency or branch rewrite was introduced.",
+    "finalHeadReceipt": "The final clean-HEAD native GUI receipt is published in the PR body after the support patch and code commit."
+  }
 }
