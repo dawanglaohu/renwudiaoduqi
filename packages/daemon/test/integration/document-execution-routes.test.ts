@@ -4836,3 +4836,146 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 });
+
+describe('Batch20 cross-batch wrapup human blockers', () => {
+	it.each([
+		...(['current', 'stale-generation', 'untracked-parent', 'changed-contract'] as const).flatMap(
+			(ownership) => [
+				{ ownership, crossBatch: true },
+				{ ownership, crossBatch: false },
+			],
+		),
+		{ ownership: 'manual' as const, crossBatch: false },
+	])(
+		'reports repair gates from the current wrapup: $ownership / crossBatch=$crossBatch',
+		async ({ ownership, crossBatch }) => {
+			const env = await setup();
+			const { server, container, headers, docId, docsPath } = env;
+			try {
+				writeTasksDocsData(docsPath, [
+					{ id: 'M1-T1', hash: 'contract-1' },
+					{ id: 'M1-T2', hash: 'contract-2', deps: ['M1-T1'] },
+				]);
+				const refreshed = await server.instance.inject({
+					method: 'POST',
+					url: `/api/v1/documents/${docId}/refresh`,
+					headers,
+					payload: {},
+				});
+				expect(refreshed.statusCode, refreshed.body).toBe(200);
+				const [trigger, other] = container.repos.batches.listByDocId(docId);
+				const task =
+					trigger &&
+					other &&
+					container.repos.tasks.listByBatchId(crossBatch ? other.id : trigger.id)[0];
+				if (!trigger || !other || !task) throw new Error('Two document batches missing');
+				// 人工验收没有实施分支的任务，使用既有闸门规则，不伪造Git进HEAD证据。
+				for (const member of container.repos.tasks.listByDocId(docId)) {
+					const gate = await container.services.gates.createWaitingGate({
+						taskId: member.id,
+						kind: 'landing',
+					});
+					await container.services.gates.decideGate({
+						gateId: gate.id,
+						decision: 'pass',
+						actorDeviceId: null,
+					});
+				}
+				const started = await server.instance.inject({
+					method: 'POST',
+					url: `/api/v1/documents/${docId}/execution/start`,
+					headers,
+					payload: {
+						expectedVersion: 0,
+						expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+						defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+					},
+				});
+				expect(started.statusCode, started.body).toBe(200);
+				const row = container.repos.documentExecutions.findByDocId(docId);
+				if (!row) throw new Error('Document plan missing');
+				const plan = JSON.parse(row.plan_json);
+				const generationId = plan[0].generationId as number;
+				container.repos.dispatchSnapshots?.insert({
+					id: 'b20-cross-owner-snapshot',
+					task_id: null,
+					batch_id: trigger.id,
+					contract_hash: plan[0].membershipFingerprint,
+					task_paths_json: '[]',
+					launch_spec_json: '{}',
+					input_text: JSON.stringify({
+						generationId: ownership === 'stale-generation' ? generationId - 1 : generationId,
+					}),
+					created_at: '2026-10-12T08:00:00.000Z',
+				});
+				container.repos.runs.insert({
+					id: 'b20-cross-owner',
+					task_id: null,
+					batch_id: trigger.id,
+					attempt_no: 1,
+					kind: 'wrapup',
+					state: 'exited',
+					agent_id: 'codex',
+					permission_tier: 'workspaceWrite',
+					snapshot_id: 'b20-cross-owner-snapshot',
+				});
+				plan[0].wrapupRunIds =
+					ownership === 'untracked-parent' || ownership === 'manual' ? [] : ['b20-cross-owner'];
+				container.repos.documentExecutions.save({
+					...row,
+					version: row.version + 1,
+					plan_json: JSON.stringify(plan),
+				});
+				await container.services.batch?.transitionBatch(
+					trigger.id,
+					'wrapping',
+					'wrapup_dispatched',
+				);
+				seedQueuedStageRun(env, {
+					id: 'b20-cross-repair',
+					taskId: task.id,
+					batchId: trigger.id,
+					contractHash: ownership === 'changed-contract' ? 'old-contract' : task.contract_hash,
+					generationId: ownership === 'manual' ? generationId : generationId - 1,
+					kind: 'implement',
+					origin: 'wrapup-fix',
+					spawnedByRunId: ownership === 'manual' ? undefined : 'b20-cross-owner',
+				});
+				for (const targetState of [
+					'starting',
+					'running',
+					'exited',
+					'reviewing',
+					'awaiting_human',
+				] as const) {
+					await container.services.run.transitionState({
+						runId: 'b20-cross-repair',
+						targetState,
+						reason: 'cross_batch_repair',
+					});
+				}
+				await container.services.gates.createWaitingGate({
+					taskId: task.id,
+					runId: 'b20-cross-repair',
+					kind: 'review',
+				});
+				expect(container.repos.tasks.findById(task.id)?.manual_state).toBe('landed');
+				const expected = { code: 'gate_waiting', batchId: trigger.id, taskIds: [task.id] };
+				for (const url of [`/api/v1/documents/${docId}/execution`, '/api/v1/snapshot']) {
+					const response = await server.instance.inject({ method: 'GET', url, headers });
+					expect(response.statusCode, response.body).toBe(200);
+					const execution = url.endsWith('/snapshot')
+						? response
+								.json()
+								.documentExecutions.find((item: { docId: string }) => item.docId === docId)
+						: response.json().execution;
+					if (ownership === 'current' || ownership === 'manual')
+						expect(execution.blockers).toContainEqual(expected);
+					else expect(execution.blockers).not.toContainEqual(expected);
+				}
+			} finally {
+				await server.instance.close();
+			}
+		},
+	);
+});

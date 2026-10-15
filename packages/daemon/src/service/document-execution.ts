@@ -495,14 +495,42 @@ export function createDocumentExecutionService(
 			const run = latestImplementations.get(task.id);
 			return (
 				task.manual_state === 'awaiting_human' ||
-				(run?.batch_id === task.batch_id && run.state === 'awaiting_human')
+				(run?.batch_id === task.batch_id &&
+					run.state === 'awaiting_human' &&
+					(run.origin !== 'wrapup-fix' || run.spawned_by_run_id === null))
 			);
 		});
-		if (gateTasks.length)
+		const gateTaskIds = new Set(gateTasks.map((task) => task.id));
+		if (current?.wrapupRunIds.length) {
+			const members = new Map(
+				tasks.filter((task) => task.is_removed_from_doc === 0).map((task) => [task.id, task]),
+			);
+			// 跨批修复归触发收口的批次；处理入口仍指向任务原来的批次。
+			const repairs = runs.filter((run) => {
+				if (run.kind !== 'implement' || run.origin !== 'wrapup-fix' || !run.task_id) return false;
+				const member = members.get(run.task_id);
+				const owner = run.spawned_by_run_id ? deps.runs.findById(run.spawned_by_run_id) : null;
+				return (
+					member &&
+					run.batch_id === current.batchId &&
+					owner?.kind === 'wrapup' &&
+					owner.batch_id === current.batchId &&
+					current.wrapupRunIds.includes(owner.id) &&
+					readDocumentRunGeneration(run, deps.runs, deps.snapshots) === current.generationId &&
+					deps.snapshots.findById(run.snapshot_id)?.contract_hash === member.contract_hash
+				);
+			});
+			for (const run of latestImplementationRunByTaskId(repairs, {
+				ignoreWrapupFix: false,
+			}).values()) {
+				if (run.task_id && run.state === 'awaiting_human') gateTaskIds.add(run.task_id);
+			}
+		}
+		if (gateTaskIds.size)
 			blockers.push({
 				code: 'gate_waiting',
 				batchId: current?.batchId ?? null,
-				taskIds: gateTasks.map((task) => task.id),
+				taskIds: [...gateTaskIds],
 			});
 		const failedTasks = currentEvidence.tasks.filter((task) => {
 			const latest = currentEvidence.runs
