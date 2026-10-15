@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M9-T30": {
+      "contractHash": "d8646597a048ec8d0a897582610503bbd05e5cb5adcc1c426c93c58cf11ca66f",
+      "verdict": "pass",
+      "evidence": [
+        "本轮仅登记任务定义的语义复核，代码验收为 REVIEW-ROUND 1 rework；未执行 --landed，M9-T30/M1-T12 仍未落地。审查代码为 PR #221 head 2a4e44c8c71242f1df4e19ca7caa67d5e1cca04f，base main 8081e835755886892a5fb5e9945d51d50b696905。",
+        "输入依赖已核：M8-T13 提供 document-sequential-dispatch 和 shared DocumentExecutionDto、start/pause/resume/expectedVersion、generationId 与 blockers；M9-T23 提供 useAgentModelCatalogs、ModelPicker、EffortPicker，M9-T29 提供 DENSITY 8 与密度探针。无需重新实现前置调度逻辑。",
+        "13/17/19/22 节与任务七条验收、E-360/361/362/363/364/365/367/368/369/370 一致；本层为 integration / document-execution-ui，完整原生跨批交付仍须 M1-T12。本轮发现的 UI 缓存、快照和文档泳道归属缺陷按既定条款返工，不降低标准或移交后续任务。",
+        "有效范围已核：PR 的 14 个 Web 文件均属 taskPaths 或 supportPaths，另一个文件为本任务知识库笔记。事件注册 packages/shared/src/api/events.ts:66 与载荷映射 :500 已由前置提供，本层 use-document-execution.ts:318 订阅，run-deck-container.tsx:269 发布快照。",
+        "本轮检查并保留真实未通过证据：15 个新增 UI/race 用例通过，但独立 R1/R2/R3 探针失败；全量 3328 passed/3 skipped/1 failed，未改动工作树并发测试隔离复跑6/6通过，仍不将原始全量失败写成通过。正式Windows bootstrap被机器级锁ACL阻断，缺三尺寸/GIF和真实Agent顺序链路证据；不能判代码pass。"
+      ]
+    }
+  }
+}
