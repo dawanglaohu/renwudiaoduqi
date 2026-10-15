@@ -1,0 +1,237 @@
+
+> agent-scheduler@ e2e /mnt/d/xiangmu/agent-scheduler-batch-19
+> pnpm --filter @agent-scheduler/web build && vitest run --config vitest.e2e.config.ts
+
+
+> @agent-scheduler/web@0.0.0 build /mnt/d/xiangmu/agent-scheduler-batch-19/packages/web
+> vite build
+
+vite v5.4.21 building for production...
+<script src="./theme-init.js"> in "/index.html" can't be bundled without type="module" attribute
+transforming...
+../../node_modules/.pnpm/@radix-ui+react-select@2.3.7_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_17810f902be7f268a61046ec24c8ec35/node_modules/@radix-ui/react-select/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-select@2.3.7_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_17810f902be7f268a61046ec24c8ec35/node_modules/@radix-ui/react-select/dist/index.mjs" was ignored.
+../../node_modules/.pnpm/@radix-ui+react-direction@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-direction@1.1.4_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-direction/dist/index.mjs" was ignored.
+../../node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.6_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-focus-guards@1.1.6_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-focus-guards/dist/index.mjs" was ignored.
+../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.19_@types+react-dom@18.3.7_@types+react@18.3.31___4f2024a88a120e800aa2287adeb24710/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-dismissable-layer@1.1.19_@types+react-dom@18.3.7_@types+react@18.3.31___4f2024a88a120e800aa2287adeb24710/node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs" was ignored.
+../../node_modules/.pnpm/@radix-ui+react-collection@1.1.15_@types+react-dom@18.3.7_@types+react@18.3.31__@types+_e568781db46e6f5e62f713df7975a3a9/node_modules/@radix-ui/react-collection/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-collection@1.1.15_@types+react-dom@18.3.7_@types+react@18.3.31__@types+_e568781db46e6f5e62f713df7975a3a9/node_modules/@radix-ui/react-collection/dist/index.mjs" was ignored.
+../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31__@types_161760c0d51338f080e5b66a9ea35f08/node_modules/@radix-ui/react-focus-scope/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-focus-scope@1.1.16_@types+react-dom@18.3.7_@types+react@18.3.31__@types_161760c0d51338f080e5b66a9ea35f08/node_modules/@radix-ui/react-focus-scope/dist/index.mjs" was ignored.
+../../node_modules/.pnpm/@radix-ui+react-presence@1.1.10_@types+react-dom@18.3.7_@types+react@18.3.31__@types+re_62e566fb7823886e0e3d5565144169f1/node_modules/@radix-ui/react-presence/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-presence@1.1.10_@types+react-dom@18.3.7_@types+react@18.3.31__@types+re_62e566fb7823886e0e3d5565144169f1/node_modules/@radix-ui/react-presence/dist/index.mjs" was ignored.
+../../node_modules/.pnpm/@radix-ui+react-portal@1.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_35c248e3d41b4a33144a8517e72175a4/node_modules/@radix-ui/react-portal/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-portal@1.1.17_@types+react-dom@18.3.7_@types+react@18.3.31__@types+reac_35c248e3d41b4a33144a8517e72175a4/node_modules/@radix-ui/react-portal/dist/index.mjs" was ignored.
+../../node_modules/.pnpm/@radix-ui+react-popper@1.3.7_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_eb61390ffeb98719c4501fa966467838/node_modules/@radix-ui/react-popper/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@radix-ui+react-popper@1.3.7_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_eb61390ffeb98719c4501fa966467838/node_modules/@radix-ui/react-popper/dist/index.mjs" was ignored.
+✓ 242 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                   0.61 kB │ gzip:   0.36 kB
+dist/assets/index-BI0JgIzU.css                  407.99 kB │ gzip:  45.43 kB
+dist/assets/settings-page-header-DwEAUzUY.js      0.52 kB │ gzip:   0.29 kB │ map:     1.24 kB
+dist/assets/settings-pipeline-page-rvuj1NJa.js    0.59 kB │ gzip:   0.33 kB │ map:     1.67 kB
+dist/assets/landing-page-C80uIi2I.js             11.84 kB │ gzip:   3.79 kB │ map:    37.29 kB
+dist/assets/settings-devices-page-Dofm55-F.js    13.69 kB │ gzip:   4.68 kB │ map:    39.15 kB
+dist/assets/settings-agents-page-NcwswpTf.js     31.77 kB │ gzip:   7.83 kB │ map:   103.84 kB
+dist/assets/vendor-ui-DyLAjxV_.js               112.04 kB │ gzip:  37.39 kB │ map:   545.26 kB
+dist/assets/vendor-react-LFRYuL8Q.js            142.18 kB │ gzip:  45.56 kB │ map:   347.64 kB
+dist/assets/index-D-_LfVbf.js                   373.86 kB │ gzip: 107.66 kB │ map: 1,434.75 kB
+✓ built in 1m 39s
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+ RUN  v2.1.9 /mnt/d/xiangmu/agent-scheduler-batch-19
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 1: 真实一次性码配对、异常提示与同源无 CDN 验证 (AC 1, E-04, E-06, E-175, E-224)
+CODEX PROBE RESULT: {"status":"matched","versionString":"codex 0.1.0 grok 1.2.0 (Claude Code compatible composition-agent)","matched":true,"login":null}
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #1] Decided gate req_73a218a5ad41 (kind: review, comment: review_verdict_incomplete): status=200
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #1] Decided gate req_0f7b54775f9e (kind: review, comment: review_manual_gate): status=200
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #1] Decided gate req_5d8bfd0d5d5f (kind: review, comment: review_manual_gate): status=200
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #1] Decided gate req_643f322e7482 (kind: landing, comment: landing_manual_gate): status=200
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #1] landedTasks: 1/5, pendingGates: 4
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #2] Decided gate req_5a503abd0616 (kind: landing, comment: landing_manual_gate): status=200
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #2] Decided gate req_6a8784225be3 (kind: landing, comment: landing_manual_gate): status=200
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #2] Decided gate req_c27409126d32 (kind: landing, comment: landing_manual_gate): status=200
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #3] landedTasks: 4/5, pendingGates: 0
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #4] Decided gate req_70d17186782f (kind: review, comment: review_manual_gate): status=200
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #5] Decided gate req_78346ca35c5e (kind: landing, comment: landing_manual_gate): status=200
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 POLL #5] landedTasks: 5/5, pendingGates: 1
+[STEP 6 GIT] worktreesRaw:
+worktree /tmp/agsched-e2e-project-oe3JA4/repo
+HEAD 2a51c3fc8e452a9e9f75e570fb5abbcb1d3964cf
+branch refs/heads/main
+
+worktree /tmp/agsched-e2e-project-oe3JA4/repo-b14-t1
+HEAD 2a51c3fc8e452a9e9f75e570fb5abbcb1d3964cf
+branch refs/heads/task/B14-T1
+
+worktree /tmp/agsched-e2e-project-oe3JA4/repo-b14-t2
+HEAD 2a51c3fc8e452a9e9f75e570fb5abbcb1d3964cf
+branch refs/heads/task/B14-T2
+
+worktree /tmp/agsched-e2e-project-oe3JA4/repo-b14-t2-2
+HEAD 2a51c3fc8e452a9e9f75e570fb5abbcb1d3964cf
+branch refs/heads/task/B14-T2-2
+
+worktree /tmp/agsched-e2e-project-oe3JA4/repo-b14-t3
+HEAD 2a51c3fc8e452a9e9f75e570fb5abbcb1d3964cf
+branch refs/heads/task/B14-T3
+
+worktree /tmp/agsched-e2e-project-oe3JA4/repo-b14-t4
+HEAD 2a51c3fc8e452a9e9f75e570fb5abbcb1d3964cf
+branch refs/heads/task/B14-T4
+
+worktree /tmp/agsched-e2e-project-oe3JA4/repo-b14-t5
+HEAD 2a51c3fc8e452a9e9f75e570fb5abbcb1d3964cf
+branch refs/heads/task/B14-T5
+
+
+[STEP 6 GIT] rawBranchOutput:
+* main
++ task/B14-T1
++ task/B14-T2
++ task/B14-T2-2
++ task/B14-T3
++ task/B14-T4
++ task/B14-T5
+
+[STEP 6 GIT] All branches to merge: [
+  'task/B14-T1',
+  'task/B14-T2',
+  'task/B14-T2-2',
+  'task/B14-T3',
+  'task/B14-T4',
+  'task/B14-T5'
+]
+[STEP 6 GIT] Merged task/B14-T1: Merge made by the 'recursive' strategy.
+ e2e/b14-t1.ts | 3 +++
+ 1 file changed, 3 insertions(+)
+[STEP 6 GIT] Merged task/B14-T2: Already up to date.
+[STEP 6 GIT] Merged task/B14-T2-2: Merge made by the 'recursive' strategy.
+ e2e/b14-t2.ts | 3 +++
+ 1 file changed, 3 insertions(+)
+[STEP 6 GIT] Merged task/B14-T3: Merge made by the 'recursive' strategy.
+ e2e/b14-t3.ts | 2 ++
+ 1 file changed, 2 insertions(+)
+[STEP 6 GIT] Merged task/B14-T4: Merge made by the 'recursive' strategy.
+ e2e/b14-t4.ts | 3 +++
+ 1 file changed, 3 insertions(+)
+[STEP 6 GIT] Merged task/B14-T5: Merge made by the 'recursive' strategy.
+ e2e/b14-t5.ts | 3 +++
+ 1 file changed, 3 insertions(+)
+[STEP 6 GIT] git log -n 5:
+ 9e20706 Merge task/B14-T5 into HEAD
+4fc5518 Merge task/B14-T4 into HEAD
+f39bbec Merge task/B14-T3 into HEAD
+f965947 Worktree changes
+af0296b Worktree changes
+
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 IN_HEAD POLL #1] batch: {"id":"req_40e464dbd516","state":"running","landedCount":5,"notInHeadCount":5,"canWrapup":false}
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 IN_HEAD POLL #4] batch: {"id":"req_40e464dbd516","state":"awaiting_landing","landedCount":5,"notInHeadCount":4,"canWrapup":false}
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 IN_HEAD POLL #7] batch: {"id":"req_40e464dbd516","state":"awaiting_landing","landedCount":5,"notInHeadCount":4,"canWrapup":false}
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 IN_HEAD POLL #10] batch: {"id":"req_40e464dbd516","state":"awaiting_landing","landedCount":5,"notInHeadCount":4,"canWrapup":false}
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 IN_HEAD POLL #13] batch: {"id":"req_40e464dbd516","state":"awaiting_landing","landedCount":5,"notInHeadCount":4,"canWrapup":false}
+
+stdout | e2e/batch-14-composition.test.ts > 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74)
+[STEP 6 IN_HEAD POLL #16] batch: {"id":"req_40e464dbd516","state":"awaiting_landing","landedCount":5,"notInHeadCount":3,"canWrapup":false}
+
+ ✓ e2e/batch-14-composition.test.ts (12 tests) 250049ms
+   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 1: 真实一次性码配对、异常提示与同源无 CDN 验证 (AC 1, E-04, E-06, E-175, E-224) 19317ms
+   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 2: 导入测试文档、权威批次树呈现与逐任务指派配置 (AC 1, M8-T9, E-341, E-347) 7271ms
+   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 3: 真实子进程派发、SSE 到 DOM 与界面参照条逐阶段显示同一指派来源 (AC 1, AC 2, M8-T9, E-347, E-10) 4325ms
+   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 4: 审查阶段覆盖、跨家映射与查 bug 阶段链 (AC 1, AC 2, M8-T9, E-341, E-342, E-347, E-323) 8937ms
+   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 5: 真实 spawn 零产出退出转人工、审批卡呈现与多流并置 (AC 2, E-348, E-106, E-157) 616ms
+   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 6: 批次正式落地、HEAD 检测、收口启动、八段报告与落地清单呈现 (AC 3, M9-T20, E-157, E-286, E-290, E-297, E-74) 45333ms
+   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 7: 收口失败后的半成品工作区、转人工与解析失败呈现 (AC 3, E-295, E-297) 2203ms
+   ✓ 第 14 批任务指派、阶段运行与收口报告真实全链端到端验收 (R14-T23602992, AC 1-5, E-04, E-06, E-106, E-146, E-157, E-175, E-224, E-265, E-278, E-286, E-295, E-297, E-323, E-341, E-342, E-347, E-348) > step 8: 真实浏览器状态驱动 GIF 录制完成与发布门禁架构断言 (AC 4, E-265) 18201ms
+   ✓ R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E-108, E-145) > AC 1-2: 批次树相邻块净距是契约 12px（margin 不与 gap 叠加），浅深两主题两尺寸都成立 3043ms
+   ✓ R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E-108, E-145) > AC 3: 导入控件换行按实际行边界量，不等高同行子项不误判，真实超限行间距仍失败 485ms
+   ✓ R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E-108, E-145) > AC 4: 两种桌面尺寸 D1-D6 与 overflow 全过，浅深主题都成立 2138ms
+   ✓ R19-T23428016 甲板初始状态间距与桌面密度探针 (AC 1-4, E-108, E-145) > AC 4 窄屏对照: 390x844 单栏、无横向滚动、导入与重绑定与批次选择仍可用 2105ms
+ ❯ e2e/pipeline-settings.test.ts (13 tests | 13 skipped) 45250ms
+ ✓ e2e/batch-13-smoke.test.ts (13 tests) 150695ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 1: 未授权访问拦截与无令牌重定向 (AC 2, E-08, E-224) 6419ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 2: 真实自举公开配对、零运行四步向导与样式验证 (AC 1, AC 2, E-108, E-200, E-224, E-226) 5323ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 3: 错误地址手填配对失败提示、具体环节报错与手填可操作性 (AC 2, E-06, R3) 5871ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 4: 未登记 hash、不存在运行的页面级兜底与回到甲板入口 (AC 2, E-222, E-223, R3) 1036ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 5: 文档导入与权威批次树呈现 (AC 1, AC 2, M9-T19, R13-T98191508) 5899ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 6: 逐任务指派草稿、并发瓶颈与人工闸门配置 (AC 1, M9-T18, E-52, E-299) 2385ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 7: 任务派发、fake-agent 运行与实时 SSE 消息流转 (AC 1, AC 2, E-10, E-31, R1) 2688ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > settings selector cancels without PATCH and fills the phone viewport with touch targets (M9-T23, E-145, E-358) 13933ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 8: 离线断网、离线横幅、重连退避、Last-Event-ID 与断网事件恰好补推一次 (AC 2, E-10, E-12, E-158, R2) 16413ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 9: 真实运行到达人工闸门与浏览器作出审批决定 (AC 1, AC 2, E-05, E-53, R1) 3207ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 10: 窄屏移动端入口与手机批次及运行详情严格交叉验证 (AC 2, E-200, M9-T25, R3) 12639ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 11: 设备令牌服务端撤销、断流、401 拦截与防无限重连 (AC 2, E-156, R2) 3259ms
+   ✓ 第 13 批真实服务与浏览器全链端到端验收 (R13-T57054072, AC 1-4, E-06, E-08, E-10, E-12, E-108, E-156, E-158, E-200, E-222, E-223, E-224) > step 12: 架构测试与反造假检查 (AC 1, AC 3, E-135, E-265) 9815ms
+ ❯ e2e/smoke.test.ts (7 tests | 7 skipped) 45366ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  e2e/smoke.test.ts > M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流程 (AC 1-5, E-10, E-31, E-108, E-135, E-139, E-159, E-175, E-226, E-265)
+Error: Daemon failed to become healthy at http://127.0.0.1:44403/api/v1/health within 45000ms.
+STDOUT:
+
+STDERR:
+
+ ❯ startDaemon e2e/smoke.test.ts:282:9
+    280|   );
+    281|   await stopFn();
+    282|   throw new Error(
+       |         ^
+    283|    `Daemon failed to become healthy at ${healthUrl} within ${timeoutMs…
+    284|   );
+ ❯ e2e/smoke.test.ts:372:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  e2e/pipeline-settings.test.ts > R16-T85823419 流水线设置 e2e：真 daemon 与真浏览器 (AC 1-5, E-26, E-157, E-159, E-175, E-265, E-306, E-312, E-318, E-356)
+Error: Daemon failed to become healthy at http://127.0.0.1:41645/api/v1/health within 45000ms.
+STDOUT:
+
+STDERR:
+
+ ❯ startDaemon e2e/pipeline-settings.test.ts:286:9
+    284|   );
+    285|   await stopFn();
+    286|   throw new Error(
+       |         ^
+    287|    `Daemon failed to become healthy at ${healthUrl} within ${timeoutMs…
+    288|   );
+ ❯ e2e/pipeline-settings.test.ts:443:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  2 failed | 2 passed (4)
+      Tests  25 passed | 20 skipped (45)
+   Start at  21:07:23
+   Duration  571.24s (transform 1.20s, setup 0ms, collect 16.71s, tests 491.36s, environment 1ms, prepare 43.70s)
+
+ ELIFECYCLE  Command failed with exit code 1.

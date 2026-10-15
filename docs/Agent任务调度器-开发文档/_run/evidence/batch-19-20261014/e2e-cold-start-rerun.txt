@@ -1,0 +1,47 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /mnt/d/xiangmu/agent-scheduler-batch-19
+
+ ❯ e2e/pipeline-settings.test.ts (13 tests | 13 skipped) 45258ms
+ ❯ e2e/smoke.test.ts (7 tests | 7 skipped) 45622ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  e2e/smoke.test.ts > M1-T11 端到端冒烟：真起 daemon、真浏览器、派发主流程 (AC 1-5, E-10, E-31, E-108, E-135, E-139, E-159, E-175, E-226, E-265)
+Error: Daemon failed to become healthy at http://127.0.0.1:41417/api/v1/health within 45000ms.
+STDOUT:
+
+STDERR:
+
+ ❯ startDaemon e2e/smoke.test.ts:282:9
+    280|   );
+    281|   await stopFn();
+    282|   throw new Error(
+       |         ^
+    283|    `Daemon failed to become healthy at ${healthUrl} within ${timeoutMs…
+    284|   );
+ ❯ e2e/smoke.test.ts:372:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  e2e/pipeline-settings.test.ts > R16-T85823419 流水线设置 e2e：真 daemon 与真浏览器 (AC 1-5, E-26, E-157, E-159, E-175, E-265, E-306, E-312, E-318, E-356)
+Error: Daemon failed to become healthy at http://127.0.0.1:33865/api/v1/health within 45000ms.
+STDOUT:
+
+STDERR:
+
+ ❯ startDaemon e2e/pipeline-settings.test.ts:286:9
+    284|   );
+    285|   await stopFn();
+    286|   throw new Error(
+       |         ^
+    287|    `Daemon failed to become healthy at ${healthUrl} within ${timeoutMs…
+    288|   );
+ ❯ e2e/pipeline-settings.test.ts:443:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  2 failed (2)
+      Tests  20 skipped (20)
+   Start at  21:22:52
+   Duration  128.10s (transform 857ms, setup 0ms, collect 6.65s, tests 90.88s, environment 1ms, prepare 20.64s)

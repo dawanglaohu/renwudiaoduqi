@@ -1,0 +1,151 @@
+[Historical baseline/partial run, not a final pass; original SHA256 below in proof]
+   ✓ document repository binding with real Git > relocates an existing source without replacing task identities or document settings 310ms
+   ✓ document repository binding with real Git > rejects rebinding while a task is active and keeps the frozen run unchanged 313ms
+   ✓ document repository binding with real Git > keeps a readable binding when a replacement source cannot be read 305ms
+   ✓ document repository binding with real Git > blocks a deleted source at preflight and reports its path 304ms
+   ✓ document repository binding with real Git > blocks a source replaced by a directory without changing run history 308ms
+   ✓ document repository binding with real Git > checks the healthy workspace before automatic dispatch in a running batch 315ms
+   ✓ document repository binding with real Git > checks the source workspace before automatic dispatch in a running batch 324ms
+   ✓ document repository binding with real Git > checks the repository workspace before automatic dispatch in a running batch 355ms
+   ✓ document repository binding with real Git > checks the malformed workspace before automatic dispatch in a running batch 340ms
+   ✓ document repository binding with real Git > checks the version workspace before automatic dispatch in a running batch 343ms
+   ✓ document repository binding with real Git > checks the contract workspace before automatic dispatch in a running batch 362ms
+   ✓ document repository binding with real Git > repairs a legacy slug binding on a normal refresh 392ms
+   ✓ document repository binding with real Git > rejects non-host-absolute repository path agent-scheduler 361ms
+   ✓ document repository binding with real Git > rejects non-host-absolute repository path C:\foreign\repo 393ms
+   ✓ document repository binding with real Git > rejects non-host-absolute repository path ~/relative 334ms
+   ✓ document repository binding with real Git > rejects relocating onto another document instead of corrupting either binding 367ms
+ ✓ packages/daemon/test/unit/rework.test.ts (21 tests) 1166ms
+   ✓ M7-T4: Rework reinjection and retry limit (AC 1-4, E-55, E-59, E-68, E-279) > Real RunsRepo SQLite persistence for rework_count (R1) > persists rework_count updates into SQLite via updateReworkCount and updateState 1109ms
+stdout | packages/daemon/test/integration/documents-routes.test.ts > M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 5 & E-08: All three routes reject unauthenticated requests with 401 and standard error envelope
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/documents-routes.test.ts > M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 4: All three routes return 404 E_NOT_FOUND when docId does not exist
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/documents-routes.test.ts > M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 2, E-17, E-19, E-82: POST /documents/:docId/refresh handles unchanged, accept change, and unreadable source
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/documents-routes.test.ts > M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > recovers a moved source through HTTP while preserving the document and task IDs
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/documents-routes.test.ts > M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > rejects task and batch dispatch before creating runs when the source has disappeared
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/documents-routes.test.ts > M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > returns current readiness reasons through the production HTTP dispatch entry
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/documents-routes.test.ts > M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 3: GET /documents/:docId/tasks supports state filter, cursor pagination, and derived state
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/documents-routes.test.ts > M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 4: GET /documents/:docId/batches returns BatchDto[] sorted by batchNo ASC with canWrapup and notInHeadCount
+[daemon] Initial pairing code: [REDACTED]
+
+stdout | packages/daemon/test/integration/documents-routes.test.ts > M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > R2 regression: refreshDocument rolls back metadata, tasks, and flags on late-stage failure and recovers on retry
+[daemon] Initial pairing code: [REDACTED]
+
+ ✓ packages/daemon/test/integration/documents-routes.test.ts (9 tests) 52336ms
+   ✓ M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 5 & E-08: All three routes reject unauthenticated requests with 401 and standard error envelope 34305ms
+   ✓ M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 4: All three routes return 404 E_NOT_FOUND when docId does not exist 1494ms
+   ✓ M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 2, E-17, E-19, E-82: POST /documents/:docId/refresh handles unchanged, accept change, and unreadable source 2978ms
+   ✓ M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > recovers a moved source through HTTP while preserving the document and task IDs 2262ms
+   ✓ M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > rejects task and batch dispatch before creating runs when the source has disappeared 1854ms
+   ✓ M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > returns current readiness reasons through the production HTTP dispatch entry 2092ms
+   ✓ M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 3: GET /documents/:docId/tasks supports state filter, cursor pagination, and derived state 2460ms
+   ✓ M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > AC 4: GET /documents/:docId/batches returns BatchDto[] sorted by batchNo ASC with canWrapup and notInHeadCount 1969ms
+   ✓ M2-T7 Documents Routes Integration: Refresh, Tasks, Batches & 401 Auth > R2 regression: refreshDocument rolls back metadata, tasks, and flags on late-stage failure and recovers on retry 2919ms
+ ✓ packages/daemon/test/unit/message-service.test.ts (24 tests) 28309ms
+   ✓ M6-T6 MessageService: delivery and capability constraints > Fastify HTTP route: POST /api/v1/runs/:runId/messages > returns 200 with { delivered: true, messageId } on successful delivery 25915ms
+   ✓ M6-T6 MessageService: delivery and capability constraints > Real SQLite Database Integration > persists message and state transition in real SQLite database 2284ms
+ ✓ packages/daemon/test/unit/rework-dispatch.test.ts (16 tests) 60ms
+ ✓ packages/daemon/test/unit/worktree.test.ts (28 tests) 375ms
+ ✓ packages/web/test/stream-column.test.ts (48 tests) 224ms
+ ✓ packages/daemon/test/unit/review-agent.test.ts (20 tests) 1426ms
+   ✓ M7-T2: 审查 agent 派发与 diff 裁剪 (AC 1-4, E-135, E-347, E-65) > Dispatch review run integration & persistence > persists review run into runsRepo and emits run.started event 1176ms
+ ✓ packages/daemon/test/unit/dispatch-contract.test.ts (24 tests) 40547ms
+   ✓ M8-T3 Dispatch & Batch Progression Contract > AC 1: scheduler-tick job mutual exclusion & non-reentrancy > prohibits concurrent ticks and re-entrancy, ensuring task is not dispatched twice 2508ms
+   ✓ M8-T3 Dispatch & Batch Progression Contract > HTTP Routes Integration (Fastify) > POST /api/v1/runs creates and dispatches a new run idempotently 26160ms
+   ✓ M8-T3 Dispatch & Batch Progression Contract > R1: boot wiring through createContainer > wires dispatch routes and scheduler-tick through createContainer 7304ms
+ ✓ packages/daemon/test/unit/grok-adapter.test.ts (38 tests) 185ms
+ ✓ packages/daemon/test/unit/diff.test.ts (23 tests) 300ms
+ ❯ packages/daemon/test/integration/completion-admission.test.ts (14 tests | 3 failed) 42680ms
+   ✓ completes one authenticated real stdin reply without resending (abort during wait: false) 32643ms
+   ✓ completes one authenticated real stdin reply without resending (abort during wait: true) 3690ms
+   ✓ does not repeat an accepted approval or elevation under pressure (provider boundary mocked) 565ms
+   ✓ finishes a failed bughunt exactly once after a real child exit and event pressure 525ms
+   ✓ retries only the wrapup completion transaction after a real failed child exit 537ms
+   ✓ does not revive a review awaiting verdict admission after real exit (archive during wait: false) 536ms
+   ✓ does not revive a review awaiting verdict admission after real exit (archive during wait: true) 546ms
+   × preserves one mechanical-check handoff with a real Git diff and failed child exit 430ms
+     → Command failed: git init -b main
+error: unknown switch `b'
+usage: git init [-q | --quiet] [--bare] [--template=<template-directory>] [--shared[=<permissions>]] [<directory>]
+
+    --template <template-directory>
+                          directory from which templates will be used
+    --bare                create a bare repository
+    --shared[=<permissions>]
+                          specify that the git repository is to be shared amongst several users
+    -q, --quiet           be quiet
+    --separate-git-dir <gitdir>
+                          separate git dir from working tree
+
+
+   × waits to dispatch one review after a real successful exit (archive during wait: false) 420ms
+     → Command failed: git init -b main
+error: unknown switch `b'
+usage: git init [-q | --quiet] [--bare] [--template=<template-directory>] [--shared[=<permissions>]] [<directory>]
+
+    --template <template-directory>
+                          directory from which templates will be used
+    --bare                create a bare repository
+    --shared[=<permissions>]
+                          specify that the git repository is to be shared amongst several users
+    -q, --quiet           be quiet
+    --separate-git-dir <gitdir>
+                          separate git dir from working tree
+
+
+   × waits to dispatch one review after a real successful exit (archive during wait: true) 344ms
+     → Command failed: git init -b main
+error: unknown switch `b'
+usage: git init [-q | --quiet] [--bare] [--template=<template-directory>] [--shared[=<permissions>]] [<directory>]
+
+    --template <template-directory>
+                          directory from which templates will be used
+    --bare                create a bare repository
+    --shared[=<permissions>]
+                          specify that the git repository is to be shared amongst several users
+    -q, --quiet           be quiet
+    --separate-git-dir <gitdir>
+                          separate git dir from working tree
+
+
+   ✓ preserves a committed agent config PATCH with 'request' owning admission (stop during wait: false) 660ms
+   ✓ preserves a committed agent config PATCH with 'request' owning admission (stop during wait: true) 640ms
+   ✓ preserves a committed agent config PATCH with 'reload' owning admission (stop during wait: false) 573ms
+   ✓ preserves a committed agent config PATCH with 'reload' owning admission (stop during wait: true) 568ms
+ ✓ packages/daemon/test/unit/dispatch-snapshots.test.ts (15 tests) 3754ms
+   ✓ M3-T3 repo/dispatch-snapshots Database Integration > AC 1 & E-19: snapshots input, output, accept, prompts, contract_hash, and paths verbatim at dispatch time 1271ms
+   ✓ M3-T3 repo/dispatch-snapshots Database Integration > AC 3 & E-18 & E-77: task disappearing while running is not terminated, not deleted, marked removed, and forbidden from re-dispatch 315ms
+   ✓ M3-T3 repo/dispatch-snapshots Database Integration > AC 5 & E-81: snapshot written at dispatch instant; simultaneous doc change performs post-hoc comparison without rolling back run 322ms
+   ✓ M3-T3 repo/dispatch-snapshots Database Integration > E-78: getTaskAcceptanceComparison provides side-by-side snapshot vs current doc texts 314ms
+   ✓ M3-T3 repo/dispatch-snapshots Database Integration > E-82: an unreviewed contract is blocked with E_DOC_CONTRACT_PENDING, not E_TASK_REMOVED_FROM_DOC 323ms
+   ✓ M3-T3 repo/dispatch-snapshots Database Integration > AC 4 & E-80 & E-78: taking a new snapshot moves the baseline and clears stale change flags 314ms
+   ✓ M3-T3 repo/dispatch-snapshots Database Integration > handles non-existent snapshot and task queries gracefully 324ms
+ ✓ packages/daemon/test/unit/probe.test.ts (31 tests) 175ms
+ ✓ packages/daemon/test/unit/dsh-adapter.test.ts (38 tests) 1258ms
+   ✓ M4-T12: dsh headless 适配器与通用 ACP 扩展槽 > 厂商事件字符串隔离 (AC 1 & Architecture) > asserts dsh vendor event strings do not leak into service, jobs, or http layers 1151ms
+ ✓ packages/daemon/test/unit/bughunt-report.test.ts (22 tests) 211ms
+ ❯ packages/daemon/test/unit/landing.test.ts (20 tests | 1 failed) 29260ms
+   ✓ M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68) > generateLandingCommands (AC 1, E-74, Decision 68) > generates copyable gh stack command and build_docs.py landed command with docsPath 2285ms
+   × M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68) > cleanupTaskWorktree (AC 2, E-73) > AC 2 & E-73: executes git worktree remove and prune on explicit cleanup, returning { removed: true } 44ms
+     → expected [ [ 'rev-parse', …(1) ], …(4) ] to deep equally contain [ 'worktree', 'prune' ]
+   ✓ M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68) > HTTP Routes (packages/daemon/src/http/routes/tasks.ts) > GET /api/v1/tasks/:taskId/landing returns 200 with landing checklist 25647ms
+   ✓ M5-T4 Landing Checklist and Worktree Disposal (E-73, E-74, Decision 68) > Real Git Repository Integration (E-73, E-74 lifecycle) > full lifecycle: prepare worktree -> inspect landing diff & commands -> explicit cleanup -> retry rebuilds worktree (E-73, E-74) 827ms
+ ✓ packages/daemon/test/integration/session-archive.test.ts (8 tests) 3933ms
+   ✓ M6-T10 Integration: Task Session Archiving and Isolation Assertion > AC 1, AC 2 & E-302, E-322: implement terminal state triggers archive in tx, terminates process trees after tx, collects residual PIDs without blocking lane release 2589ms
+ ✓ packages/web/test/thumb-bar.test.ts (31 tests) 146ms
+ ✓ packages/daemon/test/unit/retention.test.ts (27 tests) 27438ms
+   ✓ M6-T9 Session Retention Policy and Full-Text Search > Fastify HTTP Endpoints: GET /search and DELETE /logs > GET /api/v1/runs/:runId/search returns 200 with hits 27068ms
+ ELIFECYCLE  Command failed with exit code 130.

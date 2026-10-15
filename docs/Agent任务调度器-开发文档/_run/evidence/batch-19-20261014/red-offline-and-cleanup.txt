@@ -1,0 +1,121 @@
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+
+
+ RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-19
+
+
+
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt
+
+[daemon] Initial pairing code: [REDACTED]
+
+
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt
+
+[E-296] Document did not provide matching dispatchBatches for batch req_cc69cbcdfa07, falling back to builtin wrapup prompt
+
+
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts (86 tests | 1 failed | 85 skipped) 3059ms
+
+   × M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt 3056ms
+
+     → expected 'failed' to be 'queued' // Object.is equality
+
+ ❯ packages/daemon/test/unit/worktree.test.ts (29 tests | 1 failed | 28 skipped) 29ms
+
+   × M5-T1 Worktree Preparation, Branch Naming, and Reclamation > Worktree Reclamation / Cleanup (removeWorktree) > rejects non-forced cleanup when registrations cannot be inspected 25ms
+
+     → promise resolved "{ removed: true, branchDeleted: true }" instead of rejecting
+
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+
+
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-365: an unavailable queued wrapup waits and recovers without another attempt
+
+AssertionError: expected 'failed' to be 'queued' // Object.is equality
+
+
+
+Expected: "queued"
+
+Received: "failed"
+
+
+
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts:1903:55
+
+    1901|   available = false;
+
+    1902|   await container.services.dispatch.tick();
+
+    1903|   expect(container.repos.runs.findById(runId)?.state).toBe('queued');
+
+       |                                                       ^
+
+    1904|   expect(env.getSpawnedRuns()).not.toContain(runId);
+
+    1905|   const waiting = container.services.documentExecution.get(docId).exec…
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+
+ FAIL  packages/daemon/test/unit/worktree.test.ts > M5-T1 Worktree Preparation, Branch Naming, and Reclamation > Worktree Reclamation / Cleanup (removeWorktree) > rejects non-forced cleanup when registrations cannot be inspected
+
+AssertionError: promise resolved "{ removed: true, branchDeleted: true }" instead of rejecting
+
+
+
+- Expected
+
++ Received
+
+
+
+- [Error: rejected promise]
+
++ Object {
+
++   "branchDeleted": true,
+
++   "removed": true,
+
++ }
+
+
+
+ ❯ packages/daemon/test/unit/worktree.test.ts:686:4
+
+    684|      { platform: 'linux', ids: defaultTestIds },
+
+    685|     ),
+
+    686|    ).rejects.toMatchObject({ code: 'E_INTERNAL' });
+
+       |    ^
+
+    687|    expect(commands.some((args) => args[0] === 'branch' || args[1] === …
+
+    688|   });
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+
+ Test Files  2 failed (2)
+
+      Tests  2 failed | 113 skipped (115)
+
+   Start at  20:48:14
+
+   Duration  7.73s (transform 2.32s, setup 0ms, collect 3.66s, tests 3.09s, environment 1ms, prepare 334ms)

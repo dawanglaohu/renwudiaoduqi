@@ -1815,7 +1815,10 @@
         "packages/daemon/src/service/batch.ts",
         "packages/daemon/test/unit/batch-state-machine.test.ts",
         "packages/daemon/test/arch/batch-state-isolation.test.ts",
-        "packages/daemon/test/integration/batch-wrapup.test.ts"
+        "packages/daemon/test/integration/batch-wrapup.test.ts",
+        "packages/daemon/src/workspace/worktree.ts",
+        "packages/daemon/test/unit/worktree.test.ts",
+        "packages/daemon/test/unit/landing.test.ts"
       ]
     },
     "M9-T30": {

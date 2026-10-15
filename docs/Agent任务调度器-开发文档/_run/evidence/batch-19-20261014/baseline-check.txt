@@ -1,0 +1,151 @@
+[Historical baseline/partial run, not a final pass; original SHA256 below in proof]
+
+stderr | packages/web/test/gate-card.test.tsx > R3: production task approval assembly > rerun uses its run route; reassign expands before navigation; failure waits for confirmation
+Warning: The current testing environment is not configured to support act(...)
+
+stderr | packages/web/test/gate-card.test.tsx > R3: production task approval assembly > rerun uses its run route; reassign expands before navigation; failure waits for confirmation
+Warning: The current testing environment is not configured to support act(...)
+
+stderr | packages/web/test/gate-card.test.tsx > R3: production task approval assembly > ordinary approval and edit keep their gate decisions and never rerun
+Warning: The current testing environment is not configured to support act(...)
+
+stderr | packages/web/test/gate-card.test.tsx > R3: production task approval assembly > ordinary approval and edit keep their gate decisions and never rerun
+Warning: The current testing environment is not configured to support act(...)
+
+ ✓ packages/web/test/gate-card.test.tsx (7 tests) 145ms
+stdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: a lost manual-wrapup response remains discoverable after document pause
+[daemon] Initial pairing code: [REDACTED]
+
+stderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-361: a lost manual-wrapup response remains discoverable after document pause
+[E-296] Document did not provide matching dispatchBatches for batch req_794e44aecc68, falling back to builtin wrapup prompt
+
+ ✓ packages/web/test/routes.test.ts (35 tests) 10663ms
+   ✓ M9-T25 route entries > navigates all eight hashes to real page/container components 427ms
+   ✓ M9-T25 Vite route chunks > keeps deck/tasks/run detail in the main chunk and lazy-loads only settings and landing 9589ms
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts (78 tests | 1 failed) 340438ms
+   ✓ M8-T12 document execution through the real container > E-361: repeating pause with the observed current version is read-only 4152ms
+   ✓ M8-T12 document execution through the real container > E-361: repeating resume with the observed current version is read-only 3608ms
+   ✓ M8-T12 document execution through the real container > E-361: duplicate start reads the committed plan while the repository is unavailable 2968ms
+   ✓ M8-T12 document execution through the real container > E-361: an old start cannot mask a version conflict after pause and resume 3918ms
+   ✓ M8-T12 document execution through the real container > E-361: duplicate resume reads the committed plan while the repository is unavailable 3548ms
+   ✓ M8-T12 document execution through the real container > E-361: duplicate start returns the committed plan after Agent capability changes 2810ms
+   ✓ M8-T12 document execution through the real container > E-369: read-only execution DTO retains persisted generation and attempts until resume 2893ms
+   ✓ M8-T12 document execution through the real container > E-365: landed work does not remain blocked by its unavailable Agent 2927ms
+   ✓ M8-T12 document execution through the real container > E-369: refresh publishes a pause after source becomes unreadable 2903ms
+   ✓ M8-T12 document execution through the real container > E-369: control preflight publishes a pause after source becomes unreadable 2664ms
+   ✓ M8-T12 document execution through the real container > E-361: control events retain the authenticated device 3062ms
+   ✓ M8-T12 document execution through the real container > E-365: an established vendor effort survives a narrower cached model list 2728ms
+   ✓ M8-T12 document execution through the real container > E-365: an offline registered agent accepts a configured vendor effort as a waiting plan 2780ms
+   ✓ M8-T12 document execution through the real container > E-365: resume rejects a saved vendor effort after its Agent capability is removed 8395ms
+   ✓ M8-T12 document execution through the real container > E-365: an unavailable draft agent remains an execution blocker 10165ms
+   ✓ M8-T12 document execution through the real container > E-365: a draft on another unavailable agent blocks while the default is available 4738ms
+   ✓ M8-T12 document execution through the real container > E-366: two legacy active batches appear in the idle execution DTO 4284ms
+   ✓ M8-T12 document execution through the real container > E-366: a lone later legacy batch blocks start while an earlier batch is incomplete 3052ms
+   ✓ M8-T12 document execution through the real container > R3: first adoption retains legacy wrapup attempts and two effective rounds in generation zero 2856ms
+   ✓ M8-T12 document execution through the real container > R4: a later landed run cannot retroactively prove an older clean verdict for the same task key 3394ms
+   ✓ M8-T12 document execution through the real container > R4: adopts an old done only when the wrapup froze matching members and earlier landed evidence 2604ms
+   ✓ M8-T12 document execution through the real container > R1: resumes after the old active batch loses every member 4042ms
+   ✓ M8-T12 document execution through the real container > R2: pauses on a same-fingerprint source rebinding 5193ms
+   ✓ M8-T12 document execution through the real container > R2: re-import publishes the committed document execution change 3376ms
+   ✓ M8-T12 document execution through the real container > keeps a legal vendor effort value and rejects an unknown value before a plan exists 3218ms
+   ✓ M8-T12 document execution through the real container > rejects unknown agents and stale source without creating a plan, then pauses a live plan on restart 2888ms
+   ✓ M8-T12 document execution through the real container > imports idle, then persists one waiting plan and preserves a newer pause against an old resume retry 3857ms
+   ✓ M8-T12 document execution through the real container > refresh pauses a running plan and explicit resume creates a new generation for changed members 3771ms
+   ✓ M8-T12 document execution through the real container > resumes an unstarted task after daemon restart and Agent recovery 3050ms
+   ✓ M8-T12 document execution through the real container > activates the next batch only after frozen clean wrapup evidence enters HEAD 3457ms
+   ✓ M8-T12 document execution through the real container > freezes the active generation and run ownership when production wrapup is admitted 3232ms
+   × M8-T12 document execution through the real container > E-369: a refresh during wrapup preflight cannot freeze obsolete batch members 32529ms
+     → Could not publish a private pairing file.
+   ✓ M8-T12 document execution through the real container > E-367: a clean wrapup completed during pause is adopted on resume (inHead=true) 25813ms
+   ✓ M8-T12 document execution through the real container > E-367: a clean wrapup completed during pause is adopted on resume (inHead=false) 3048ms
+   ✓ M8-T12 document execution through the real container > E-367: a paused open report plans fixes once despite later stale history (lateStale=false) 4140ms
+   ✓ M8-T12 document execution through the real container > E-367: a paused open report plans fixes once despite later stale history (lateStale=true) 5409ms
+   ✓ M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('active') 3894ms
+   ✓ M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('aborted') 3527ms
+   ✓ M8-T12 document execution through the real container > keeps a late old-generation wrapup as history while new members wait ('interrupted') 2852ms
+   ✓ M8-T12 document execution through the real container > fails an unstarted old-generation wrapup before dispatching the new generation 3087ms
+   ✓ M8-T12 document execution through the real container > E-369: a stale wrapup human gate cannot complete the rebuilt generation 3633ms
+   ✓ M8-T12 document execution through the real container > does not admit a run after pause wins an asynchronous tick preflight 2783ms
+   ✓ M8-T12 document execution through the real container > pauses a running plan when the source changes before refresh 2821ms
+   ✓ M8-T12 document execution through the real container > E-369: a refreshed batch move revokes a queued admission before the next plan advance 3177ms
+   ✓ M8-T12 document execution through the real container > E-369: queued 'review' waits when only task readiness becomes false (occupiedLane=false) 3345ms
+   ✓ M8-T12 document execution through the real container > E-369: queued 'bughunt' waits when only task readiness becomes false (occupiedLane=false) 2923ms
+   ✓ M8-T12 document execution through the real container > E-369: queued 'review' waits when only task readiness becomes false (occupiedLane=true) 3219ms
+   ✓ M8-T12 document execution through the real container > shares the Agent limit across two running documents in one tick 3348ms
+   ✓ M8-T12 document execution through the real container > uses a task draft while an unavailable document default waits 2741ms
+   ✓ M8-T12 document execution through the real container > holds a shared path across two documents even with two Agent slots 4177ms
+   ✓ M8-T12 document execution through the real container > E-362: an in-flight run holds its frozen paths after document refresh 13903ms
+   ✓ M8-T12 document execution through the real container > relays after production wrapup records clean and its branch reaches HEAD 3255ms
+   ✓ M8-T12 document execution through the real container > reaches the managed process port from document start through the production tick 3936ms
+   ✓ M8-T12 document execution through the real container > R1: revalidates a changed landed contract before current-generation wrapup 3668ms
+   ✓ M8-T12 document execution through the real container > E-369: completed execution reopens when refresh moves a member without changing task hashes 3419ms
+   ✓ M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'clean' wrapup artifacts 3341ms
+   ✓ M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'open' wrapup artifacts 3189ms
+   ✓ M8-T12 document execution through the real container > R1: changed-contract work reports an unavailable Agent despite old landed history 3324ms
+   ✓ M8-T12 document execution through the real container > R1: stale reworking implementation cannot replace the changed contract 3456ms
+   ✓ M8-T12 document execution through the real container > R1: a moved 'reworking' task cannot hold the new batch Agent slot or path 3366ms
+   ✓ M8-T12 document execution through the real container > R1: a moved 'awaiting_human' task cannot hold the new batch Agent slot or path 2692ms
+   ✓ M8-T12 document execution through the real container > R1: a changed contract clears its obsolete human gate before new dispatch 3448ms
+   ✓ M8-T12 document execution through the real container > E-364: a current pre-dispatch human gate stays visible without a run 3175ms
+   ✓ M8-T12 document execution through the real container > E-369: a moved task retries in its new batch after an old-batch failure 3463ms
+   ✓ M8-T12 document execution through the real container > R2: removed unlanded member cannot block current wrapup and next batch 3532ms
+   ✓ M8-T12 document execution through the real container > R3: a queued wrapup from a removed batch releases its lane and publishes its failure 3606ms
+   ✓ M8-T12 document execution through the real container > R3: stale queued 'review' stays out of the rebuilt generation 3587ms
+   ✓ M8-T12 document execution through the real container > R3: stale queued 'bughunt' stays out of the rebuilt generation 3483ms
+   ✓ M8-T12 document execution through the real container > R3: stale queued 'wrapup-fix' stays out of the rebuilt generation 6265ms
+   ✓ M8-T12 document execution through the real container > R3: rejecting an old queued bughunt retires its parked implementation parent 3286ms
+   ✓ M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=true) 3468ms
+   ✓ M8-T12 document execution through the real container > E-369: 'bughunt' human stage gate follows current membership (moved=true) 2971ms
+   ✓ M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=false) 3051ms
+   ✓ M8-T12 document execution through the real container > R3: same-generation queued review resumes after a user pause 3319ms
+   ✓ M8-T12 document execution through the real container > R3: queued review inherits durable generation from its implementation parent 3537ms
+   ✓ M8-T12 document execution through the real container > R3: queued wrapup-fix follows its current wrapup generation over an older copied snapshot 3784ms
+   ✓ M8-T12 document execution through the real container > R4: a legacy tick observed without a plan cannot admit after start and pause 3058ms
+   ✓ M8-T12 document execution through the real container > E-361: a lost manual-wrapup response remains discoverable after document pause 2840ms
+ ✓ packages/web/test/gate-toggles-recovery.test.tsx (6 tests) 231ms
+ ✓ packages/web/test/effort-picker.test.tsx (8 tests) 876ms
+   ✓ EffortPicker (AC 3, E-254, E-351) > offers native fallback levels, prefers model levels, and preserves a selected unsupported value 433ms
+ ✓ packages/web/test/run-deck-recovery.test.tsx (2 tests) 314ms
+ ✓ packages/web/test/use-agent-models.test.tsx (3 tests) 76ms
+ ✓ packages/web/test/settings-agent-refresh.test.tsx (3 tests) 76ms
+ ✓ packages/web/test/model-picker.test.tsx (5 tests) 626ms
+ ✓ packages/web/test/login-hint.test.tsx (4 tests) 98ms
+ ✓ packages/web/test/use-minute-tick.test.tsx (6 tests) 90ms
+ ✓ packages/web/test/run-deck-container.test.tsx (5 tests) 165ms
+ ✓ packages/web/test/login-badge.test.tsx (5 tests) 95ms
+ ✓ packages/web/test/desktop-titlebar.test.tsx (5 tests) 126ms
+ ✓ packages/web/test/grouped-select-interaction.test.tsx (6 tests) 820ms
+ ✓ packages/web/test/theme-control.test.tsx (2 tests) 208ms
+ ✓ packages/web/test/style-pipeline.test.ts (8 tests) 11291ms
+   ✓ M9-T24: PostCSS pipeline (AC 2, E-159) > postcss.config.cjs registers exactly tailwindcss and autoprefixer 955ms
+   ✓ M9-T24: PostCSS pipeline (AC 2, E-159) > processing src/styles/base.css emits .bg-page backed by var(--page), no hex in between 1447ms
+   ✓ M9-T24: vite build output (AC 1, AC 5, E-175, E-224) > AC 1: the built stylesheet contains no @tailwind literal and at least 200 utility rules 8741ms
+ ✓ packages/web/test/batch-11-log-seams.test.ts (1 test) 139ms
+ ✓ packages/web/test/empty-onboarding.test.tsx (2 tests) 140ms
+ ✓ packages/web/test/model-refresh-http.test.ts (2 tests) 36ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a refresh during wrapup preflight cannot freeze obsolete batch members
+AppError: Could not publish a private pairing file.
+ ❯ Object.writePrivateFile packages/daemon/src/platform/private-file-windows.ts:126:18
+    124|    input: JSON.stringify({ path, contents }),
+    125|   });
+    126|   if (!ok) throw new AppError('E_INTERNAL', 'Could not publish a priva…
+       |                  ^
+    127|  };
+    128| }
+ ❯ writeBootstrapFile packages/daemon/src/service/pairing.ts:116:9
+ ❯ Object.bootstrapIfNeeded packages/daemon/src/service/pairing.ts:352:4
+ ❯ Module.createContainer packages/daemon/src/boot/container.ts:430:55
+ ❯ setup packages/daemon/test/integration/document-execution-routes.test.ts:93:20
+ ❯ packages/daemon/test/integration/document-execution-routes.test.ts:1787:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 252 passed (253)
+      Tests  1 failed | 3302 passed | 3 skipped (3306)
+   Start at  19:16:02
+   Duration  359.65s (transform 17.96s, setup 0ms, collect 123.76s, tests 996.39s, environment 51.03s, prepare 89.57s)
+
+ ELIFECYCLE  Command failed with exit code 1.
