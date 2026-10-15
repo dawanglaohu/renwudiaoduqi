@@ -589,7 +589,7 @@
 	background: repeating-linear-gradient(-45deg, var(--ink-1) 0 3px, var(--bg) 3px 7px);
 }
 
-[data-theme="light"] [data-component="deck-page"] .deck-batch-tree > div:first-child {
+[data-theme="light"] [data-component="deck-page"] .deck-batch-tree > .deck-batch-tree-title {
 	align-self: flex-start;
 	width: fit-content;
 	max-width: calc(100% - 52px);

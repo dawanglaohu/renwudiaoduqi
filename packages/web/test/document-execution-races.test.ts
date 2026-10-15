@@ -589,6 +589,29 @@ it('invalidates cached document capacity while the panel is unmounted', async ()
 });
 
 describe('document execution cache and snapshot ordering', () => {
+	it('refreshes same-version blockers from a snapshot delivered while the panel is absent', async () => {
+		let serverExecution = execution();
+		vi.mocked(httpClient.callRoute).mockImplementation(async (route: { path: string }) => {
+			if (route.path.endsWith('/execution')) {
+				return { execution: serverExecution };
+			}
+			return { models: [], isComplete: true, currentConfig: null };
+		});
+		const client = makeClient({ getExecution: httpDocumentExecutionClient.getExecution });
+		const first = await mount(client);
+		await first.unmount();
+		serverExecution = execution({
+			blockers: [{ code: 'gate_waiting', batchId: 'batch-1', taskIds: ['task-1'] }],
+		});
+		publishDocumentExecutions([serverExecution]);
+		const second = await mount(client);
+		try {
+			expect(second.container.querySelector('[data-blocker="gate_waiting"]')).not.toBeNull();
+		} finally {
+			await second.unmount();
+		}
+	});
+
 	it('reads the current execution when remounting after an event while the panel was absent', async () => {
 		let serverExecution = execution();
 		let executionGets = 0;

@@ -1,0 +1,1340 @@
+{
+  "batch": 20,
+  "task": "M9-T30",
+  "date": "2026-10-15",
+  "baseHead": "2abc6a29",
+  "reviewedSourceSha256": {
+    "packages/daemon/src/service/document-execution.ts": "09ee62344ecb3f8a51b8cf4bc7dbbaab01a684e01645cda80f5a498b22c66ad3",
+    "packages/daemon/test/integration/document-execution-routes.test.ts": "01e25476b870a918924215ea1beee569bb7f80c8f839931e0459b0d17ec87d09",
+    "packages/web/src/features/run-deck/run-deck-view.tsx": "b17f4d93a60352cfc8b41d0dd015a878f13bc750ed3ae9f1736bf89103bd335c",
+    "packages/web/src/features/run-deck/use-document-execution.ts": "fb46a8cd057f4d7d9aca8aa25ce0d7a3413695465081760cf62be3dc55e24b9f",
+    "packages/web/src/styles/memphis-dark.css": "2fbe8dc04106a9feda10c38547cd0876981fb20fdec7fefe347892dc6bc17ff4",
+    "packages/web/src/styles/memphis.css": "9e9c90e22bdce7090ec725a1c62eb363fb61198f0720282fea4c690f07463009",
+    "packages/web/test/document-execution-races.test.ts": "ba429261aa23d542c431c2257e27be807a9f2223057ad07dea3d54ebfbbd1168",
+    "packages/web/test/run-deck-document-lanes.test.tsx": "905b3db07402c75acbda9cd82bda13fcd7254da351a8aaf42a9a74a9405ce483"
+  },
+  "fixes": [
+    {
+      "id": "B1",
+      "severity": "S2",
+      "commit": "f976b66",
+      "red": "real Codex run awaits review with manual_state=null; execution DTO has no gate_waiting; new HTTP regression fails",
+      "green": "87 real-container execution route cases pass, including GET/snapshot current run and old-attempt negative; authentic UI gate entry observed"
+    },
+    {
+      "id": "B2",
+      "severity": "S3",
+      "commit": "bdf9634",
+      "red": "both themes positional title selectors constrain actual rendered document form; two regression cases fail",
+      "green": "explicit title identity; two theme negative checks plus heading positive controls pass; real form geometry fills available rail width"
+    },
+    {
+      "id": "B3",
+      "severity": "S2",
+      "commit": "a5a1ef9",
+      "red": "current cross-batch repair omitted; same-batch stale generation/untracked parent leaked,3 failed/5 passed",
+      "green": "9 repair ownership/contract controls and3 existing gate controls pass; full96-route suite passes"
+    },
+    {
+      "id": "B4",
+      "severity": "S2",
+      "commit": "a1d5e35",
+      "red": "same-version gate snapshot delivered while panel absent; remount gate row is null",
+      "green": "publisher invalidates document cache even without subscribers;43 UI/race/cache cases pass"
+    }
+  ],
+  "tests": {
+    "fullBaseline": "pnpm -w check --maxWorkers=2 --minWorkers=1:256 files,3345 passed/3 existing skipped; initial unrestricted run had one slow-disk timeout, not repeated in bounded full rerun",
+    "finalDaemonRoutes": "96/96 passed after B3",
+    "webUiRaceCache": "43/43 passed after B4; final heading positive controls included",
+    "generator": "216 run,1 existing skipped",
+    "typeLintBuild": "TypeScript project references,6 changed files Biome,architecture guard0 violations,production Web build passed",
+    "localRawE2E": "Windows4 files fail setup from existing machine-lock ACL. WSL4 files fail setup:Git2.25 lacks init-b and Chromium1243 SIGILL/CFI. No assertion/timeout change or system ACL change. Same declared E2E jobs passed on the recorded GitHub head.",
+    "batchRecordProjection": "6/6 passed; generator source unchanged",
+    "ci": "Previous candidate681ee3f passed all7 required checks/2 conditional skips. Latest changed-head CI and clean native capture remain mandatory before merge; final immutable provenance and results are recorded in PR222 body/checks."
+  },
+  "nativeBrowser": {
+    "sourceHead": "bdf96345eb9ef5f62e805f363a2e122786913153",
+    "cleanAtStart": false,
+    "browser": "repository Playwright Chromium, fresh headless context after in-app browser navigation timeout",
+    "controls": [
+      {
+        "action": "start",
+        "status": 200,
+        "body": {
+          "expectedVersion": 0,
+          "expectedFingerprint": "88207f6d3f66d7fca08c1d7e5a5b6f0da564c7c9e48d9005d310af49d2d98544",
+          "defaultAssignment": {
+            "agentId": "codex",
+            "modelName": null,
+            "effort": null
+          }
+        }
+      },
+      {
+        "action": "pause",
+        "status": 200,
+        "body": {
+          "expectedVersion": 1
+        }
+      },
+      {
+        "action": "resume",
+        "status": 200,
+        "body": {
+          "expectedVersion": 2,
+          "expectedFingerprint": "88207f6d3f66d7fca08c1d7e5a5b6f0da564c7c9e48d9005d310af49d2d98544"
+        }
+      }
+    ],
+    "densities": [
+      {
+        "viewport": {
+          "width": 1920,
+          "height": 1080
+        },
+        "metrics": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:48670/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": {
+            "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.deck-desktop-layout.flex.flex-row > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+            "width": 272
+          },
+          "avail": {
+            "left": 282,
+            "right": 1920,
+            "width": 1638
+          },
+          "contentFound": true,
+          "fill": 0.961,
+          "leftGap": 32,
+          "rightGap": 32,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.007
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      },
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "metrics": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:48670/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "mobile": false,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": {
+            "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.deck-desktop-layout.flex.flex-row > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+            "width": 272
+          },
+          "avail": {
+            "left": 282,
+            "right": 1440,
+            "width": 1158
+          },
+          "contentFound": true,
+          "fill": 0.945,
+          "leftGap": 32,
+          "rightGap": 32,
+          "interiorBand": {
+            "px": 12,
+            "ratio": 0.01
+          },
+          "overflowX": 0,
+          "bars": 4,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "pass",
+            "D2": "pass",
+            "D3": "pass",
+            "D4": "pass",
+            "D5": "pass",
+            "D6": "pass",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      },
+      {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "metrics": {
+          "probe": "density",
+          "version": 2,
+          "url": "http://127.0.0.1:48670/#/",
+          "type": "work",
+          "contract": {
+            "density": 8,
+            "gutter": 16,
+            "gap": 12,
+            "pad": 14
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "mobile": true,
+          "main": "div#root > div.flex.min-h-screen.flex-col > main.flex-1",
+          "rail": {
+            "path": "section.flex.flex-col.h-full > div.relative.flex-1.flex > div.deck-desktop-layout.flex.flex-row > aside.w-[var(--rail-w,272px)].min-w-[var(--rail-w,272px)].shrink-0",
+            "width": 374
+          },
+          "avail": {
+            "left": 382,
+            "right": 390,
+            "width": 8
+          },
+          "contentFound": false,
+          "fill": 0,
+          "leftGap": 8,
+          "rightGap": 8,
+          "interiorBand": {
+            "px": 0,
+            "ratio": 0
+          },
+          "overflowX": 0,
+          "bars": 104,
+          "growth": [],
+          "emptyTracks": [],
+          "gapOffenders": [],
+          "padOffenders": [],
+          "sparseBlocks": [],
+          "centeredCaps": [],
+          "counts": {
+            "growth": 0,
+            "emptyTracks": 0,
+            "gapOffenders": 0,
+            "padOffenders": 0,
+            "sparseBlocks": 0,
+            "centeredCaps": 0
+          },
+          "verdict": {
+            "D1": "n/a",
+            "D2": "n/a",
+            "D3": "pass",
+            "D4": "n/a",
+            "D5": "n/a",
+            "D6": "n/a",
+            "note": "主区域第一屏没有可见内容：页面没加载完，或 main 选择器不对",
+            "overflow": "pass",
+            "pass": true
+          }
+        }
+      }
+    ],
+    "errors": [],
+    "docId": "req_d9938fa9aabf",
+    "importIdleZeroRuns": true,
+    "style": {
+      "font": "\"Public Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+      "bg": "rgb(254, 249, 239)",
+      "flex": true
+    },
+    "runs": [
+      {
+        "id": "req_09885578a519",
+        "state": "awaiting_human",
+        "kind": "implement",
+        "exitCode": 0,
+        "taskId": "req_c8c536270880"
+      }
+    ],
+    "batches": {
+      "batches": [
+        {
+          "id": "req_4789403e8313",
+          "docId": "req_d9938fa9aabf",
+          "batchNo": 1,
+          "state": "running",
+          "startedAt": "2026-10-15T16:30:26.971Z",
+          "finishedAt": null,
+          "canWrapup": false,
+          "notInHeadCount": 0,
+          "taskCount": 1,
+          "landedCount": 0,
+          "runningCount": 0,
+          "waitingCount": 1,
+          "defaultExpanded": true
+        },
+        {
+          "id": "req_eec7c0004457",
+          "docId": "req_d9938fa9aabf",
+          "batchNo": 2,
+          "state": "idle",
+          "startedAt": null,
+          "finishedAt": null,
+          "canWrapup": false,
+          "notInHeadCount": 0,
+          "taskCount": 1,
+          "landedCount": 0,
+          "runningCount": 0,
+          "waitingCount": 0,
+          "defaultExpanded": false
+        }
+      ]
+    },
+    "finalExecution": {
+      "docId": "req_d9938fa9aabf",
+      "state": "running",
+      "version": 3,
+      "contentFingerprint": "88207f6d3f66d7fca08c1d7e5a5b6f0da564c7c9e48d9005d310af49d2d98544",
+      "defaultAssignment": {
+        "agentId": "codex",
+        "modelName": null,
+        "effort": null
+      },
+      "currentBatchId": "req_4789403e8313",
+      "currentBatchNo": 1,
+      "completedBatchCount": 0,
+      "totalBatchCount": 2,
+      "pauseReason": null,
+      "blockers": [
+        {
+          "code": "gate_waiting",
+          "batchId": "req_4789403e8313",
+          "taskIds": [
+            "req_c8c536270880"
+          ]
+        }
+      ],
+      "canStart": false,
+      "canPause": true,
+      "canResume": false,
+      "updatedAt": "2026-10-15T16:30:29.959Z",
+      "wrapupProgress": {
+        "generationId": 1,
+        "validRounds": 0,
+        "physicalAttempts": 0
+      }
+    },
+    "finalText": "文档执行\n\n按批次顺序执行，并按窗口自动补位。\n\n文档\n选择文档\n第20批真实文档控制验收\n\n执行中\n\n第 1 / 2 批\n已完成批次 0 / 2\n本批已落地 0 / 1，在跑 0，等待 1\n窗口占用 0 / 2\n第 1 代 · 有效自动收口 0/2 · 物理尝试 0/6\n有人工闸门等待处理\n查看任务\n默认指派\n\n默认指派只决定还没有任务草稿的任务。某一任务上的草稿仍然优先。\n\n本轮计划的默认指派已由调度服务固定。\n\n默认 Agent\n选择默认 Agent\nCodex\nClaude Code（暂不可用）\nPi Agent（暂不可用）\nGrok CLI（暂不可用）\nDeepSeek Harness（暂不可用）\n默认模型\n选择默认模型...\n默认思考强度\n选择思考强度...\n暂停",
+    "themeForms": [
+      {
+        "theme": "dark",
+        "width": 212,
+        "available": 212,
+        "maxWidth": "none"
+      },
+      {
+        "theme": "light",
+        "width": 212,
+        "available": 212,
+        "maxWidth": "none"
+      }
+    ],
+    "mobile": {
+      "coarse": true,
+      "overflow": 0,
+      "controls": [
+        {
+          "action": "document-execution-document",
+          "height": 44
+        },
+        {
+          "action": "document-default-agent",
+          "height": 44
+        },
+        {
+          "action": "pause-document",
+          "height": 44
+        }
+      ],
+      "pauseResumeConverged": true,
+      "offlineWriteDisabled": true,
+      "restartPausedUntilSourceConfirmed": true
+    },
+    "windowSettingPersisted": true,
+    "noAdditionalRuns": true,
+    "providerEvidence": {
+      "runId": "req_09885578a519",
+      "kind": "agent_message_chunk",
+      "method": "item/completed",
+      "type": "agentMessage",
+      "text": "BATCH20_NATIVE_OK",
+      "exitCode": 0
+    },
+    "runtime": {
+      "bootstrap": "packages/daemon/bootstrap.mjs",
+      "platform": "WSL Linux Node22.17.0 and native machine lock; Windows Chromium1.63.0 driver",
+      "dependency": "same better-sqlite3@13.0.3 compiled for GLIBC2.31, dependency-resolution overlay in isolated planning runtime; production source unchanged",
+      "provider": "installed Windows codex.exe0.162.0-alpha.17.2 app-server, gpt-6.1-sol; no credentials copied",
+      "boundary": "Native text round only. Windows CLI interoperability does not prove native filesystem/MCP tools. Full multi-batch completion, generation changes and wrapup acceptance remain M1-T12 todo."
+    },
+    "evidenceScope": "Earlier candidate normal-control/recovery proof with its exact sourceHead retained. The final changed-head provider run and five-frame GIF require source-hash equality and are recorded in PR222 body before merge."
+  },
+  "judgments": [
+    {
+      "state": {
+        "requirement": "Close Batch 20 for the already merged M9-T30 document start/pause/resume UI. Run all declared tests, real browser/bootstrap smoke and density, audit only this task and one predecessor seam, reproduce before any repair, record unresolved work as stable repair tasks, submit/review/merge the closeout. Do not ask routine questions. The task contract explicitly shares complete native E-370 evidence with the downstream unlanded M1-T12. Do not weaken acceptance or claim full product delivery without that downstream proof.",
+        "task": {
+          "title": "Batch 20 closeout of M9-T30",
+          "accept": "M9 UI and race coverage, real daemon control/state evidence, 1920/1440/390 layouts, pnpm workspace check, truthful closeout and next-task handoff"
+        },
+        "conflict": "Main is 2abc6a2, PR221 merged with authentic production-bootstrap/HTTP/SSE/browser pairing/import and real Codex text-round evidence. Its exact review records explicitly leave full native worktree writes, complete multi-batch completion, restart, dual-client and changed-membership real acceptance to M1-T12, which is still todo and depends on M9-T30. Batch prompt broadly requests failure branches and real E2E. This Windows session's earlier and current bootstrap smoke encounters the existing machine-lock ACL; no system permission change is authorized or needed. WSL Node22, compiler and ffmpeg are installed. An isolated same-version Linux better-sqlite3 runtime can provide unchanged production bootstrap without changing source or live daemon. Baseline full workspace and generator tests are running. No product bug has yet been demonstrated.",
+        "options": {
+          "A": "Honor the established staged ownership. Run a bounded fresh M9 real production bootstrap/browser/control/native text round in WSL with an isolated platform-correct dependency of the same version, explicitly record this runtime and text-only Windows-CLI path exception. Test frontend race/errors and predecessor integration with the repository suites. Close Batch20 if its evidence passes, leave M1-T12 todo and make full product completion conditional on it. If authentic M9 proof fails, retain open with a stable repair task rather than claiming pass.",
+          "B": "Complete all downstream M1-T12 native worktree/multibatch/restart/dual-client/membership proof in this batch now while leaving the task todo, then close Batch20 only if the complete native acceptance succeeds. Do not change any existing task definition.",
+          "C": "Treat full E-370 native product proof as a present Batch20 blocker: preserve current code, write an open closeout with a stable evidence task and leave M1-T12 todo, without attempting another supported platform runtime."
+        }
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.98,
+            "band": "high",
+            "probabilities": {
+              "A": 0.99,
+              "B": 0.0,
+              "C": 0.01
+            }
+          },
+          "spec_change": {
+            "p": 0.12,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.24,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.1,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.81,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.12) outside_stack=no(0.24) needs_owner=no(0.10) reversible=yes(0.81) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1398,
+          "output_tokens": 108
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "Batch20 must audit M9-T30 and its immediate predecessor seam. Real document controls must show daemon-owned human gate blockers with an existing task entry, preserve manual gates, and never cross to the next batch until done (E-364). Reproduce first, repair only the cause, and retain a failing-before/passing-after regression. Do not lower acceptance or change unrelated scopes.",
+        "task": {
+          "title": "M9-T30 document-level execution blocker display with M8-T13 authority",
+          "accept": "A current implementation waiting for manual review/landing appears as gate_waiting with its actual task and batch in execution GET and snapshot. Old contract/old batch/old attempt evidence must not create a current blocker; no-run pre-dispatch manual task gates remain visible."
+        },
+        "conflict": "Fresh normal UI pairing/import/start/pause/resume through unchanged production bootstrap and real installed codex.exe0.162 produced BATCH20_NATIVE_OK and process exit0. The implementation then awaited a real review gate. SQLite read-only observation shows runs.state=awaiting_human while tasks.manual_state is null; the task row and approval card correctly show waiting, but the document panel has no blocker and the browser predicate timed out180s. service/document-execution.ts gateTasks filters only task.manual_state. New real-container regression uses document start/production tick, normal run-state transitions and createWaitingGate, leaves manual_state null, and fails because execution.blockers is empty. CurrentMemberEvidence already limits implementation evidence by membership contract and excludes source_changed rows; latestImplementationRunByTaskId is the existing batch authority for latest implementation attempt.",
+        "options": {
+          "A": "Repair only the daemon projection: retain the existing no-run manual override and also detect awaiting_human from the latest current-member implementation run via the existing latestImplementationRunByTaskId helper, requiring the run's batch to match the current task batch. Keep membership/contract filtering, frontend DTO handling and scheduling behavior unchanged. Cover HTTP+snapshot, resolved gate removal, stale attempt and moved/changed-contract negative controls; rerun real native UI proof.",
+          "B": "Inject the existing GatesRepo into document execution and derive blockers from its pending gate rows, filtered against current member/contract/run ownership; retain manual override compatibility. Add composition wiring and repository dependency tests plus current/stale gate cases. This directly uses the gate authority but changes an additional service dependency.",
+          "C": "Keep current code, preserve the authenticated native reproduction and failing regression, and close Batch20 as open with a stable repair task owning the M8-T13/M9-T30 gate-projection seam. Do not assert clean or full native feature delivery."
+        }
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "A": 1.0,
+              "B": 0.0,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.06,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.77,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.09) outside_stack=no(0.09) needs_owner=no(0.06) reversible=yes(0.77) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1404,
+          "output_tokens": 108
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "Batch20 M9-T30 must keep imported-document start/default Agent/model/effort controls usable at1920x1080,1440x900 and390x844, preserve existing light/dark theme, window settings, batch tree and approvals, and repair only demonstrated causes. Do not redesign or weaken density thresholds.",
+        "task": {
+          "title": "M9-T30 default-assignment layout and existing theme seam",
+          "accept": "Document controls retain the rail's available width, labels remain legible, existing batch title decoration remains on the title, both themes pass real browser and selector regression, no action/state changes."
+        },
+        "conflict": "Actual1440 production screenshot shows the default assignment form rendered inside a narrow pink title chip; model/effort text wraps. Both memphis.css line592 and memphis-dark.css line858 style .deck-batch-tree > div:first-child as a title: width fit-content, max-width calc(100%-52px), padding and border. M9-T30 inserted DocumentExecutionContainer as the first child ahead of the old title div. Regression renders the actual desktop RunDeckContainer, parses each shipped theme stylesheet and checks matched max-width selectors; both themes fail because the positional title selector matches the entire document form. Desktop density D1-D6 nevertheless passes (the form is inside the excluded left rail), so the density gate alone misses this usability issue.",
+        "options": {
+          "A": "Replace only the two positional title selectors with an explicit .deck-batch-tree-title class and add that class to the real batch heading. Preserve the execution panel position, all title styling and existing palette/decorations, fill the document form normally, rerun both CSS/DOM regressions and real browser three-size/theme/keyboard checks.",
+          "B": "Move the batch title div before the execution panel so the existing first-child selector applies to it again. Preserve all CSS and title decoration, but the batch section title will appear above the document execution controls. Rerun real responsive and theme proof.",
+          "C": "Move the document execution panel outside the styled batch-tree card into its own sibling within the existing rail, preserving the original tree first-child title and its selectors. This separates the two control groups visually and requires auditing additional spacing/scroll behavior."
+        },
+        "question": "Which bounded UI repair best preserves the established layout while preventing batch-title styles from constraining document controls?"
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "design",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "A": 1.0,
+              "B": 0.0,
+              "C": 0.0
+            }
+          },
+          "register": {
+            "choice": "product_backoffice",
+            "confidence": 0.73,
+            "band": "medium",
+            "probabilities": {
+              "product_backoffice": 0.78,
+              "product_workbench": 0.22,
+              "brand": 0.0,
+              "commerce": 0.0,
+              "h5": 0.0
+            }
+          },
+          "stated": {
+            "p": 0.87,
+            "verdict": "yes"
+          },
+          "token_only": {
+            "p": 0.05,
+            "verdict": "no"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "design: pick=A(high 1.00) register=product_backoffice(medium 0.73) stated=yes(0.87) token_only=no(0.05) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1376,
+          "output_tokens": 135
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "Batch20 verifies M9-T30 document controls, genuine transport/state convergence and restart confirmation, while full native multi-batch delivery remains the downstream todo M1-T12. Run unattended, preserve existing production installation and system permissions, never inject app state or synthetic SSE, and use fresh normal pairing.",
+        "task": {
+          "title": "M9-T30 real browser disconnection/recovery proof",
+          "accept": "Write controls disable when the genuine SSE connection is lost; restart shows paused/daemon_restarted; refresh-confirm is required before resume; no extra implementation is spawned. Do not mislabel a test-driver limitation as a demonstrated product defect."
+        },
+        "conflict": "The repaired daemon/native browser proof already passed real UI import idle/0 runs, start0/pause1/resume2, actual Codex text round exit0, gate_waiting in the document panel, both theme form widths, three sizes, and a freshly paired coarse390 phone pause/resume converging to document version5. Playwright context.setOffline(true) did not close the existing SSE stream; waiting for the offline notice timed out120s, so this does not prove a real disconnection. The temporary Linux daemon is ours alone and can be gracefully stopped by the exact PID saved in planning/native.pid, then restarted from the identical tree and same isolated data root. The live installed daemon and system ACL are separate and will not be touched.",
+        "options": {
+          "A": "Replace only the driver disconnection step with a real graceful stop of this isolated temporary daemon, verify both paired pages see lost connection and disabled writes, restart the same production bootstrap with the same data, verify daemon_restarted paused state and disabled resume, use the normal refresh-confirm and resume controls, and assert the existing native run count is unchanged. Record this as M9 control/recovery evidence without claiming full M1-T12 acceptance. Keep all frames for any published GIF in one consistent run and record exact source/runtime provenance.",
+          "B": "Keep the native desktop/phone and gate/form proof as its exact bounded claim, omit any assertion that the browser offline emulation disconnected SSE, and rely on the already passing connection/race unit tests for this M9 condition. Leave complete authentic restart/transport recovery evidence explicitly to M1-T12. Do not change production code or claim a real disconnect was tested."
+        }
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.62,
+            "band": "medium",
+            "probabilities": {
+              "A": 0.81,
+              "B": 0.19
+            }
+          },
+          "spec_change": {
+            "p": 0.2,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.17,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.1,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.78,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "medium",
+            "why": "Jev 选 A（medium）"
+          }
+        },
+        "line": "adjudicate: pick=A(medium 0.62) spec_change=no(0.20) outside_stack=no(0.17) needs_owner=no(0.10) reversible=yes(0.78) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1278,
+          "output_tokens": 101
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "Close Batch 20 for the already merged M9-T30 document start/pause/resume UI. Run all declared tests, real browser/bootstrap smoke and density, audit only this task and one predecessor seam, reproduce before any repair, record unresolved work as stable repair tasks, submit/review/merge the closeout. Do not ask routine questions. The task contract explicitly shares complete native E-370 evidence with the downstream unlanded M1-T12. Do not weaken acceptance or claim full product delivery without that downstream proof.",
+        "task": {
+          "title": "Batch 20 closeout of M9-T30",
+          "accept": "M9 UI and race coverage, real daemon control/state evidence, 1920/1440/390 layouts, pnpm workspace check, truthful closeout and next-task handoff"
+        },
+        "conflict": "Main is 2abc6a2, PR221 merged with authentic production-bootstrap/HTTP/SSE/browser pairing/import and real Codex text-round evidence. Its exact review records explicitly leave full native worktree writes, complete multi-batch completion, restart, dual-client and changed-membership real acceptance to M1-T12, which is still todo and depends on M9-T30. Batch prompt broadly requests failure branches and real E2E. This Windows session's earlier and current bootstrap smoke encounters the existing machine-lock ACL; no system permission change is authorized or needed. WSL Node22, compiler and ffmpeg are installed. An isolated same-version Linux better-sqlite3 runtime can provide unchanged production bootstrap without changing source or live daemon. Baseline full workspace and generator tests are running. No product bug has yet been demonstrated.",
+        "options": {
+          "A": "Honor the established staged ownership. Run a bounded fresh M9 real production bootstrap/browser/control/native text round in WSL with an isolated platform-correct dependency of the same version, explicitly record this runtime and text-only Windows-CLI path exception. Test frontend race/errors and predecessor integration with the repository suites. Close Batch20 if its evidence passes, leave M1-T12 todo and make full product completion conditional on it. If authentic M9 proof fails, retain open with a stable repair task rather than claiming pass.",
+          "B": "Complete all downstream M1-T12 native worktree/multibatch/restart/dual-client/membership proof in this batch now while leaving the task todo, then close Batch20 only if the complete native acceptance succeeds. Do not change any existing task definition.",
+          "C": "Treat full E-370 native product proof as a present Batch20 blocker: preserve current code, write an open closeout with a stable evidence task and leave M1-T12 todo, without attempting another supported platform runtime."
+        },
+        "reviewFacts": "Final diff has two causal fixes: latest current-member/batch implementation awaiting_human is projected with existing manual gates and wrapup-fix included; named batch title selector prevents both themes constraining document form. Real provider browser proof now passes current native gate, full212px/212px form widths, coarse390 touch44px/no overflow, dual-client pause/resume, true temporary-daemon stop/restart, source confirmation before resume and unchanged one implementation run. Baseline full check256 files3345pass/3 existing skip, final route87pass, UI42pass plus final positive title file4pass, generator216/1existing skip, TypeScript/Biome/build/architecture pass. GitHub head bdf9634 now passes Windows/macOS/Linux full checks, real browser E2E, pipeline E2E and production pairing; release evaluation is finishing. M1-T12 stays todo. Review the original complete candidates against this final implementation; do not invent missing native multi-batch proof."
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.98,
+            "band": "high",
+            "probabilities": {
+              "A": 0.99,
+              "B": 0.0,
+              "C": 0.01
+            }
+          },
+          "spec_change": {
+            "p": 0.12,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.22,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.1,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.79,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.12) outside_stack=no(0.22) needs_owner=no(0.10) reversible=yes(0.79) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1637,
+          "output_tokens": 108
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "Batch20 must audit M9-T30 and its immediate predecessor seam. Real document controls must show daemon-owned human gate blockers with an existing task entry, preserve manual gates, and never cross to the next batch until done (E-364). Reproduce first, repair only the cause, and retain a failing-before/passing-after regression. Do not lower acceptance or change unrelated scopes.",
+        "task": {
+          "title": "M9-T30 document-level execution blocker display with M8-T13 authority",
+          "accept": "A current implementation waiting for manual review/landing appears as gate_waiting with its actual task and batch in execution GET and snapshot. Old contract/old batch/old attempt evidence must not create a current blocker; no-run pre-dispatch manual task gates remain visible."
+        },
+        "conflict": "Fresh normal UI pairing/import/start/pause/resume through unchanged production bootstrap and real installed codex.exe0.162 produced BATCH20_NATIVE_OK and process exit0. The implementation then awaited a real review gate. SQLite read-only observation shows runs.state=awaiting_human while tasks.manual_state is null; the task row and approval card correctly show waiting, but the document panel has no blocker and the browser predicate timed out180s. service/document-execution.ts gateTasks filters only task.manual_state. New real-container regression uses document start/production tick, normal run-state transitions and createWaitingGate, leaves manual_state null, and fails because execution.blockers is empty. CurrentMemberEvidence already limits implementation evidence by membership contract and excludes source_changed rows; latestImplementationRunByTaskId is the existing batch authority for latest implementation attempt.",
+        "options": {
+          "A": "Repair only the daemon projection: retain the existing no-run manual override and also detect awaiting_human from the latest current-member implementation run via the existing latestImplementationRunByTaskId helper, requiring the run's batch to match the current task batch. Keep membership/contract filtering, frontend DTO handling and scheduling behavior unchanged. Cover HTTP+snapshot, resolved gate removal, stale attempt and moved/changed-contract negative controls; rerun real native UI proof.",
+          "B": "Inject the existing GatesRepo into document execution and derive blockers from its pending gate rows, filtered against current member/contract/run ownership; retain manual override compatibility. Add composition wiring and repository dependency tests plus current/stale gate cases. This directly uses the gate authority but changes an additional service dependency.",
+          "C": "Keep current code, preserve the authenticated native reproduction and failing regression, and close Batch20 as open with a stable repair task owning the M8-T13/M9-T30 gate-projection seam. Do not assert clean or full native feature delivery."
+        },
+        "reviewFacts": "Final diff has two causal fixes: latest current-member/batch implementation awaiting_human is projected with existing manual gates and wrapup-fix included; named batch title selector prevents both themes constraining document form. Real provider browser proof now passes current native gate, full212px/212px form widths, coarse390 touch44px/no overflow, dual-client pause/resume, true temporary-daemon stop/restart, source confirmation before resume and unchanged one implementation run. Baseline full check256 files3345pass/3 existing skip, final route87pass, UI42pass plus final positive title file4pass, generator216/1existing skip, TypeScript/Biome/build/architecture pass. GitHub head bdf9634 now passes Windows/macOS/Linux full checks, real browser E2E, pipeline E2E and production pairing; release evaluation is finishing. M1-T12 stays todo. Review the original complete candidates against this final implementation; do not invent missing native multi-batch proof."
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "A": 1.0,
+              "B": 0.0,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.05,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.73,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.09) outside_stack=no(0.09) needs_owner=no(0.05) reversible=yes(0.73) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1643,
+          "output_tokens": 108
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "Batch20 M9-T30 must keep imported-document start/default Agent/model/effort controls usable at1920x1080,1440x900 and390x844, preserve existing light/dark theme, window settings, batch tree and approvals, and repair only demonstrated causes. Do not redesign or weaken density thresholds.",
+        "task": {
+          "title": "M9-T30 default-assignment layout and existing theme seam",
+          "accept": "Document controls retain the rail's available width, labels remain legible, existing batch title decoration remains on the title, both themes pass real browser and selector regression, no action/state changes."
+        },
+        "conflict": "Actual1440 production screenshot shows the default assignment form rendered inside a narrow pink title chip; model/effort text wraps. Both memphis.css line592 and memphis-dark.css line858 style .deck-batch-tree > div:first-child as a title: width fit-content, max-width calc(100%-52px), padding and border. M9-T30 inserted DocumentExecutionContainer as the first child ahead of the old title div. Regression renders the actual desktop RunDeckContainer, parses each shipped theme stylesheet and checks matched max-width selectors; both themes fail because the positional title selector matches the entire document form. Desktop density D1-D6 nevertheless passes (the form is inside the excluded left rail), so the density gate alone misses this usability issue.",
+        "options": {
+          "A": "Replace only the two positional title selectors with an explicit .deck-batch-tree-title class and add that class to the real batch heading. Preserve the execution panel position, all title styling and existing palette/decorations, fill the document form normally, rerun both CSS/DOM regressions and real browser three-size/theme/keyboard checks.",
+          "B": "Move the batch title div before the execution panel so the existing first-child selector applies to it again. Preserve all CSS and title decoration, but the batch section title will appear above the document execution controls. Rerun real responsive and theme proof.",
+          "C": "Move the document execution panel outside the styled batch-tree card into its own sibling within the existing rail, preserving the original tree first-child title and its selectors. This separates the two control groups visually and requires auditing additional spacing/scroll behavior."
+        },
+        "question": "Which bounded UI repair best preserves the established layout while preventing batch-title styles from constraining document controls?",
+        "reviewFacts": "Final diff has two causal fixes: latest current-member/batch implementation awaiting_human is projected with existing manual gates and wrapup-fix included; named batch title selector prevents both themes constraining document form. Real provider browser proof now passes current native gate, full212px/212px form widths, coarse390 touch44px/no overflow, dual-client pause/resume, true temporary-daemon stop/restart, source confirmation before resume and unchanged one implementation run. Baseline full check256 files3345pass/3 existing skip, final route87pass, UI42pass plus final positive title file4pass, generator216/1existing skip, TypeScript/Biome/build/architecture pass. GitHub head bdf9634 now passes Windows/macOS/Linux full checks, real browser E2E, pipeline E2E and production pairing; release evaluation is finishing. M1-T12 stays todo. Review the original complete candidates against this final implementation; do not invent missing native multi-batch proof."
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "design",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "A": 1.0,
+              "B": 0.0,
+              "C": 0.0
+            }
+          },
+          "register": {
+            "choice": "product_backoffice",
+            "confidence": 0.65,
+            "band": "medium",
+            "probabilities": {
+              "product_backoffice": 0.72,
+              "product_workbench": 0.28,
+              "brand": 0.0,
+              "commerce": 0.0,
+              "h5": 0.0
+            }
+          },
+          "stated": {
+            "p": 0.81,
+            "verdict": "yes"
+          },
+          "token_only": {
+            "p": 0.04,
+            "verdict": "no"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "design: pick=A(high 1.00) register=product_backoffice(medium 0.65) stated=yes(0.81) token_only=no(0.04) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1615,
+          "output_tokens": 135
+        }
+      }
+    },
+    {
+      "state": {
+        "requirement": "Batch20 verifies M9-T30 document controls, genuine transport/state convergence and restart confirmation, while full native multi-batch delivery remains the downstream todo M1-T12. Run unattended, preserve existing production installation and system permissions, never inject app state or synthetic SSE, and use fresh normal pairing.",
+        "task": {
+          "title": "M9-T30 real browser disconnection/recovery proof",
+          "accept": "Write controls disable when the genuine SSE connection is lost; restart shows paused/daemon_restarted; refresh-confirm is required before resume; no extra implementation is spawned. Do not mislabel a test-driver limitation as a demonstrated product defect."
+        },
+        "conflict": "The repaired daemon/native browser proof already passed real UI import idle/0 runs, start0/pause1/resume2, actual Codex text round exit0, gate_waiting in the document panel, both theme form widths, three sizes, and a freshly paired coarse390 phone pause/resume converging to document version5. Playwright context.setOffline(true) did not close the existing SSE stream; waiting for the offline notice timed out120s, so this does not prove a real disconnection. The temporary Linux daemon is ours alone and can be gracefully stopped by the exact PID saved in planning/native.pid, then restarted from the identical tree and same isolated data root. The live installed daemon and system ACL are separate and will not be touched.",
+        "options": {
+          "A": "Replace only the driver disconnection step with a real graceful stop of this isolated temporary daemon, verify both paired pages see lost connection and disabled writes, restart the same production bootstrap with the same data, verify daemon_restarted paused state and disabled resume, use the normal refresh-confirm and resume controls, and assert the existing native run count is unchanged. Record this as M9 control/recovery evidence without claiming full M1-T12 acceptance. Keep all frames for any published GIF in one consistent run and record exact source/runtime provenance.",
+          "B": "Keep the native desktop/phone and gate/form proof as its exact bounded claim, omit any assertion that the browser offline emulation disconnected SSE, and rely on the already passing connection/race unit tests for this M9 condition. Leave complete authentic restart/transport recovery evidence explicitly to M1-T12. Do not change production code or claim a real disconnect was tested."
+        },
+        "reviewFacts": "Final diff has two causal fixes: latest current-member/batch implementation awaiting_human is projected with existing manual gates and wrapup-fix included; named batch title selector prevents both themes constraining document form. Real provider browser proof now passes current native gate, full212px/212px form widths, coarse390 touch44px/no overflow, dual-client pause/resume, true temporary-daemon stop/restart, source confirmation before resume and unchanged one implementation run. Baseline full check256 files3345pass/3 existing skip, final route87pass, UI42pass plus final positive title file4pass, generator216/1existing skip, TypeScript/Biome/build/architecture pass. GitHub head bdf9634 now passes Windows/macOS/Linux full checks, real browser E2E, pipeline E2E and production pairing; release evaluation is finishing. M1-T12 stays todo. Review the original complete candidates against this final implementation; do not invent missing native multi-batch proof."
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.76,
+            "band": "high",
+            "probabilities": {
+              "A": 0.88,
+              "B": 0.12
+            }
+          },
+          "spec_change": {
+            "p": 0.17,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.13,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.1,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.75,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 0.76) spec_change=no(0.17) outside_stack=no(0.13) needs_owner=no(0.10) reversible=yes(0.75) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1517,
+          "output_tokens": 101
+        }
+      }
+    }
+  ],
+  "logs": {
+    "gate-red.log": {
+      "sha256": "8255ecdbe29d5014a4124dd89df121782b310d2c24e03987d168aa5dce72fe3c",
+      "bytes": 1943,
+      "excerptText": "   × M8-T12 document execution through the real container > E-364: reports a real run review gate without a manual task override 3414ms\n     → expected [] to deep equally contain { code: 'gate_waiting', …(2) }\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-364: reports a real run review gate without a manual task override\nAssertionError: expected [] to deep equally contain { code: 'gate_waiting', …(2) }\n\n- Expected: \nObject {\n  \"batchId\": \"req_7d8c9099d592\",\n  \"code\": \"gate_waiting\",\n  \"taskIds\": Array [\n    \"req_7f0c17f777d1\",\n  ],\n}\n\n+ Received: \nArray []\n\n ❯ packages/daemon/test/integration/document-execution-routes.test.ts:3888:48\n    3886|     headers,\n    3887|    });\n    3888|    expect(execution.json().execution.blockers).toContainEqual(expected…\n       |                                                ^\n    3889|    const snapshot = await server.instance.inject({\n    3890|     method: 'GET',\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n Test Files  1 failed (1)\n      Tests  1 failed | 86 skipped (87)\n   Start at  09:01:14\n   Duration  8.73s (transform 3.31s, setup 0ms, collect 4.71s, tests 3.42s, environment 0ms, prepare 183ms)\n\n"
+    },
+    "gate-green-final.log": {
+      "sha256": "467aef4d55e6f08b3d39224a209ab3282c374ceebf8acc62b615f859c8b6e323",
+      "bytes": 2779,
+      "excerptText": "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\n\n RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-20\n\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: stale reworking implementation cannot replace the changed contract\n[daemon] Initial pairing code: [REDACTED]\n\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > R1: a changed contract clears its obsolete human gate before new dispatch\n[daemon] Initial pairing code: [REDACTED]\n\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-364: reports a real run review gate without a manual task override\n[daemon] Initial pairing code: [REDACTED]\n\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-364: a current pre-dispatch human gate stays visible without a run\n[daemon] Initial pairing code: [REDACTED]\n\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a moved task retries in its new batch after an old-batch failure\n[daemon] Initial pairing code: [REDACTED]\n\nstderr | packages/daemon/test/integration/document-execution-routes.test.ts > M8-T12 document execution through the real container > E-369: a moved task retries in its new batch after an old-batch failure\n[E-296] Document did not provide matching dispatchBatches for batch req_2de87690b512, falling back to builtin wrapup prompt\n\n ✓ packages/daemon/test/integration/document-execution-routes.test.ts (87 tests | 82 skipped) 16072ms\n   ✓ M8-T12 document execution through the real container > R1: stale reworking implementation cannot replace the changed contract 4896ms\n   ✓ M8-T12 document execution through the real container > R1: a changed contract clears its obsolete human gate before new dispatch 3473ms\n   ✓ M8-T12 document execution through the real container > E-364: reports a real run review gate without a manual task override 2618ms\n   ✓ M8-T12 document execution through the real container > E-364: a current pre-dispatch human gate stays visible without a run 2278ms\n   ✓ M8-T12 document execution through the real container > E-369: a moved task retries in its new batch after an old-batch failure 2804ms\n\n Test Files  1 passed (1)\n      Tests  5 passed | 82 skipped (87)\n   Start at  09:08:05\n   Duration  69.95s (transform 35.12s, setup 0ms, collect 53.25s, tests 16.07s, environment 0ms, prepare 191ms)\n\n"
+    },
+    "style-red-final.log": {
+      "sha256": "cddab909eb6368bad7eb0b8456dd0a3abe1ea9dffbb10e6c0717fab7e81fa8eb",
+      "bytes": 2043,
+      "excerptText": " ❯ packages/web/test/run-deck-document-lanes.test.tsx (4 tests | 2 failed | 2 skipped) 297ms\n   × M9-T30 selected document lanes > keeps the light document controls outside the batch title width cap 198ms\n     → The title chip must not constrain the document form: expected [ Array(1) ] to deeply equal []\n   × M9-T30 selected document lanes > keeps the dark document controls outside the batch title width cap 96ms\n     → The title chip must not constrain the document form: expected [ Array(1) ] to deeply equal []\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  packages/web/test/run-deck-document-lanes.test.tsx > M9-T30 selected document lanes > keeps the light document controls outside the batch title width cap\n FAIL  packages/web/test/run-deck-document-lanes.test.tsx > M9-T30 selected document lanes > keeps the dark document controls outside the batch title width cap\nAssertionError: The title chip must not constrain the document form: expected [ Array(1) ] to deeply equal []\n\n- Expected\n+ Received\n\n- Array []\n+ Array [\n+   \"[data-theme=\\\"light\\\"] [data-component=\\\"deck-page\\\"] .deck-batch-tree > div:first-child\",\n+ ]\n\n ❯ packages/web/test/run-deck-document-lanes.test.tsx:118:75\n    116|       capped.push(rule.selector);\n    117|     });\n    118|     expect(capped, 'The title chip must not constrain the document for…\n       |                                                                           ^\n    119|    } finally {\n    120|     await act(async () => root.unmount());\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n Test Files  1 failed (1)\n      Tests  2 failed | 2 skipped (4)\n   Start at  09:14:46\n   Duration  4.34s (transform 1.04s, setup 0ms, collect 1.95s, tests 297ms, environment 1.44s, prepare 200ms)\n\n"
+    },
+    "style-final.log": {
+      "sha256": "3aa36085af51c3a7a879a1de42c8e79169f6e6345a19388b81e7a54a27f60bc0",
+      "bytes": 463,
+      "excerptText": "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\n\n RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-20\n\n ✓ packages/web/test/run-deck-document-lanes.test.tsx (4 tests) 757ms\n\n Test Files  1 passed (1)\n      Tests  4 passed (4)\n   Start at  09:20:09\n   Duration  4.80s (transform 1.14s, setup 0ms, collect 2.05s, tests 757ms, environment 1.43s, prepare 174ms)\n\n"
+    },
+    "final-daemon-routes.log": {
+      "sha256": "39bb62899873a4f8fefdc89eb652e5e8b12e037917223662e5962d6029af1e76",
+      "bytes": 46427,
+      "excerptText": "   ✓ M8-T12 document execution through the real container > E-362: an in-flight run holds its frozen paths after document refresh 2641ms\n   ✓ M8-T12 document execution through the real container > relays after production wrapup records clean and its branch reaches HEAD 2330ms\n   ✓ M8-T12 document execution through the real container > reaches the managed process port from document start through the production tick 2202ms\n   ✓ M8-T12 document execution through the real container > R1: revalidates a changed landed contract before current-generation wrapup 2461ms\n   ✓ M8-T12 document execution through the real container > E-369: completed execution reopens when refresh moves a member without changing task hashes 2822ms\n   ✓ M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'clean' wrapup artifacts 2566ms\n   ✓ M8-T12 document execution through the real container > E-369: a returned contract uses valid evidence for 'open' wrapup artifacts 2546ms\n   ✓ M8-T12 document execution through the real container > R1: changed-contract work reports an unavailable Agent despite old landed history 2446ms\n   ✓ M8-T12 document execution through the real container > R1: stale reworking implementation cannot replace the changed contract 2437ms\n   ✓ M8-T12 document execution through the real container > R1: a moved 'reworking' task cannot hold the new batch Agent slot or path 2573ms\n   ✓ M8-T12 document execution through the real container > R1: a moved 'awaiting_human' task cannot hold the new batch Agent slot or path 2623ms\n   ✓ M8-T12 document execution through the real container > R1: a changed contract clears its obsolete human gate before new dispatch 3723ms\n   ✓ M8-T12 document execution through the real container > E-364: reports a real run review gate without a manual task override 2450ms\n   ✓ M8-T12 document execution through the real container > E-364: a current pre-dispatch human gate stays visible without a run 2105ms\n   ✓ M8-T12 document execution through the real container > E-369: a moved task retries in its new batch after an old-batch failure 2493ms\n   ✓ M8-T12 document execution through the real container > R2: removed unlanded member cannot block current wrapup and next batch 2595ms\n   ✓ M8-T12 document execution through the real container > R3: a queued wrapup from a removed batch releases its lane and publishes its failure 2650ms\n   ✓ M8-T12 document execution through the real container > R3: stale queued 'review' stays out of the rebuilt generation 2587ms\n   ✓ M8-T12 document execution through the real container > R3: stale queued 'bughunt' stays out of the rebuilt generation 2550ms\n   ✓ M8-T12 document execution through the real container > R3: stale queued 'wrapup-fix' stays out of the rebuilt generation 2622ms\n   ✓ M8-T12 document execution through the real container > R3: rejecting an old queued bughunt retires its parked implementation parent 2785ms\n   ✓ M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=true) 2897ms\n   ✓ M8-T12 document execution through the real container > E-369: 'bughunt' human stage gate follows current membership (moved=true) 2753ms\n   ✓ M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=false) 2804ms\n   ✓ M8-T12 document execution through the real container > R3: same-generation queued review resumes after a user pause 2381ms\n   ✓ M8-T12 document execution through the real container > R3: queued review inherits durable generation from its implementation parent 2517ms\n   ✓ M8-T12 document execution through the real container > R3: queued wrapup-fix follows its current wrapup generation over an older copied snapshot 2989ms\n   ✓ M8-T12 document execution through the real container > R4: a legacy tick observed without a plan cannot admit after start and pause 2795ms\n   ✓ M8-T12 document execution through the real container > E-361: a lost manual-wrapup response remains discoverable after document pause 2287ms\n\n Test Files  1 passed (1)\n      Tests  87 passed (87)\n   Start at  09:17:00\n   Duration  278.21s (transform 3.55s, setup 0ms, collect 4.91s, tests 272.64s, environment 1ms, prepare 187ms)\n\n"
+    },
+    "style-green.log": {
+      "sha256": "239af4e0508f4974500bc2d4c9431a79da665df5d1158f4202a8c8c2f3899f5f",
+      "bytes": 674,
+      "excerptText": "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\n\n RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-20\n\n ✓ packages/web/test/document-execution.test.tsx (13 tests) 797ms\n ✓ packages/web/test/document-execution-races.test.ts (16 tests) 975ms\n ✓ packages/web/test/cache-invalidation.test.ts (9 tests) 14ms\n ✓ packages/web/test/run-deck-document-lanes.test.tsx (4 tests) 792ms\n\n Test Files  4 passed (4)\n      Tests  42 passed (42)\n   Start at  09:16:10\n   Duration  9.12s (transform 1.66s, setup 0ms, collect 4.64s, tests 2.58s, environment 4.78s, prepare 843ms)\n\n"
+    },
+    "bounded-check.log": {
+      "sha256": "e05abd4718adab7221b9b9750d6344a87a9588df57f3950e75812c9a325eb83b",
+      "bytes": 711527,
+      "excerptText": "Warning: The current testing environment is not configured to support act(...)\n\nstderr | packages/web/test/gate-card.test.tsx > R3: production task approval assembly > ordinary approval and edit keep their gate decisions and never rerun\nWarning: The current testing environment is not configured to support act(...)\n\n ✓ packages/web/test/gate-card.test.tsx (7 tests) 139ms\n ✓ packages/web/test/run-deck-document-lanes.test.tsx (2 tests) 534ms\n   ✓ M9-T30 selected document lanes > drops a late lane snapshot from the document that was selected when the read started 343ms\n ✓ packages/web/test/effort-picker.test.tsx (8 tests) 736ms\n   ✓ EffortPicker (AC 3, E-254, E-351) > offers native fallback levels, prefers model levels, and preserves a selected unsupported value 350ms\n ✓ packages/web/test/run-deck-recovery.test.tsx (2 tests) 339ms\n ✓ packages/web/test/gate-toggles-recovery.test.tsx (6 tests) 158ms\n ✓ packages/web/test/model-picker.test.tsx (5 tests) 511ms\n ✓ packages/web/test/style-pipeline.test.ts (8 tests) 10376ms\n   ✓ M9-T24: PostCSS pipeline (AC 2, E-159) > postcss.config.cjs registers exactly tailwindcss and autoprefixer 760ms\n   ✓ M9-T24: PostCSS pipeline (AC 2, E-159) > processing src/styles/base.css emits .bg-page backed by var(--page), no hex in between 1349ms\n   ✓ M9-T24: vite build output (AC 1, AC 5, E-175, E-224) > AC 1: the built stylesheet contains no @tailwind literal and at least 200 utility rules 8132ms\n ✓ packages/web/test/use-agent-models.test.tsx (3 tests) 76ms\n ✓ packages/web/test/settings-agent-refresh.test.tsx (3 tests) 76ms\n ✓ packages/web/test/login-hint.test.tsx (4 tests) 96ms\n ✓ packages/web/test/run-deck-container.test.tsx (5 tests) 186ms\n ✓ packages/web/test/use-minute-tick.test.tsx (6 tests) 75ms\n ✓ packages/web/test/login-badge.test.tsx (5 tests) 66ms\n ✓ packages/web/test/desktop-titlebar.test.tsx (5 tests) 122ms\n ✓ packages/web/test/grouped-select-interaction.test.tsx (6 tests) 804ms\n ✓ packages/web/test/theme-control.test.tsx (2 tests) 210ms\n ✓ packages/web/test/batch-11-log-seams.test.ts (1 test) 146ms\n ✓ packages/web/test/empty-onboarding.test.tsx (2 tests) 138ms\n ✓ packages/web/test/model-refresh-http.test.ts (2 tests) 31ms\n\n Test Files  256 passed (256)\n      Tests  3345 passed | 3 skipped (3348)\n   Start at  08:44:56\n   Duration  642.56s (transform 12.89s, setup 0ms, collect 127.53s, tests 905.15s, environment 61.82s, prepare 72.78s)\n\n"
+    },
+    "generator-tests.log": {
+      "sha256": "d58350b475b042e4c0f5d564c5277bded541e2b06b97514d04f8c06cbc48d25c",
+      "bytes": 335,
+      "excerptText": "..................................................................................s.....................................................................................................................................\n----------------------------------------------------------------------\nRan 216 tests in 282.347s\n\nOK (skipped=1)\n"
+    },
+    "baseline-e2e.log": {
+      "sha256": "446e8b596ecd5ae31f170b6de4863767d52dc76ea87d0fc0bae084faf88e28f2",
+      "bytes": 10069,
+      "excerptText": "    895|     throw new Error(`Daemon process exited prematurely with code ${exi…\n       |           ^\n    896|    }\n    897|    try {\n ❯ e2e/batch-14-composition.test.ts:2579:12\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯\n\n FAIL  e2e/pipeline-settings.test.ts > R16-T85823419 流水线设置 e2e：真 daemon 与真浏览器 (AC 1-5, E-26, E-157, E-159, E-175, E-265, E-306, E-312, E-318, E-356)\nError: Daemon failed to become healthy at http://127.0.0.1:59787/api/v1/health within 45000ms.\nSTDOUT:\n\nSTDERR:\nThe lock file must be writable by Administrators and SYSTEM only. Run as Administrator or grant:\nicacls \"C:\\ProgramData\\agent-scheduler\" /inheritance:r /grant:r \"*S-1-5-32-544:(OI)(CI)F\" \"*S-1-5-18:(OI)(CI)F\"\nicacls \"C:\\ProgramData\\agent-scheduler\\daemon.lock\" /inheritance:r /grant:r \"*S-1-5-32-544:F\" \"*S-1-5-18:F\"\n[startupFailure] AppError: The daemon instance lock could not be acquired.\n\n ❯ startDaemon e2e/pipeline-settings.test.ts:286:9\n    284|   );\n    285|   await stopFn();\n    286|   throw new Error(\n       |         ^\n    287|    `Daemon failed to become healthy at ${healthUrl} within ${timeoutMs…\n    288|   );\n ❯ e2e/pipeline-settings.test.ts:443:14\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯\n\n Test Files  4 failed (4)\n      Tests  45 skipped (45)\n   Start at  08:37:40\n   Duration  233.85s (transform 904ms, setup 0ms, collect 4.10s, tests 226.90s, environment 2ms, prepare 889ms)\n\n ELIFECYCLE  Command failed with exit code 1.\n"
+    },
+    "linux-e2e-native.log": {
+      "sha256": "1bda1a30705aa99acc55c6eeae7d954f48d31f55dfa26d703b3fcc8b206ffbeb",
+      "bytes": 22463,
+      "excerptText": "[pid=257][err]   ip: 000056261894210d efl: 0000000000010246 cgf: 002b000000000033 erf: 0000000000000000\n[pid=257][err]  trp: 0000000000000006 msk: 0000000000000000 cr2: 0000000000000000\n[pid=257][err] [end of stack trace]\n ❯ e2e/batch-14-composition.test.ts:2588:24\n    2586|   });\n    2587|   context = await browser.newContext({ viewport: { width: 1920, height…\n    2588|   page = await context.newPage();\n       |                        ^\n    2589|   // 一次性配对码只能领一次，配对与导入在这里做一次，各用例共用同一个…\n    2590|   await pairAndImport();\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯\n\n FAIL  e2e/pipeline-settings.test.ts > R16-T85823419 流水线设置 e2e：真 daemon 与真浏览器 (AC 1-5, E-26, E-157, E-159, E-175, E-265, E-306, E-312, E-318, E-356)\nError: Daemon failed to become healthy at http://127.0.0.1:39239/api/v1/health within 45000ms.\nSTDOUT:\n\nSTDERR:\n\n ❯ startDaemon e2e/pipeline-settings.test.ts:286:9\n    284|   );\n    285|   await stopFn();\n    286|   throw new Error(\n       |         ^\n    287|    `Daemon failed to become healthy at ${healthUrl} within ${timeoutMs…\n    288|   );\n ❯ e2e/pipeline-settings.test.ts:443:14\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯\n\n Test Files  4 failed (4)\n      Tests  45 skipped (45)\n   Start at  09:13:26\n   Duration  366.41s (transform 1.42s, setup 0ms, collect 16.57s, tests 262.01s, environment 2ms, prepare 59.50s)\n\n"
+    },
+    "cross-gate-red.log": {
+      "sha256": "1e4691e7438a4f24192a3f44b12e2593bc132c8ec4ce1385a571ed24299d12e8",
+      "bytes": 6613,
+      "excerptText": "}\n\n+ Received: \nArray [\n  Object {\n    \"batchId\": \"req_aed05ee90b87\",\n    \"code\": \"gate_waiting\",\n    \"taskIds\": Array [\n      \"req_8105555ac50b\",\n    ],\n  },\n  Object {\n    \"batchId\": \"req_aed05ee90b87\",\n    \"code\": \"agent_unavailable\",\n    \"taskIds\": Array [\n      \"req_8105555ac50b\",\n    ],\n  },\n]\n\n ❯ packages/daemon/test/integration/document-execution-routes.test.ts:4953:42\n    4951|       : response.json().execution;\n    4952|      if (ownership === 'current') expect(execution.blockers).toContain…\n    4953|      else expect(execution.blockers).not.toContainEqual(expected);\n       |                                          ^\n    4954|     }\n    4955|    } finally {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯\n\n Test Files  1 failed (1)\n      Tests  3 failed | 5 passed | 87 skipped (95)\n   Start at  10:01:06\n   Duration  24.72s (transform 2.31s, setup 0ms, collect 3.65s, tests 20.51s, environment 0ms, prepare 160ms)\n\n"
+    },
+    "cross-gate-green.log": {
+      "sha256": "ba2abf5f53c2f8a147e727c45b43eb71180ed90443e1af4f1686f542ff00fcc3",
+      "bytes": 5156,
+      "excerptText": "\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'untracked-parent' / crossBatch=true\n[daemon] Initial pairing code: [REDACTED]\n\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'untracked-parent' / crossBatch=false\n[daemon] Initial pairing code: [REDACTED]\n\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'changed-contract' / crossBatch=true\n[daemon] Initial pairing code: [REDACTED]\n\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'changed-contract' / crossBatch=false\n[daemon] Initial pairing code: [REDACTED]\n\nstdout | packages/daemon/test/integration/document-execution-routes.test.ts > Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'manual' / crossBatch=false\n[daemon] Initial pairing code: [REDACTED]\n\n ✓ packages/daemon/test/integration/document-execution-routes.test.ts (96 tests | 84 skipped) 30537ms\n   ✓ M8-T12 document execution through the real container > E-364: reports a real run review gate without a manual task override 3094ms\n   ✓ M8-T12 document execution through the real container > E-364: a current pre-dispatch human gate stays visible without a run 2366ms\n   ✓ M8-T12 document execution through the real container > R3: queued wrapup-fix follows its current wrapup generation over an older copied snapshot 2408ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'current' / crossBatch=true 2562ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'current' / crossBatch=false 2507ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'stale-generation' / crossBatch=true 2536ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'stale-generation' / crossBatch=false 2409ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'untracked-parent' / crossBatch=true 2542ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'untracked-parent' / crossBatch=false 2550ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'changed-contract' / crossBatch=true 2527ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'changed-contract' / crossBatch=false 2459ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'manual' / crossBatch=false 2574ms\n\n Test Files  1 passed (1)\n      Tests  12 passed | 84 skipped (96)\n   Start at  10:04:19\n   Duration  35.86s (transform 3.46s, setup 0ms, collect 4.76s, tests 30.54s, environment 0ms, prepare 162ms)\n\n"
+    },
+    "snapshot-cache-red.log": {
+      "sha256": "690cf0dd278bda79ee006f82b66e1b8bcee95d24e85cf14f718faf2e6ab2984a",
+      "bytes": 1441,
+      "excerptText": "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\n\n RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-20\n\n ❯ packages/web/test/document-execution-races.test.ts (17 tests | 1 failed | 16 skipped) 237ms\n   × document execution cache and snapshot ordering > refreshes same-version blockers from a snapshot delivered while the panel is absent 235ms\n     → expected null not to be null\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  packages/web/test/document-execution-races.test.ts > document execution cache and snapshot ordering > refreshes same-version blockers from a snapshot delivered while the panel is absent\nAssertionError: expected null not to be null\n ❯ packages/web/test/document-execution-races.test.ts:609:80\n    607|   const second = await mount(client);\n    608|   try {\n    609|    expect(second.container.querySelector('[data-blocker=\"gate_waiting\"…\n       |                                                                                ^\n    610|   } finally {\n    611|    await second.unmount();\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n Test Files  1 failed (1)\n      Tests  1 failed | 16 skipped (17)\n   Start at  10:08:18\n   Duration  2.80s (transform 452ms, setup 0ms, collect 938ms, tests 237ms, environment 1.07s, prepare 165ms)\n\n"
+    },
+    "snapshot-cache-green.log": {
+      "sha256": "0bba45a50afa293d423c999569403cbe3ff234334c87d8e86654083d76e870bf",
+      "bytes": 674,
+      "excerptText": "The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\n\n RUN  v2.1.9 D:/xiangmu/agent-scheduler-batch-20\n\n ✓ packages/web/test/document-execution.test.tsx (13 tests) 719ms\n ✓ packages/web/test/document-execution-races.test.ts (17 tests) 915ms\n ✓ packages/web/test/cache-invalidation.test.ts (9 tests) 12ms\n ✓ packages/web/test/run-deck-document-lanes.test.tsx (4 tests) 651ms\n\n Test Files  4 passed (4)\n      Tests  43 passed (43)\n   Start at  10:09:09\n   Duration  7.17s (transform 1.29s, setup 0ms, collect 3.48s, tests 2.30s, environment 3.59s, prepare 659ms)\n\n"
+    },
+    "final-daemon-routes2.log": {
+      "sha256": "2b319e375d29032991a99d4f818b78f0e741e318bce622965762182126f2380a",
+      "bytes": 49880,
+      "excerptText": "   ✓ M8-T12 document execution through the real container > R1: a moved 'reworking' task cannot hold the new batch Agent slot or path 6358ms\n   ✓ M8-T12 document execution through the real container > R1: a moved 'awaiting_human' task cannot hold the new batch Agent slot or path 4292ms\n   ✓ M8-T12 document execution through the real container > R1: a changed contract clears its obsolete human gate before new dispatch 7989ms\n   ✓ M8-T12 document execution through the real container > E-364: reports a real run review gate without a manual task override 6097ms\n   ✓ M8-T12 document execution through the real container > E-364: a current pre-dispatch human gate stays visible without a run 2554ms\n   ✓ M8-T12 document execution through the real container > E-369: a moved task retries in its new batch after an old-batch failure 2533ms\n   ✓ M8-T12 document execution through the real container > R2: removed unlanded member cannot block current wrapup and next batch 3835ms\n   ✓ M8-T12 document execution through the real container > R3: a queued wrapup from a removed batch releases its lane and publishes its failure 4406ms\n   ✓ M8-T12 document execution through the real container > R3: stale queued 'review' stays out of the rebuilt generation 2369ms\n   ✓ M8-T12 document execution through the real container > R3: stale queued 'bughunt' stays out of the rebuilt generation 2367ms\n   ✓ M8-T12 document execution through the real container > R3: stale queued 'wrapup-fix' stays out of the rebuilt generation 2433ms\n   ✓ M8-T12 document execution through the real container > R3: rejecting an old queued bughunt retires its parked implementation parent 2466ms\n   ✓ M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=true) 2437ms\n   ✓ M8-T12 document execution through the real container > E-369: 'bughunt' human stage gate follows current membership (moved=true) 2307ms\n   ✓ M8-T12 document execution through the real container > E-369: 'review' human stage gate follows current membership (moved=false) 2165ms\n   ✓ M8-T12 document execution through the real container > R3: same-generation queued review resumes after a user pause 2412ms\n   ✓ M8-T12 document execution through the real container > R3: queued review inherits durable generation from its implementation parent 2342ms\n   ✓ M8-T12 document execution through the real container > R3: queued wrapup-fix follows its current wrapup generation over an older copied snapshot 2459ms\n   ✓ M8-T12 document execution through the real container > R4: a legacy tick observed without a plan cannot admit after start and pause 2386ms\n   ✓ M8-T12 document execution through the real container > E-361: a lost manual-wrapup response remains discoverable after document pause 2620ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'current' / crossBatch=true 2591ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'current' / crossBatch=false 2402ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'stale-generation' / crossBatch=true 2424ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'stale-generation' / crossBatch=false 2451ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'untracked-parent' / crossBatch=true 2426ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'untracked-parent' / crossBatch=false 2377ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'changed-contract' / crossBatch=true 2399ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'changed-contract' / crossBatch=false 2405ms\n   ✓ Batch20 cross-batch wrapup human blockers > reports repair gates from the current wrapup: 'manual' / crossBatch=false 2432ms\n\n Test Files  1 passed (1)\n      Tests  96 passed (96)\n   Start at  10:10:47\n   Duration  302.39s (transform 3.34s, setup 0ms, collect 4.63s, tests 297.16s, environment 0ms, prepare 158ms)\n\n"
+    }
+  },
+  "gif": {
+    "publication": "PR222 body contains clean final-head provenance and five-frame desktop GIF on batch-20-assets; final capture follows this documentary commit",
+    "scope": "import idle,start,pause,resume,real human gate; mobile/restart/theme/window proof is recorded separately above"
+  },
+  "remaining": "No new repair task. M1-T12 remains todo. The changed source requires final-head CI plus a clean fresh-provider capture before merge; earlier681ee3f media remains historical and is not relabelled.",
+  "previousCandidateCi": {
+    "headRefOid": "681ee3ff2e71d762ee3f21b6298430331e3fbbc9",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-15T16:46:58Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38771859162/job/116549434469",
+        "name": "Real Native Provider E2E (Ubuntu)",
+        "startedAt": "2026-10-15T16:46:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Desktop Shell CI & Release Verification"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-15T16:58:28Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38771859162/job/116549432379",
+        "name": "Desktop CI / Windows (x64)",
+        "startedAt": "2026-10-15T16:47:01Z",
+        "status": "COMPLETED",
+        "workflowName": "Desktop Shell CI & Release Verification"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-15T16:52:07Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38771859162/job/116549432403",
+        "name": "Desktop CI / macOS (Apple Silicon)",
+        "startedAt": "2026-10-15T16:47:05Z",
+        "status": "COMPLETED",
+        "workflowName": "Desktop Shell CI & Release Verification"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-15T16:54:15Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38771859162/job/116549432492",
+        "name": "Desktop CI / Linux (Ubuntu LTS x64)",
+        "startedAt": "2026-10-15T16:47:00Z",
+        "status": "COMPLETED",
+        "workflowName": "Desktop Shell CI & Release Verification"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-15T16:48:30Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38771859162/job/116549432433",
+        "name": "Production Pairing Smoke (Ubuntu)",
+        "startedAt": "2026-10-15T16:47:01Z",
+        "status": "COMPLETED",
+        "workflowName": "Desktop Shell CI & Release Verification"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-15T16:51:51Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38771859162/job/116549432766",
+        "name": "E2E Smoke (Ubuntu)",
+        "startedAt": "2026-10-15T16:47:01Z",
+        "status": "COMPLETED",
+        "workflowName": "Desktop Shell CI & Release Verification"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-15T16:49:18Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38771859162/job/116549431980",
+        "name": "Pipeline Settings E2E (Ubuntu)",
+        "startedAt": "2026-10-15T16:47:00Z",
+        "status": "COMPLETED",
+        "workflowName": "Desktop Shell CI & Release Verification"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-15T16:58:28Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38771859162/job/116554876502",
+        "name": "macOS Signing & Notarization Gate",
+        "startedAt": "2026-10-15T16:58:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Desktop Shell CI & Release Verification"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-15T16:59:15Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/dawanglaohu/renwudiaoduqi/actions/runs/38771859162/job/116554875755",
+        "name": "Release Gate Evaluation",
+        "startedAt": "2026-10-15T16:58:30Z",
+        "status": "COMPLETED",
+        "workflowName": "Desktop Shell CI & Release Verification"
+      }
+    ],
+    "url": "https://github.com/dawanglaohu/renwudiaoduqi/pull/222"
+  },
+  "reviewAddendumJudgments": [
+    {
+      "key": "cross-gate",
+      "state": {
+        "requirement": "Close Batch20 M9-T30, fix substantiated immediate predecessor seams, preserve all E-364/E-369/E-275 authority rules, reproduce before repair, and do not claim complete native M1-T12 delivery. Every actual current human gate needs its daemon cause and existing task action; old generations, parentless unrelated records or changed-contract history must not impersonate a current wrapup. Manual task fixes without an automatic wrapup owner remain supported.",
+        "task": {
+          "title": "B3 current-wrapup cross-batch repair human blocker projection",
+          "accept": "Execution GET and snapshot include gate_waiting with triggering batch and actual target task for a current-owned current-generation wrapup-fix awaiting_human, even if that task belongs to another batch. Old generation, non-member owner and old task contract do not create current blockers. No-run manual gates and explicit task fixes with spawned_by_run_id=null keep their existing behavior."
+        },
+        "conflict": "Automatic PR222 review correctly identified wrapup.ts1901: repair run.batch_id is the triggering batch while its task keeps original batch_id. Current toDto reads only current-batch tasks and requires task/run batch equality, omitting a valid cross-batch repair. A new real-container HTTP/snapshot matrix with actual document refresh/start, ordinary manual landing gates (no fabricated Git HEAD evidence), frozen wrapup ownership, normal run-state transitions and waiting review gate now fails three of eight cases: valid cross-batch current repair omitted, and same-batch stale-generation/untracked-parent repair gates leaked. The other five negatives pass. Source readDocumentRunGeneration already gives the wrapup parent precedence over a copied implementation snapshot. wrapup.ts2317-2322 also supports explicit task fixes with no spawned wrapup parent; these must not be lost by excluding all origin=wrapup-fix from ordinary task handling. Earlier source and documentary head681ee3f has all required CI green and clean native UI proof, but this new blocker must be fixed before merge and final media must be re-recorded against the new head.",
+        "options": {
+          "A": "Keep normal current-task gates and parentless manual fixes. Route automatically owned wrapup-fix gates through a bounded additional projection: choose the latest matching repair per task from the whole current document, require current triggering batch, real wrapup parent of that batch, parent ID in current.wrapupRunIds, current generation through existing parent-first resolver, nonremoved task and current snapshot contract. Merge task IDs into the existing gate_waiting DTO, preserving source task batch and all scheduling/landing counts. Add current/stale/untracked/changed-contract cross/same-batch tests plus manual-fix positive control, then relevant full route/UI/type/build checks and clean new-head real-model GIF.",
+          "B": "Inject existing GatesRepo into document execution and enumerate waiting gates across the document, joining each gate run to ordinary current-task ownership or current wrapup ownership and generation. This uses the gate registry directly but requires additional composition wiring and repository dependency coverage. Preserve all existing control, manual-fix and completion semantics.",
+          "C": "Keep code unchanged, revise the unmerged Batch20 record to open and add a stable repair task for this demonstrated ownership bug. Do not merge a fixed/pass claim or reuse an old-head GIF as evidence for a changed head."
+        }
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.98,
+            "band": "high",
+            "probabilities": {
+              "A": 0.99,
+              "B": 0.01,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.14,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.13,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.06,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.68,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.14) outside_stack=no(0.13) needs_owner=no(0.06) reversible=yes(0.68) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1594,
+          "output_tokens": 108
+        }
+      }
+    },
+    {
+      "key": "snapshot-cache",
+      "state": {
+        "requirement": "M9-T30 must show daemon-owned blocker projections after SSE changes/reconnect snapshots, including mobile panel unmount/remount, without stale same-version reads, local business inference or synthetic browser state. Reproduce first, repair the cause and preserve all existing version races and source confirmation. Scope stays this task.",
+        "task": {
+          "title": "B4 authoritative same-version snapshot lost while mobile execution panel is absent",
+          "accept": "A new gate_waiting projection with unchanged execution.version delivered through the real publishDocumentExecutions owner remains visible after the panel remounts. The implementation must keep older-version/same-render race guards, and must not introduce polling or optimistic states."
+        },
+        "conflict": "RunDeckContainer reloads a snapshot on task.gate_waiting/run transitions and calls publishDocumentExecutions. That function only broadcasts to currently mounted snapshotListeners. The execution HTTP resource cache can retain an older projection while the panel is unmounted. Existing global event invalidation does not cover these same-version gate events. A new component/cache regression primes the actual httpDocumentExecutionClient cache, unmounts, delivers a newer same-version blocker snapshot through the production publisher, remounts, and fails because the gate row is null. This confirms a consumer seam independent of B3 server ownership. Old normal native proof and all previous CI remain valid for their exact older source, but final source/media must include the repair.",
+        "options": {
+          "A": "At publishDocumentExecutions, invalidate each received document's existing execution cache key before notifying mounted listeners. This is the owner that always observes the authoritative snapshot, even with no panel subscribers. Keep current listener version/event serial guards and force a fresh daemon read on a later remount; add no new business logic, dependency or polling. Rerun all UI race/cache/container regressions and type checks.",
+          "B": "Extend the static milestone-to-cache invalidation table and the always-mounted module listener to every documented event that can change execution projections without changing version: task gate/review, run lifecycle and wrapup events. This preserves the publisher but requires maintaining a complete dependency mapping; test each unmounted event path and snapshot resync.",
+          "C": "Preserve the reproduced regression, leave the batch open and generate a stable repair task for the mobile execution cache lifetime. Do not claim fixed while the latest snapshot can be lost."
+        }
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 0.97,
+            "band": "high",
+            "probabilities": {
+              "A": 0.98,
+              "B": 0.01,
+              "C": 0.01
+            }
+          },
+          "spec_change": {
+            "p": 0.12,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.06,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.77,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 0.97) spec_change=no(0.12) outside_stack=no(0.09) needs_owner=no(0.06) reversible=yes(0.77) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1298,
+          "output_tokens": 108
+        }
+      }
+    },
+    {
+      "key": "cross-gate-review",
+      "state": {
+        "requirement": "Close Batch20 M9-T30, fix substantiated immediate predecessor seams, preserve all E-364/E-369/E-275 authority rules, reproduce before repair, and do not claim complete native M1-T12 delivery. Every actual current human gate needs its daemon cause and existing task action; old generations, parentless unrelated records or changed-contract history must not impersonate a current wrapup. Manual task fixes without an automatic wrapup owner remain supported.",
+        "task": {
+          "title": "B3 current-wrapup cross-batch repair human blocker projection",
+          "accept": "Execution GET and snapshot include gate_waiting with triggering batch and actual target task for a current-owned current-generation wrapup-fix awaiting_human, even if that task belongs to another batch. Old generation, non-member owner and old task contract do not create current blockers. No-run manual gates and explicit task fixes with spawned_by_run_id=null keep their existing behavior."
+        },
+        "conflict": "Automatic PR222 review correctly identified wrapup.ts1901: repair run.batch_id is the triggering batch while its task keeps original batch_id. Current toDto reads only current-batch tasks and requires task/run batch equality, omitting a valid cross-batch repair. A new real-container HTTP/snapshot matrix with actual document refresh/start, ordinary manual landing gates (no fabricated Git HEAD evidence), frozen wrapup ownership, normal run-state transitions and waiting review gate now fails three of eight cases: valid cross-batch current repair omitted, and same-batch stale-generation/untracked-parent repair gates leaked. The other five negatives pass. Source readDocumentRunGeneration already gives the wrapup parent precedence over a copied implementation snapshot. wrapup.ts2317-2322 also supports explicit task fixes with no spawned wrapup parent; these must not be lost by excluding all origin=wrapup-fix from ordinary task handling. Earlier source and documentary head681ee3f has all required CI green and clean native UI proof, but this new blocker must be fixed before merge and final media must be re-recorded against the new head.",
+        "options": {
+          "A": "Keep normal current-task gates and parentless manual fixes. Route automatically owned wrapup-fix gates through a bounded additional projection: choose the latest matching repair per task from the whole current document, require current triggering batch, real wrapup parent of that batch, parent ID in current.wrapupRunIds, current generation through existing parent-first resolver, nonremoved task and current snapshot contract. Merge task IDs into the existing gate_waiting DTO, preserving source task batch and all scheduling/landing counts. Add current/stale/untracked/changed-contract cross/same-batch tests plus manual-fix positive control, then relevant full route/UI/type/build checks and clean new-head real-model GIF.",
+          "B": "Inject existing GatesRepo into document execution and enumerate waiting gates across the document, joining each gate run to ordinary current-task ownership or current wrapup ownership and generation. This uses the gate registry directly but requires additional composition wiring and repository dependency coverage. Preserve all existing control, manual-fix and completion semantics.",
+          "C": "Keep code unchanged, revise the unmerged Batch20 record to open and add a stable repair task for this demonstrated ownership bug. Do not merge a fixed/pass claim or reuse an old-head GIF as evidence for a changed head."
+        },
+        "reviewFacts": "Review the original complete candidates against implemented diff: automatic wrapup-fix gates now resolve target tasks across the same document but require triggering batch, tracked real wrapup parent, parent-first current generation and snapshot current contract; latest repairs deduplicate task IDs. Normal task gates and parentless manual fixes are preserved. Nine repair ownership/contract cases and three related gate cases pass; old code failed current cross-batch plus stale/untracked same-batch cases. Snapshot broadcaster now invalidates received execution document cache keys before notifying listeners; the new unmounted same-version gate row regression failed before and now passes. All43 UI/race/cache/container tests, TypeScript and Biome/architecture pass. Full96 execution-route cases are running and must pass before push. M1-T12 remains todo. All required CI on previous681ee3f passed, but final changed head still requires its own CI and clean new-head native media. No generator, public API, scheduling or authority state writes were changed."
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "A": 1.0,
+              "B": 0.0,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.11,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.11,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.05,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.8,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.11) outside_stack=no(0.11) needs_owner=no(0.05) reversible=yes(0.80) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1823,
+          "output_tokens": 108
+        }
+      }
+    },
+    {
+      "key": "snapshot-cache-review",
+      "state": {
+        "requirement": "M9-T30 must show daemon-owned blocker projections after SSE changes/reconnect snapshots, including mobile panel unmount/remount, without stale same-version reads, local business inference or synthetic browser state. Reproduce first, repair the cause and preserve all existing version races and source confirmation. Scope stays this task.",
+        "task": {
+          "title": "B4 authoritative same-version snapshot lost while mobile execution panel is absent",
+          "accept": "A new gate_waiting projection with unchanged execution.version delivered through the real publishDocumentExecutions owner remains visible after the panel remounts. The implementation must keep older-version/same-render race guards, and must not introduce polling or optimistic states."
+        },
+        "conflict": "RunDeckContainer reloads a snapshot on task.gate_waiting/run transitions and calls publishDocumentExecutions. That function only broadcasts to currently mounted snapshotListeners. The execution HTTP resource cache can retain an older projection while the panel is unmounted. Existing global event invalidation does not cover these same-version gate events. A new component/cache regression primes the actual httpDocumentExecutionClient cache, unmounts, delivers a newer same-version blocker snapshot through the production publisher, remounts, and fails because the gate row is null. This confirms a consumer seam independent of B3 server ownership. Old normal native proof and all previous CI remain valid for their exact older source, but final source/media must include the repair.",
+        "options": {
+          "A": "At publishDocumentExecutions, invalidate each received document's existing execution cache key before notifying mounted listeners. This is the owner that always observes the authoritative snapshot, even with no panel subscribers. Keep current listener version/event serial guards and force a fresh daemon read on a later remount; add no new business logic, dependency or polling. Rerun all UI race/cache/container regressions and type checks.",
+          "B": "Extend the static milestone-to-cache invalidation table and the always-mounted module listener to every documented event that can change execution projections without changing version: task gate/review, run lifecycle and wrapup events. This preserves the publisher but requires maintaining a complete dependency mapping; test each unmounted event path and snapshot resync.",
+          "C": "Preserve the reproduced regression, leave the batch open and generate a stable repair task for the mobile execution cache lifetime. Do not claim fixed while the latest snapshot can be lost."
+        },
+        "reviewFacts": "Review the original complete candidates against implemented diff: automatic wrapup-fix gates now resolve target tasks across the same document but require triggering batch, tracked real wrapup parent, parent-first current generation and snapshot current contract; latest repairs deduplicate task IDs. Normal task gates and parentless manual fixes are preserved. Nine repair ownership/contract cases and three related gate cases pass; old code failed current cross-batch plus stale/untracked same-batch cases. Snapshot broadcaster now invalidates received execution document cache keys before notifying listeners; the new unmounted same-version gate row regression failed before and now passes. All43 UI/race/cache/container tests, TypeScript and Biome/architecture pass. Full96 execution-route cases are running and must pass before push. M1-T12 remains todo. All required CI on previous681ee3f passed, but final changed head still requires its own CI and clean new-head native media. No generator, public API, scheduling or authority state writes were changed."
+      },
+      "judgment": {
+        "status": "ok",
+        "template": "adjudicate",
+        "model": "jev-1.13.0",
+        "verdicts": {
+          "pick": {
+            "choice": "A",
+            "confidence": 1.0,
+            "band": "high",
+            "probabilities": {
+              "A": 1.0,
+              "B": 0.0,
+              "C": 0.0
+            }
+          },
+          "spec_change": {
+            "p": 0.09,
+            "verdict": "no"
+          },
+          "outside_stack": {
+            "p": 0.06,
+            "verdict": "no"
+          },
+          "needs_owner": {
+            "p": 0.04,
+            "verdict": "no"
+          },
+          "reversible": {
+            "p": 0.81,
+            "verdict": "yes"
+          },
+          "adopt": {
+            "action": "take",
+            "option": "A",
+            "confidence": "high",
+            "why": "Jev 选 A（high）"
+          }
+        },
+        "line": "adjudicate: pick=A(high 1.00) spec_change=no(0.09) outside_stack=no(0.06) needs_owner=no(0.04) reversible=yes(0.81) adopt=take(A)",
+        "usage": {
+          "input_tokens": 1527,
+          "output_tokens": 108
+        }
+      }
+    }
+  ]
+}

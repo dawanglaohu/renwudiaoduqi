@@ -830,7 +830,7 @@ export function RunDeckView(props: RunDeckViewProps) {
 							>
 								<div className="deck-batch-tree flex flex-col gap-3">
 									{executionPanel}
-									<div className="font-ui text-dense font-semibold text-[var(--ink-1)] px-1">
+									<div className="deck-batch-tree-title font-ui text-dense font-semibold text-[var(--ink-1)] px-1">
 										批次与任务
 									</div>
 									{batchTreeError && (
