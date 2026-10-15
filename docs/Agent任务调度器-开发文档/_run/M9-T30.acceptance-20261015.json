@@ -1,0 +1,68 @@
+{
+  "task": "M9-T30",
+  "round": 2,
+  "scope": "implementation-acceptance",
+  "reviewedFixCommit": "a05667df4f22a83b9fcd26ee095c3f0aaf155902",
+  "regressions": {
+    "oldIndependentProbes": "3 passed",
+    "permanentUIRace": "10 passed",
+    "selectedDocumentLanes": "1 passed"
+  },
+  "checks": {
+    "workspace": {
+      "command": "pnpm -w check --maxWorkers=1 --minWorkers=1",
+      "filesPassed": 256,
+      "testsPassed": 3333,
+      "existingSkipped": 3
+    },
+    "generatorBefore": {
+      "tests": 215,
+      "existingSkipped": 1,
+      "result": "pass"
+    },
+    "generatorAfter": {
+      "tests": 216,
+      "existingSkipped": 1,
+      "result": "pass"
+    },
+    "densityRegression": {
+      "before": "avail.left expected282, actual0; D2/D6 failed",
+      "after": "positive auto/explicit rail left10 passes; detached left40 remains D2/D6 fail"
+    }
+  },
+  "browser": {
+    "bootstrap": "packages/daemon/bootstrap.mjs, native Linux adapter, same better-sqlite3@13.0.3 built for GLIBC2.31",
+    "transport": "real HTTP/SSE; normal browser pairing and UI document import; no state or event injection",
+    "provider": "installed codex.exe 0.157.1 through WSL interoperation; no credential files copied",
+    "nativeMessage": {
+      "kind": "item/completed",
+      "itemType": "agentMessage",
+      "text": "M9_T30_NATIVE_OK",
+      "exitCode": 0
+    },
+    "observed": [
+      "import idle and zero runs",
+      "document start observed running",
+      "pause observed paused",
+      "resume observed running",
+      "one occupied lane during native execution",
+      "review human gate waiting with batch2 idle",
+      "390 phone-xs coarse input; no overflow; document and approval actions44px; Enter sends pause"
+    ],
+    "density": {
+      "1920x1080": {
+        "fill": 0.961,
+        "interiorBandRatio": 0.007,
+        "D1-D6": "pass"
+      },
+      "1440x900": {
+        "fill": 0.944,
+        "interiorBandRatio": 0.01,
+        "D1-D6": "pass"
+      }
+    },
+    "media": "PR #221 embeds m9-t30-round2-final.gif and its exact-head provenance; source viewport1440x900.",
+    "boundary": "Text-only native round proves this UI/control entry. Full native worktree writes, multi-batch completion, restart, dual-client and changed-membership acceptance remain M1-T12; M1-T12 is not landed."
+  },
+  "adjudications": "_run/M9-T30.review-round2-adjudications.json"
+}
