@@ -25881,7 +25881,7 @@
   "created": "2026-10-15T02:47:06.312450+00:00",
   "head": "d4c6241a1da3a46eb04c2e52ac71f017bb9ba117",
   "id": "m8-t13-wrapup-rollback-20261014",
-  "pr": null,
+  "pr": "220",
   "reason": "Reproduced pause-revoked wrapup leaves an unadmitted real Git worktree; add exact-path M5 cleanup support and regressions without global prune.",
   "sourceChanges": {
     "_run/task-contracts.json": {
