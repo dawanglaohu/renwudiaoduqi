@@ -123,6 +123,7 @@ import { type SystemService, createSystemService } from '../service/system.ts';
 import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
 import { type BaseSelector, createBaseSelector } from '../workspace/base-select.ts';
 import { getDiffStat } from '../workspace/diff.ts';
+import { isBranchInHead } from '../workspace/in-head.ts';
 import {
 	type GitRunner,
 	type WorktreeManager,
@@ -942,6 +943,7 @@ export function createContainer(input: {
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
+			isBranchInHead: (candidate) => isBranchInHead(candidate, gitRunner),
 			documentExecutionsRepo: documentExecutions,
 			advanceDocumentExecution: (docId) => documentExecutionHolder.current?.advanceRunning(docId),
 			listDocumentExecutions: () => documentExecutionHolder.current?.list() ?? [],

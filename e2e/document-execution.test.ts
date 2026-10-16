@@ -24,6 +24,7 @@ import {
 	openBrowser,
 	pairPage,
 	readPlan,
+	readAgentMessages,
 	readResources,
 	readRunSnapshot,
 	readSnapshotInput,
@@ -48,10 +49,11 @@ const active: { daemon: RunningDaemon | null; page: import('playwright').Page | 
 beforeEach((ctx) => beginEvidence(ctx.task.name));
 
 afterEach(async (ctx) => {
-	if (ctx.task.result?.state === 'fail') {
+	if (ctx.task.result?.state === 'fail' && (active.page || active.daemon)) {
 		const name = ctx.task.name.replace(/[^\w.-]+/g, '_').slice(0, 80);
 		await captureFailure(active.page, active.daemon, name);
 	}
+	if (active.daemon && existsSync(active.daemon.dataDir)) releaseAgents(active.daemon, ['all']);
 	await active.page?.context().browser()?.close().catch(() => undefined);
 	await active.daemon?.stop().catch(() => undefined);
 	active.page = null;
@@ -66,10 +68,10 @@ async function boot() {
 	const browser = await openBrowser();
 	const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 	active.page = page;
-	await pairPage(page, daemon, token);
+	const browserToken = await pairPage(page, daemon, token);
 	active.daemon = daemon;
 	active.page = page;
-	return { daemon, api, page, browser };
+	return { daemon, api, page, browser, browserToken };
 }
 
 async function taskIndex(api: DocumentApi, docId: string) {
@@ -490,12 +492,12 @@ describe('M1-T12 文档顺序自动执行', () => {
 		writeFileSync(registryPath, JSON.stringify(registry));
 		await api.post('/api/v1/agents/codex/probe', {});
 		const repo = createRepo('agsched-doc-exec-shared-');
-		const firstPath = commitDocs(repo.repo, 'one.js', renderDocs([
+		const firstPath = commitDocs(repo.repo, 'one-docs-data.js', renderDocs([
 			{ id: 'ONE-A', hash: 'one-a', paths: ['src/shared.ts'] },
 			{ id: 'ONE-B', hash: 'one-b', paths: ['src/one.ts'] },
 			{ id: 'ONE-NEXT', hash: 'one-next', deps: ['ONE-A', 'ONE-B'] },
 		], 'First document'));
-		const secondPath = commitDocs(repo.repo, 'two.js', renderDocs([
+		const secondPath = commitDocs(repo.repo, 'two-docs-data.js', renderDocs([
 			{ id: 'TWO-SHARED', hash: 'two-shared', paths: ['src/shared.ts'] },
 			{ id: 'TWO-FREE', hash: 'two-free', paths: ['src/two.ts'] },
 			{ id: 'TWO-NEXT', hash: 'two-next', deps: ['TWO-SHARED', 'TWO-FREE'] },
@@ -516,6 +518,11 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect(secondId).not.toBe(firstId);
 		await setLaneCount(api, secondId, 2);
 		await chooseAgent(second, 'claude');
+		const pipeline = (await api.get('/api/v1/settings/pipeline')).body.pipeline as Record<string, unknown>;
+		const stages = await api.patch('/api/v1/settings/pipeline', { ...pipeline,
+			reviewOverride: { agentId: 'codex', modelName: 'doc-exec' },
+			wrapupAssignment: { mode: 'fixed', agentId: 'codex', modelName: 'doc-exec' } });
+		expect(stages.status, JSON.stringify(stages.body)).toBe(200);
 		await second.locator('[data-action="start-document"]').click();
 		const secondTasks = await taskIndex(api, secondId);
 		await waitForRun(api, secondTasks.get('TWO-FREE')?.id ?? '', 'implement');
@@ -526,6 +533,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect(held.some((run) => run.taskId === firstTasks.get('ONE-B')?.id)).toBe(false);
 		expect((await executionOf(api, firstId)).currentBatchNo).toBe(1);
 		expect((await executionOf(api, secondId)).currentBatchNo).toBe(1);
+		await page.locator('[data-testid="document-execution-document"]').selectOption(firstId);
 		await page.locator('[data-action="pause-document"]').click();
 		const firstHolder = held.find((run) => run.taskId === firstTasks.get('ONE-A')?.id);
 		expect(firstHolder).toBeDefined();
@@ -537,14 +545,25 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect((await executionOf(api, secondId)).state).toBe('running');
 		expect((await listRuns(api)).some((run) => run.taskId === firstTasks.get('ONE-B')?.id)).toBe(false);
 		expect((await listRuns(api)).some((run) => run.taskId === secondTasks.get('TWO-NEXT')?.id)).toBe(false);
+		releaseAgents(daemon, ['TWO-FREE']);
+		await waitFor('first second-document review finishes', async () => (await listRuns(api)).some((run) => run.kind === 'implement' && run.taskId === secondTasks.get('TWO-FREE')?.id && run.state === 'landed'));
+		releaseAgents(daemon, ['TWO-SHARED']);
+		const secondBatch = (await batchesOf(api, secondId)).find((batch) => batch.batchNo === 1);
+		if (!secondBatch) throw new Error('Second document batch missing');
+		await finishBatch(api, repo.repo, [secondTasks.get('TWO-FREE')?.id ?? '', secondTasks.get('TWO-SHARED')?.id ?? ''], secondBatch.id);
+		await waitFor('second cursor advances independently', async () => (await executionOf(api, secondId)).currentBatchNo === 2, 60000);
+		expect((await executionOf(api, firstId)).currentBatchNo).toBe(1);
+		expect((await executionOf(api, firstId)).state).toBe('paused');
+		const next = await waitForRun(api, secondTasks.get('TWO-NEXT')?.id ?? '', 'implement');
+		expect(next.agentId).toBe('claude');
 		await second.close();
-	}, 180000);
+	}, 300000);
 
 	it('loses a real continue response, then rejects a stale retry after another device pauses (E-361)', async () => {
-		const { daemon, api, page, browser } = await boot();
+		const { daemon, api, page, browser, browserToken } = await boot();
 		await configureAutoPipeline(api);
 		const repo = createRepo('agsched-doc-exec-lost-');
-		const docsPath = commitDocs(repo.repo, 'docs.js', renderDocs([{ id: 'LOST', hash: 'lost' }]));
+		const docsPath = commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'LOST', hash: 'lost' }]));
 		await importThroughPage(page, docsPath, repo.repo);
 		const docId = await documentId(api);
 		const registryPath = join(daemon.dataDir, 'agents.json');
@@ -557,15 +576,16 @@ describe('M1-T12 文档顺序自动执行', () => {
 			return agents.some((agent) => agent.id === 'codex' && !agent.isAvailable);
 		});
 		const second = await browser.newPage();
-		await pairPage(second, daemon, api.token);
+		const secondToken = await pairPage(second, daemon, api.token);
+		expect(browserToken !== secondToken).toBe(true);
 		const first = await executionOf(api, docId);
 		const body = { expectedVersion: first.version, expectedFingerprint: await sourceFingerprint(api, docId),
 			defaultAssignment: { agentId: 'codex', modelName: null, effort: null } };
-		const requests = await Promise.all([page, second].map((client) => client.evaluate(async ({ port, token, id, body: payload }) => {
+		const requests = await Promise.all([{ page, token: browserToken }, { page: second, token: secondToken }].map((client) => client.page.evaluate(async ({ port, token, id, body: payload }) => {
 			const response = await fetch(`http://127.0.0.1:${port}/api/v1/documents/${id}/execution/start`, {
 				method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 			return response.status;
-		}, { port: daemon.port, token: api.token, id: docId, body })));
+		}, { port: daemon.port, token: client.token, id: docId, body })));
 		expect(requests).toEqual([200, 200]);
 		const started = await executionOf(api, docId);
 		expect(started.version).toBe(1);
@@ -576,7 +596,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await waitFor('first pause', async () => (await executionOf(api, docId)).state === 'paused');
 		const paused = await executionOf(api, docId);
 		const resumeBody = { expectedVersion: paused.version, expectedFingerprint: paused.contentFingerprint };
-		const discard = await requestWithoutResponse(daemon, api, `/api/v1/documents/${docId}/execution/resume`, resumeBody);
+		const discard = await requestWithoutResponse(daemon, apiFor(daemon, browserToken), `/api/v1/documents/${docId}/execution/resume`, resumeBody);
 		await waitFor('commit observed without receiving the response', async () => (await executionOf(api, docId)).state === 'running');
 		discard();
 		await second.locator('[data-action="pause-document"]').click();
@@ -680,7 +700,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const pipeline = (await api.get('/api/v1/settings/pipeline')).body.pipeline as Record<string, unknown>;
 		expect((await api.patch('/api/v1/settings/pipeline', { ...pipeline, wrapupMode: 'manual' })).status).toBe(200);
 		const repo = createRepo('agsched-doc-exec-manual-');
-		const path = commitDocs(repo.repo, 'docs.js', renderDocs([{ id: 'MANUAL', hash: 'manual' }, { id: 'MANUAL-NEXT', hash: 'manual-next', deps: ['MANUAL'] }]));
+		const path = commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'MANUAL', hash: 'manual' }, { id: 'MANUAL-NEXT', hash: 'manual-next', deps: ['MANUAL'] }]));
 		await importThroughPage(page, path, repo.repo);
 		const docId = await documentId(api);
 		await chooseAgent(page, 'codex');
@@ -704,7 +724,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await configureAutoPipeline(api);
 		expect((await api.patch('/api/v1/settings/gates', { dispatch: 'auto', review: 'auto', landing: 'auto', [kind]: 'manual' })).status).toBe(200);
 		const repo = createRepo('agsched-doc-exec-human-');
-		const path = commitDocs(repo.repo, 'docs.js', renderDocs([{ id: 'HUMAN', hash: 'human' }, { id: 'HUMAN-NEXT', hash: 'human-next', deps: ['HUMAN'] }]));
+		const path = commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'HUMAN', hash: 'human' }, { id: 'HUMAN-NEXT', hash: 'human-next', deps: ['HUMAN'] }]));
 		await importThroughPage(page, path, repo.repo);
 		const docId = await documentId(api);
 		await chooseAgent(page, 'codex');
@@ -724,7 +744,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const { daemon, api, page } = await boot();
 		await configureAutoPipeline(api);
 		const repo = createRepo('agsched-doc-exec-unreadable-');
-		const docsPath = commitDocs(repo.repo, 'docs.js', renderDocs([{ id: 'SOURCE', hash: 'source' }, { id: 'SOURCE-NEXT', hash: 'source-next', deps: ['SOURCE'] }]));
+		const docsPath = commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'SOURCE', hash: 'source' }, { id: 'SOURCE-NEXT', hash: 'source-next', deps: ['SOURCE'] }]));
 		await importThroughPage(page, docsPath, repo.repo);
 		const docId = await documentId(api);
 		writeControl(daemon, { implement: 'hold' });
@@ -755,7 +775,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await configureAutoPipeline(api);
 		const repo = createRepo('agsched-doc-exec-source-change-');
 		const initial = [{ id: 'CHANGE-A', hash: 'change-a' }, { id: 'CHANGE-B', hash: 'change-b' }, { id: 'CHANGE-NEXT', hash: 'change-next', deps: ['CHANGE-A', 'CHANGE-B'] }];
-		const docsPath = commitDocs(repo.repo, 'docs.js', renderDocs(initial));
+		const docsPath = commitDocs(repo.repo, 'docs-data.js', renderDocs(initial));
 		await importThroughPage(page, docsPath, repo.repo);
 		const docId = await documentId(api);
 		await setLaneCount(api, docId, 2);
@@ -766,11 +786,12 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const old = await waitForRun(api, tasks.get('CHANGE-B')?.id ?? '', 'implement');
 		await waitFor('old source implementation running', async () => (await listRuns(api)).some((run) => run.id === old.id && run.state === 'running'));
 		const frozen = readRunSnapshot(daemon.dataDir, old.id);
+		const oldRunIds = new Set((await listRuns(api)).filter((run) => run.kind === 'implement').map((run) => run.id));
 		const before = readPlan(daemon.dataDir, docId)[0];
 		const next = change === 'contract' ? initial.map((task) => task.id === 'CHANGE-B' ? { ...task, hash: 'changed-b' } : task)
 			: change === 'move' ? initial.map((task) => task.id === 'CHANGE-B' ? { ...task, deps: ['CHANGE-A'] } : task)
 			: initial.filter((task) => task.id !== 'CHANGE-B').map((task) => task.id === 'CHANGE-NEXT' ? { ...task, deps: ['CHANGE-A'] } : task);
-		commitDocs(repo.repo, 'docs.js', renderDocs(next));
+		commitDocs(repo.repo, 'docs-data.js', renderDocs(next));
 		expect((await api.post(`/api/v1/documents/${docId}/refresh`, {})).status).toBe(200);
 		await waitFor('changed source pause', async () => (await executionOf(api, docId)).state === 'paused');
 		expect(readRunSnapshot(daemon.dataDir, old.id)).toEqual(frozen);
@@ -782,12 +803,20 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect(current?.completion).toBeNull();
 		expect(current?.membershipFingerprint).not.toBe(before?.membershipFingerprint);
 		releaseAgents(daemon, ['CHANGE-A', 'CHANGE-B']);
-		await waitFor('old source results recorded', async () => (await listRuns(api)).some((run) => run.id === old.id && run.state === 'exited'));
+		await waitFor('old source results recorded', async () => (await listRuns(api)).some((run) => run.id === old.id && (run.state === 'exited' || (run.state === 'failed' && run.queuedReason === 'source_changed'))));
 		clearRelease(daemon);
 		await new Promise((resolveWait) => setTimeout(resolveWait, 5500));
 		expect((await listRuns(api)).filter((run) => run.kind === 'review' && run.parentRunId === old.id)).toHaveLength(0);
 		expect((await executionOf(api, docId)).state).not.toBe('completed');
 		const members = (readPlan(daemon.dataDir, docId)[0]?.members ?? []) as Array<{ taskId: string; contractHash: string }>;
+		await waitFor('current-generation members dispatch from their frozen contracts', async () => {
+			const runs = await listRuns(api);
+			return members.every((member) => runs.some((run) => {
+				if (run.kind !== 'implement' || run.taskId !== member.taskId || oldRunIds.has(run.id)) return false;
+				const snapshot = readRunSnapshot(daemon.dataDir, run.id);
+				return snapshot.contract_hash === member.contractHash && (snapshot.launch as { documentGenerationId?: number }).documentGenerationId === current?.generationId;
+			}));
+		}, 60000);
 		if (change !== 'contract') expect(members.some((member) => member.taskId === old.taskId)).toBe(false);
 		else expect(members.find((member) => member.taskId === old.taskId)?.contractHash).toBe('changed-b');
 	}, 240000);
@@ -797,7 +826,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await configureAutoPipeline(api);
 		const repo = createRepo('agsched-doc-exec-readiness-');
 		const specs = [{ id: 'READY', hash: 'ready' }, { id: 'WAIT-READY', hash: 'wait-ready', ready: false, reasons: ['review pending'] }];
-		const docsPath = commitDocs(repo.repo, 'docs.js', renderDocs(specs));
+		const docsPath = commitDocs(repo.repo, 'docs-data.js', renderDocs(specs));
 		await importThroughPage(page, docsPath, repo.repo);
 		const docId = await documentId(api);
 		writeControl(daemon, { implement: 'hold' });
@@ -808,7 +837,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const snapshot = readRunSnapshot(daemon.dataDir, accepted.id);
 		const plan = readPlan(daemon.dataDir, docId);
 		expect((await listRuns(api)).some((run) => run.taskId === tasks.get('WAIT-READY')?.id)).toBe(false);
-		commitDocs(repo.repo, 'docs.js', renderDocs(specs.map((spec) => ({ ...spec, ready: true, reasons: [] }))));
+		commitDocs(repo.repo, 'docs-data.js', renderDocs(specs.map((spec) => ({ ...spec, ready: true, reasons: [] }))));
 		expect((await api.post(`/api/v1/documents/${docId}/refresh`, {})).status).toBe(200);
 		await waitForRun(api, tasks.get('WAIT-READY')?.id ?? '', 'implement');
 		expect((await executionOf(api, docId)).state).toBe('running');
@@ -835,7 +864,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await page.locator('[data-action="start-document"]').click();
 		const tasks = await taskIndex(api, docId);
 		await waitFor('four admitted implementations', async () => (await listRuns(api)).filter((run) => run.kind === 'implement' && run.state === 'running').length === 4);
-		writeControl(daemon, { tasks: { 'DE-A-FAIL': 'no-change' }, implement: 'hold', review: 'pass' });
+		writeControl(daemon, { tasks: { 'DE-A-FAIL': 'empty' }, implement: 'hold', review: 'pass' });
 		releaseAgents(daemon, ['DE-A-FAIL']);
 		let gateId = '';
 		await waitFor('mechanical failure gate', async () => {
@@ -1083,7 +1112,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await configureAutoPipeline(api);
 		const repo = createRepo('agsched-doc-exec-wrapping-');
 		const original = [{ id: 'WRAP-OLD', hash: 'wrap-old' }, { id: 'WRAP-NEXT', hash: 'wrap-next', deps: ['WRAP-OLD'] }];
-		const docsPath = commitDocs(repo.repo, 'docs.js', renderDocs(original));
+		const docsPath = commitDocs(repo.repo, 'docs-data.js', renderDocs(original));
 		await importThroughPage(page, docsPath, repo.repo);
 		const docId = await documentId(api);
 		writeControl(daemon, { review: 'pass', wrapup: 'hold' });
@@ -1101,7 +1130,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		if (!oldWrapup) throw new Error('Old wrapup missing');
 		const oldFrozen = readSnapshotInput(daemon.dataDir, oldWrapup.id);
 		const oldPlan = readPlan(daemon.dataDir, docId)[0];
-		commitDocs(repo.repo, 'docs.js', renderDocs([...original, { id: 'WRAP-NEW', hash: 'wrap-new' }]));
+		commitDocs(repo.repo, 'docs-data.js', renderDocs([...original, { id: 'WRAP-NEW', hash: 'wrap-new' }]));
 		expect((await api.post(`/api/v1/documents/${docId}/refresh`, {})).status).toBe(200);
 		await waitFor('wrapping change pause', async () => (await executionOf(api, docId)).state === 'paused');
 		await page.locator('[data-action="confirm-document-source"]').click();
@@ -1141,7 +1170,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const { daemon, api, page } = await boot();
 		await configureAutoPipeline(api);
 		const repo = createRepo('agsched-doc-exec-missing-proof-');
-		const path = commitDocs(repo.repo, 'docs.js', renderDocs([{ id: 'PROOF', hash: 'proof-old' }]));
+		const path = commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'PROOF', hash: 'proof-old' }]));
 		await importThroughPage(page, path, repo.repo);
 		const docId = await documentId(api);
 		await chooseAgent(page, 'codex');
@@ -1152,7 +1181,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await waitFor('old proof completed', async () => (await executionOf(api, docId)).state === 'completed');
 		const old = readPlan(daemon.dataDir, docId)[0];
 		expect(old?.completion).toBeTruthy();
-		commitDocs(repo.repo, 'docs.js', renderDocs([{ id: 'PROOF', hash: 'proof-new' }]));
+		commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'PROOF', hash: 'proof-new' }]));
 		await page.locator('[data-testid="import-doc-path"]').fill(path);
 		await page.locator('[data-testid="import-repo-path"]').fill(repo.repo);
 		await page.locator('[data-action="rebind-document"]').click();
@@ -1176,7 +1205,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const { daemon, api, page } = await boot();
 		await configureAutoPipeline(api);
 		const repo = createRepo('agsched-doc-exec-budget-');
-		const path = commitDocs(repo.repo, 'docs.js', renderDocs([{ id: 'BUDGET', hash: 'budget' }]));
+		const path = commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'BUDGET', hash: 'budget' }]));
 		await importThroughPage(page, path, repo.repo);
 		const docId = await documentId(api);
 		writeControl(daemon, { review: 'pass', wrapup: action });
@@ -1210,12 +1239,12 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect((await listRuns(api)).filter((run) => run.kind === 'wrapup')).toHaveLength(count);
 		if (count === 6) {
 			const seventh = await api.post(`/api/v1/batches/${task.batchId}/wrapup`, { idempotencyKey: 'forbidden-seventh' });
-			expect(seventh.status).toBe(400);
+			expect(seventh.status).toBe(409);
 			expect(seventh.body.error).toMatchObject({ code: 'E_WRAPUP_ROUND_LIMIT', details: { physicalAttempts: 6 } });
 			const oldGates = (await api.get('/api/v1/gates?pending=true')).body.gates as Array<{ id: string; runId: string }>;
 			expect(oldGates.length).toBeGreaterThan(0);
 			const gateId = oldGates[0]?.id ?? '';
-			commitDocs(repo.repo, 'docs.js', renderDocs([{ id: 'BUDGET', hash: 'budget' }, { id: 'BUDGET-NEW', hash: 'budget-new' }]));
+			commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'BUDGET', hash: 'budget' }, { id: 'BUDGET-NEW', hash: 'budget-new' }]));
 			await page.locator('[data-testid="import-doc-path"]').fill(path);
 			await page.locator('[data-testid="import-repo-path"]').fill(repo.repo);
 			await page.locator('[data-action="rebind-document"]').click();
@@ -1226,7 +1255,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 			const newId = (await taskIndex(api, docId)).get('BUDGET-NEW')?.id ?? '';
 			await waitForRun(api, newId, 'implement');
 			const lateGate = await api.post(`/api/v1/gates/${gateId}/decide`, { decision: 'pass' });
-			expect(lateGate.status).toBe(400);
+			expect(lateGate.status).toBe(409);
 			expect(lateGate.body.error).toMatchObject({ code: 'E_GATE_ALREADY_DECIDED' });
 			expect((await executionOf(api, docId)).state).toBe('running');
 			expect(readPlan(daemon.dataDir, docId)[0]?.completion).toBeNull();
@@ -1269,7 +1298,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const version = spawnSync(process.execPath, [script, '--version'], { encoding: 'utf8', timeout: 30000 });
 		expect(version.status).toBe(0);
 		const modelName = process.env.AGSCHED_REAL_CODEX_MODEL ?? 'gpt-6.1-sol';
-		writeFileSync(recordPath, JSON.stringify({ skipped: false, status: 'running', version: `${version.stdout ?? ''}`.trim(), modelName, effort: { vendor: 'max' } }, null, 2));
+		writeFileSync(recordPath, JSON.stringify({ skipped: false, status: 'running', version: `${version.stdout ?? ''}`.trim(), modelName, effort: { tier: 'low' } }, null, 2));
 		const daemon = await startDocumentDaemon({ agentScript: script, startupTimeoutMs: 180000 });
 		active.daemon = daemon;
 		const token = await claimAdmin(daemon);
@@ -1293,8 +1322,9 @@ describe('M1-T12 文档顺序自动执行', () => {
 				{
 					id: 'DE-REAL',
 					hash: 'hash-real',
+					paths: ['hello.txt'],
 					accept: '1) hello.txt exists and contains exactly hello followed by one newline.',
-					review: 'Read hello.txt in this worktree. Check it contains exactly hello followed by one newline. If correct, output VERDICT: pass on its own line. Do not change any files.',
+					review: 'Read hello.txt in this worktree and verify exactly hello followed by one newline. This file is the entire allowed task path. Do not change any files. Start the final report with a standalone line VERDICT: pass only if the check succeeds; otherwise use VERDICT: rework or VERDICT: doc-issue and explain the failed check.',
 					implement:
 						'在当前工作树新增 hello.txt，内容只有一行 hello。写完文件后立刻停止。不要运行 git，不要提交，不要推送，不要询问许可。',
 				},
@@ -1313,16 +1343,21 @@ describe('M1-T12 文档顺序自动执行', () => {
 			await custom.press('Enter');
 		}
 		await page.locator('[data-testid="document-execution"] [data-testid="effort-picker"] [data-testid="grouped-select-trigger"]').click();
-		await page.locator('[data-testid="select-option-vendor:max"]').click();
+		await page.locator('[data-testid="select-option-tier:low"]').click();
 		await page.locator('[data-action="start-document"]').click();
 		const tasks = await taskIndex(api, docId);
 		const taskId = tasks.get('DE-REAL')?.id ?? '';
 		await waitFor(
 			'real implement to leave the slot',
-			async () =>
-				(await listRuns(api)).some(
-					(run) => run.taskId === taskId && run.kind === 'implement' && run.state === 'landed',
-				),
+			async () => {
+				const runs = (await listRuns(api)).filter((run) => run.taskId === taskId);
+				const implementation = runs.find((run) => run.kind === 'implement');
+				if (implementation && ['failed', 'aborted', 'interrupted', 'orphaned', 'awaiting_human'].includes(implementation.state)) {
+					writeFileSync(recordPath, JSON.stringify({ skipped: false, status: 'failed', version: `${version.stdout ?? ''}`.trim(), modelName, effort: { tier: 'low' }, runs }, null, 2));
+					throw new Error(`Native implementation did not pass: ${JSON.stringify(runs)}`);
+				}
+				return implementation?.state === 'landed';
+			},
 			480000,
 		);
 		await waitFor(
@@ -1347,19 +1382,26 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect(reviews[0]).toMatchObject({ state: 'exited', exitCode: 0, reviewVerdict: 'pass', parentRunId: implementations[0]?.id });
 		for (const run of [...implementations, ...reviews]) {
 			expect(run.modelName).toBe(modelName);
-			expect(run.effortVendor ?? run.effort?.vendor).toBe('max');
-			expect(readRunSnapshot(daemon.dataDir, run.id).assignment).toMatchObject({ modelName, effortVendor: 'max' });
+			expect(run.effortTier ?? run.effort?.tier).toBe('low');
+			expect(readRunSnapshot(daemon.dataDir, run.id).assignment).toMatchObject({ modelName, effortTier: 'low', effortVendor: null });
 		}
 		expect(readFileSync(join(implementations[0]?.worktreePath ?? '', 'hello.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe('hello\n');
 		expect(readFileSync(daemon.journalPath, 'utf8').trim()).toBe('');
+		const reviewText = readAgentMessages(daemon.dataDir, reviews[0]?.id ?? '');
+		expect(reviewText).toMatch(/^VERDICT:\s*pass\s*$/im);
 		writeFileSync(
 			recordPath,
 			JSON.stringify(
 				{
 					skipped: false,
 					status: 'passed',
-					version: `${version.stdout ?? ''}`.trim(), modelName, effort: { vendor: 'max' },
-					steps: ['production bootstrap', 'normal browser pairing', 'import idle document', 'choose Codex, explicit model and max effort', 'one start button', 'one implementation exits 0', 'one read-only review exits 0 with pass', 'implementation landed'],
+					reviewText,
+					snapshots: [...implementations, ...reviews].map((run) => {
+						const snapshot = readRunSnapshot(daemon.dataDir, run.id);
+						return { runId: run.id, contractHash: snapshot.contract_hash, assignment: snapshot.assignment };
+					}),
+					version: `${version.stdout ?? ''}`.trim(), modelName, effort: { tier: 'low' },
+					steps: ['production bootstrap', 'normal browser pairing', 'import idle document', 'choose Codex, explicit model and low effort', 'one start button', 'one implementation exits 0', 'one read-only review exits 0 with pass', 'implementation landed'],
 					login: login.trim(),
 					script,
 					runs: runs.map((run) => ({

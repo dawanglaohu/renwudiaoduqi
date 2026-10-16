@@ -1910,7 +1910,9 @@
         "packages/daemon/test/integration/document-execution-routes.test.ts",
         "packages/daemon/test/integration/dispatch-spawn.test.ts",
         "packages/daemon/test/unit/review.test.ts",
-        "packages/daemon/test/unit/review-agent.test.ts"
+        "packages/daemon/test/unit/review-agent.test.ts",
+        "e2e/batch-14-composition.test.ts",
+        "packages/daemon/src/boot/container.ts"
       ]
     }
   }

@@ -1,0 +1,15 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T12": {
+      "contractHash": "ba1f0dc6f675c8185a8b02ec6c379885c905fdb7bbd1d00bc4bee60940c720ec",
+      "evidence": [
+        "仅复核必要支持路径的任务契约，不表示实现验收、CI 或落地通过。八条验收、E-360 至 E-370、19/22 节和任务 status 均未改变。",
+        "R1 明确要求完整 pnpm -w e2e 通过。真实完整运行 rework-e2e-full.log 首个失败是 Batch 14 step 2 的 codex-standard 选项位于视口外，后续步骤因未保存指派而级联失败；该失败与 Windows 锁 ACL 无关。",
+        "仅增加既有 e2e/batch-14-composition.test.ts 支持路径；两处选项选择使用标准 Enter 键事件，仍通过真实页面保存并核原有 API、快照、阶段、闸门和落地断言，没有改产品页面或移除任何检查。",
+        "新增路径不改变模块依赖、数据库、DTO、effort、文档来源、代次、闸门或预算。现有 R1-R5 修复继续在原 PR #223；Windows 收口和真实 Native 结果仍由本轮实际门禁决定，保持任务 todo。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

@@ -586,9 +586,9 @@ jobs:
           pnpm --filter @agent-scheduler/web build
           pnpm_bin="$(command -v pnpm)"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts
+            "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts --bail=1 --reporter=verbose
           else
-            sudo -E env "PATH=$PATH" "HOME=$HOME" "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts
+            sudo -E env "PATH=$PATH" "HOME=$HOME" "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts --bail=1 --reporter=verbose
           fi
 
       - name: Upload screenshot, daemon logs and DOM
@@ -603,6 +603,7 @@ jobs:
             e2e/artifacts/**/dom.html
             e2e/artifacts/**/invocation.json
             e2e/artifacts/**/manifest.json
+            e2e/artifacts/**/daemon-state.json
             e2e/artifacts/**/raw.log-*
             e2e/artifacts/**/events.ndjson-*
           if-no-files-found: error

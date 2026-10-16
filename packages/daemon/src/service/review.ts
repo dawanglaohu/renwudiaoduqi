@@ -2,6 +2,7 @@ import { promises as nodeFs } from 'node:fs';
 import { resolve as nodeResolve } from 'node:path';
 import { AGENT_MESSAGE_CHUNK_EVENT_KIND } from '@agent-scheduler/shared/api/events';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
+import { mapCodexProcessEvents } from '../adapters/codex/map-events.ts';
 import { mapDshEvents } from '../adapters/dsh/map-events.ts';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
@@ -2106,7 +2107,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 									eventMapper: (line) =>
 										mapDshEvents(line, { runId: dispatchResult.run.id, taskId }),
 								}
-							: undefined,
+							: assignment.agentId === 'codex'
+								? { eventMapper: mapCodexProcessEvents }
+								: undefined,
 					);
 					await deps.runService.transitionState({
 						runId: dispatchResult.run.id,

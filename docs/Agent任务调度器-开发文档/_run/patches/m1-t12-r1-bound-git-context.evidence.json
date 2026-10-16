@@ -1,0 +1,16 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T12": {
+      "contractHash": "3366849cec63df2f05fe3ff3c02ed9e1ac8d883fae3f52ac1b5c9142d1611b1c",
+      "evidence": [
+        "仅复核 R1 必需的 composition root 支持路径；不表示整项验收通过或落地。M1-T12 的八条验收、全部边界、DTO、代次/预算和 task status 不变。",
+        "已核 container.ts 创建 worktree Git runner 时有启动时 hostInputs/PATH，而 dispatch 默认 isBranchInHead 重新 takePlatformHostInputs({})，Windows 固定目录外的 Git 无法被该调用找到。Linux 的系统 Git 路径不能代替 Windows 证明。",
+        "真实 Windows Git、SQLite 和容器回归先红后绿：隔离用户固定安装目录，保留真实启动 PATH；手工完成分支合并后，旧容器 is_in_head 仍为 0，绑定同一 runner 后为 1。日志 r1-git-context-red.log / r1-git-context-green.log。",
+        "仅新增 packages/daemon/src/boot/container.ts 到 M1-T12.supportPaths；两行生产接线复用已有 runner，无新增业务判定或全局环境读取，符合 service/workspace 与 composition root 的依赖方向。",
+        "原 PR #223 保持开放，任务保持 todo；R1 同一精确 head 的三平台与完整 check/e2e 仍须实际通过。"
+      ],
+      "verdict": "pass"
+    }
+  }
+}

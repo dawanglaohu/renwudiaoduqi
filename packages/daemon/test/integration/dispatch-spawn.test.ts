@@ -1,7 +1,15 @@
 import { execFileSync } from 'node:child_process';
 import type { ChildProcess, SpawnOptions, spawn as nodeSpawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -316,6 +324,7 @@ function setupTestEnvironment(
 		readonly modelEffortOptions?: Readonly<Record<string, readonly string[]>>;
 		readonly dshResolvedPath?: string;
 		readonly customSpawn?: typeof import('../../src/proc/spawn.ts').spawnManaged;
+		readonly realReviewService?: boolean;
 		readonly baseSelector?: import('../../src/workspace/base-select.ts').BaseSelector;
 	} = {},
 ) {
@@ -452,7 +461,7 @@ function setupTestEnvironment(
 		codexSessions: null,
 		worktreeManager: fakeWorktreeManager,
 		baseSelector: overrides.baseSelector,
-		reviewService: fakeReviewService,
+		reviewService: overrides.realReviewService ? undefined : fakeReviewService,
 		agentService: fakeAgentService,
 		agentRegistry:
 			overrides.claudeExecPath || overrides.claudeDefaultEffort
@@ -1227,6 +1236,92 @@ describe('M8-T10 Integration: dispatch spawn & event pipeline', { timeout: 20000
 		expect(toolCallSse?.id).toBe(toolCallRow?.id);
 
 		await server.instance.close();
+	});
+
+	it('M1-T12 R5: native Codex exec JSON review reaches pass through production log ingestion', async () => {
+		const controllers = new Map<string, FakeManagedProcessController>();
+		const { container } = setupTestEnvironment({
+			realReviewService: true,
+			customSpawn: ((spec: LaunchSpec) => {
+				const controller = createFakeProcess(spec);
+				controllers.set(spec.runId, controller);
+				return controller.managed;
+			}) as typeof spawnManaged,
+		});
+		await container.services.settings.updateGates(
+			{ dispatch: 'auto', review: 'auto', landing: 'auto' },
+			null,
+		);
+		const created = await container.services.dispatch.createRun({
+			taskId: 'task-1',
+			agentId: 'codex',
+			model: 'gpt-6.1-sol',
+			effort: { tier: 'low' },
+			idempotencyKey: 'native-review-json',
+		});
+		await container.services.dispatch.tick();
+		await vi.waitFor(() => expect(controllers.has(created.run.id)).toBe(true));
+		const implementation = controllers.get(created.run.id);
+		if (!implementation) throw new Error('Implementation process missing');
+		const cwd = implementation.lastLaunchSpec.cwd;
+		mkdirSync(join(cwd, 'src'), { recursive: true });
+		execFileSync('git', ['init', '-q', cwd]);
+		writeFileSync(join(cwd, 'README.md'), 'Baseline\n');
+		execFileSync('git', ['-C', cwd, 'add', 'README.md']);
+		execFileSync('git', [
+			'-C',
+			cwd,
+			'-c',
+			'user.name=Native Review',
+			'-c',
+			'user.email=review@example.invalid',
+			'commit',
+			'-qm',
+			'baseline',
+		]);
+		writeFileSync(join(cwd, 'src/change.ts'), '// Works\n');
+		implementation.emitLine(
+			JSON.stringify({
+				type: 'item.completed',
+				item: { id: 'implementation-message', type: 'agent_message', text: 'Works' },
+			}),
+		);
+		implementation.emitExit(0);
+		await vi.waitFor(
+			() =>
+				expect(container.repos.runs.listAll().filter((run) => run.kind === 'review')).toHaveLength(
+					1,
+				),
+			{ timeout: 5000 },
+		);
+		const review = container.repos.runs.listAll().find((run) => run.kind === 'review');
+		if (!review) throw new Error('Review run missing');
+		await vi.waitFor(() => expect(container.repos.runs.findById(review.id)?.state).toBe('running'));
+		const process = controllers.get(review.id);
+		if (!process) throw new Error('Review process missing');
+		// CLI 0.157.1 emits the report inside an exec JSON item, with no plain-text copy.
+		process.emitLine(
+			JSON.stringify({
+				type: 'item.completed',
+				item: {
+					id: 'native-report',
+					type: 'agent_message',
+					text: 'VERDICT: pass\n\nThe checked file satisfies the acceptance criteria.',
+				},
+			}),
+		);
+		process.emitExit(0);
+		await vi.waitFor(
+			() => expect(container.repos.runs.findById(review.id)?.review_verdict).toBe('pass'),
+			{ timeout: 2500 },
+		);
+		expect(container.repos.runs.findById(created.run.id)?.state).toBe('landed');
+		expect(container.repos.runs.findById(review.id)).toMatchObject({
+			state: 'exited',
+			exit_code: 0,
+			model_name: 'gpt-6.1-sol',
+			effort_tier: 'low',
+		});
 	});
 
 	it('AC 3 & E-348: Exit code 0 triggers M7 evaluateMechanicalCheck; non-zero exit code records run.exited with stderrTail', async () => {

@@ -591,6 +591,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				!batch ||
 				!current ||
 				current.is_removed_from_doc !== 0 ||
+				current.is_contract_ready !== 1 ||
 				run.batch_id !== batch.batchId ||
 				runGeneration(run) !== batch.generationId ||
 				deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
@@ -1657,12 +1658,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							!run.task_id ||
 							(run.state !== 'queued' &&
 								run.state !== 'reworking' &&
+								run.state !== 'exited' &&
 								run.state !== 'awaiting_human')
 						)
 							return false;
 						const task = deps.tasksRepo.findById(run.task_id);
 						if (task?.doc_id !== doc.id) return false;
-						if (run.state === 'reworking') {
+						if (run.state === 'reworking' || run.state === 'exited') {
 							const member = planBatch.members.find((item) => item.taskId === run.task_id);
 							return (
 								run.kind === 'implement' &&
@@ -2422,7 +2424,17 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							deps.dispatchSnapshotsRepo,
 						)
 					: null;
-				const currentTasksById = new Map(currentEvidence?.tasks.map((task) => [task.id, task]));
+				// The running plan confirms this frozen source. Taking the new snapshot consumes old badges in the insert transaction.
+				const currentTasksById = new Map(
+					currentEvidence?.tasks.map((task) => [
+						task.id,
+						{
+							...task,
+							has_accept_changed: 0,
+							has_prompt_changed: 0,
+						},
+					]),
+				);
 				const currentRunIds = new Set(currentEvidence?.runs.map((run) => run.id));
 				const candidateRuns = planBatch
 					? allRuns.filter((run) => {

@@ -24,7 +24,12 @@ import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type { NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import { isExecutionStillCurrent } from '../../src/service/dispatch.ts';
-import { type CleanupWorktreeInput, createWorktreeManager } from '../../src/workspace/worktree.ts';
+import {
+	type CleanupWorktreeInput,
+	type GitRunner,
+	createDefaultGitRunner,
+	createWorktreeManager,
+} from '../../src/workspace/worktree.ts';
 import { writeTasksDocsData } from '../fixtures/task-docs-data.ts';
 
 const root = resolve(__dirname, '../../../..');
@@ -64,6 +69,8 @@ async function setup(
 		readonly agentConcurrencyLimit?: number;
 		readonly withImplementationProcess?: boolean;
 		readonly reviewDiff?: boolean;
+		readonly containerFactory?: typeof createContainer;
+		readonly gitRunner?: GitRunner;
 	} = {},
 ) {
 	const createdFolder = mkdtempSync(join(tmpdir(), 'agsched-document-plan-'));
@@ -150,7 +157,7 @@ async function setup(
 	let gitAvailable = true;
 	let gitPause: { entered: () => void; wait: Promise<void> } | null = null;
 	const spawnedRuns: string[] = [];
-	const container = createContainer({
+	const container = (options.containerFactory ?? createContainer)({
 		config: { port: 0, bind: '127.0.0.1', dataDir: folder, logLevel: 'error', dev: false },
 		database,
 		hostInputs: { platform: process.platform, homedir: folder } as never,
@@ -216,7 +223,7 @@ async function setup(
 					} as never;
 				}) as never)
 			: undefined,
-		gitRunner: {
+		gitRunner: options.gitRunner ?? {
 			run: async (args: readonly string[]) => {
 				const held = gitPause;
 				if (held) {
@@ -2856,6 +2863,24 @@ describe('M8-T12 document execution through the real container', () => {
 							{ id: 'M1-T2', hash: 'contract-2' },
 						],
 			);
+			if (change === 'membership') {
+				const source = JSON.parse(
+					readFileSync(docsPath, 'utf8')
+						.replace(/^window\.DOCS\s*=\s*/, '')
+						.replace(/;\s*$/, ''),
+				) as {
+					handoff: {
+						contracts: Record<string, { effectivePaths: string[] }>;
+						effectivePaths: Record<string, string[]>;
+					};
+				};
+				// Isolate generation recovery from the independent shared-path queue policy.
+				const added = source.handoff.contracts['M1-T2'];
+				if (!added) throw new Error('New member contract missing');
+				added.effectivePaths = ['other/new.ts'];
+				source.handoff.effectivePaths['M1-T2'] = ['other/new.ts'];
+				writeFileSync(docsPath, `window.DOCS = ${JSON.stringify(source)};`);
+			}
 			const refreshed = await server.instance.inject({
 				method: 'POST',
 				url: `/api/v1/documents/${docId}/refresh`,
@@ -2873,16 +2898,137 @@ describe('M8-T12 document execution through the real container', () => {
 				},
 			});
 			expect(resumed.statusCode, resumed.body).toBe(200);
-			await container.services.dispatch.tick();
+			const recoveryTick = await container.services.dispatch.tick();
+			expect(recoveryTick.executed).toBe(true);
 			expect(
 				container.repos.runs
 					.listAll()
 					.filter((run) => run.kind === 'review' && run.parent_run_id === old?.id),
 			).toHaveLength(0);
-			expect(container.repos.runs.findById(old?.id ?? '')?.state).toBe('exited');
+			const replacements = container.repos.runs
+				.listAll()
+				.filter(
+					(run) => run.kind === 'implement' && run.task_id === old?.task_id && run.id !== old.id,
+				);
+			expect(replacements).toHaveLength(1);
+			expect(
+				container.repos.dispatchSnapshots?.findById(replacements[0]?.snapshot_id ?? '')
+					?.contract_hash,
+			).toBe(change === 'contract' ? 'replacement-contract' : 'contract-1');
+			expect(container.repos.runs.findById(old?.id ?? '')).toMatchObject({
+				state: 'failed',
+				queued_reason: 'source_changed',
+				exit_code: 0,
+			});
 			expect(container.repos.gates?.findPendingByRunId?.(old?.id ?? '')).toBeNull();
 			await server.instance.close();
 		},
+	);
+
+	it.skipIf(process.platform !== 'win32')(
+		'M1-T12 R1: HEAD refresh reuses boot Git PATH outside fixed Agent install roots',
+		async () => {
+			const isolatedHome = mkdtempSync(join(tmpdir(), 'agsched-no-fixed-git-'));
+			folders.push(isolatedHome);
+			vi.resetModules();
+			vi.doMock('node:os', async (loadOriginal) => ({
+				...(await loadOriginal<typeof import('node:os')>()),
+				homedir: () => isolatedHome,
+			}));
+			try {
+				const factory = (await import('../../src/boot/container.ts')).createContainer;
+				const check = (await import('../../src/workspace/in-head.ts')).isBranchInHead;
+				const runner = createDefaultGitRunner({
+					platform: 'win32',
+					hostInputs: {
+						platform: 'win32',
+						homedir: isolatedHome,
+						pathEnv: process.env.Path ?? process.env.PATH,
+					},
+					ids: { newId: randomUUID },
+				});
+				const env = await setup({
+					containerFactory: factory,
+					gitRunner: runner,
+					ownedWrapup: 'fresh',
+				});
+				const repo = env.workspaceRepoPath;
+				const worktree = join(env.folder, 'landed-task');
+				const runGit = (args: string[], cwd = repo) =>
+					execFileSync('git', ['-C', cwd, ...args], { stdio: 'ignore' });
+				runGit(['config', 'core.autocrlf', 'false']);
+				runGit(['worktree', 'add', '-b', 'task/r1-path', worktree, 'HEAD']);
+				writeFileSync(join(worktree, 'landed.txt'), 'Accepted implementation\n');
+				runGit(['add', 'landed.txt'], worktree);
+				runGit(
+					[
+						'-c',
+						'user.name=Git Context',
+						'-c',
+						'user.email=git@example.invalid',
+						'commit',
+						'-m',
+						'implementation',
+					],
+					worktree,
+				);
+				runGit([
+					'-c',
+					'user.name=Git Context',
+					'-c',
+					'user.email=git@example.invalid',
+					'merge',
+					'--no-ff',
+					'--no-edit',
+					'task/r1-path',
+				]);
+				const task = env.container.repos.tasks.listByDocId(env.docId)[0];
+				if (!task) throw new Error('Task missing');
+				env.container.repos.dispatchSnapshots?.insert({
+					id: 'r1-path-snapshot',
+					task_id: task.id,
+					contract_hash: task.contract_hash,
+					task_paths_json: '[]',
+					launch_spec_json: '{}',
+					created_at: '2026-10-12T07:00:00.000Z',
+				});
+				env.container.repos.runs.insert({
+					id: 'r1-path-run',
+					task_id: task.id,
+					batch_id: task.batch_id,
+					attempt_no: 1,
+					kind: 'implement',
+					state: 'landed',
+					agent_id: 'codex',
+					permission_tier: 'workspaceWrite',
+					snapshot_id: 'r1-path-snapshot',
+					branch_name: 'task/r1-path',
+					worktree_path: worktree,
+					is_in_head: 0,
+					started_at: '2026-10-12T07:00:00.000Z',
+				});
+				// With the isolated home, only the boot PATH can locate the genuine Git executable.
+				expect(
+					(await check({ repoPath: repo, branchName: 'task/r1-path', worktreePath: worktree }))
+						.method,
+				).toBe('error');
+				expect(
+					(
+						await check(
+							{ repoPath: repo, branchName: 'task/r1-path', worktreePath: worktree },
+							runner,
+						)
+					).inHead,
+				).toBe(true);
+				await env.container.services.dispatch.tick();
+				expect(env.container.repos.runs.findById('r1-path-run')?.is_in_head).toBe(1);
+				await env.server.instance.close();
+			} finally {
+				vi.doUnmock('node:os');
+				vi.resetModules();
+			}
+		},
+		30000,
 	);
 
 	it('does not admit a run after pause wins an asynchronous tick preflight', async () => {

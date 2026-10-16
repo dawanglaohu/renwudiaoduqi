@@ -14,6 +14,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import readline from 'node:readline';
 
@@ -21,6 +22,8 @@ const persona = process.env.AGSCHED_DOC_EXEC_PERSONA === 'claude' ? 'claude' : '
 const controlPath = process.env.AGSCHED_DOC_EXEC_CONTROL || '';
 const journalPath = process.env.AGSCHED_DOC_EXEC_JOURNAL || '';
 const releasePath = process.env.AGSCHED_DOC_EXEC_RELEASE || '';
+const threadId = `thread-doc-exec-${randomUUID()}`;
+const turnId = `turn-doc-exec-${randomUUID()}`;
 
 function readControl() {
 	if (!controlPath) return {};
@@ -181,7 +184,7 @@ async function produce(prompt) {
 		journal({ phase: plan.phase, task: plan.task, action: plan.action, event: 'released' });
 	}
 	if (plan.action === 'slow') await sleep(1500);
-	if (plan.phase === 'implement' && plan.action !== 'fail' && plan.action !== 'no-change') {
+	if (plan.phase === 'implement' && !['fail', 'no-change', 'empty'].includes(plan.action)) {
 		const control = readControl();
 		if (control.implementCommit !== false) {
 			const task = plan.task || 'task';
@@ -191,14 +194,14 @@ async function produce(prompt) {
 	if (plan.phase === 'wrapup' && plan.action !== 'fail' && plan.action !== 'garbage') {
 		commitMarker(`wrapup-note-${Date.now()}.txt`, `wrapup ${plan.action} ${Date.now()}\n`, false);
 	}
-	let text = `implemented ${plan.task}\n`;
+	let text = plan.action === 'empty' ? '' : `implemented ${plan.task}\n`;
 	if (plan.phase === 'review') text = reviewText(plan.action);
 	if (plan.phase === 'wrapup') {
 		text = plan.action === 'fail' ? 'not a wrapup report\n' : wrapupText(plan.action, plan.task);
 	}
 	const fail = plan.action === 'fail';
 	journal({ phase: plan.phase, task: plan.task, action: plan.action, event: fail ? 'fail' : 'done' });
-	return { text, fail };
+	return { text, fail, phase: plan.phase };
 }
 
 function writeLine(value) {
@@ -242,23 +245,25 @@ async function runCodex() {
 			return;
 		}
 		if (method === 'thread/start') {
-			writeLine({ id: msg.id, result: { thread: { id: 'thread-doc-exec' } } });
+			writeLine({ id: msg.id, result: { thread: { id: threadId } } });
 			return;
 		}
 		if (method === 'turn/start') {
 			const input = Array.isArray(msg.params?.input) ? msg.params.input : [];
 			const prompt = input.map((item) => (typeof item?.text === 'string' ? item.text : '')).join('\n');
-			writeLine({ id: msg.id, result: { turn: { id: 'turn-doc-exec', status: 'in_progress' } } });
+			writeLine({ id: msg.id, result: { turn: { id: turnId, status: 'in_progress' } } });
 			working = produce(prompt)
 				.then(async ({ text, fail }) => {
-					writeLine({ method: 'item/agentMessage/delta', params: { delta: text } });
-					writeLine({
-						method: 'item/completed',
-						params: { item: { id: 'msg-doc-exec', type: 'agentMessage', text } },
-					});
+					if (text) {
+						writeLine({ method: 'item/agentMessage/delta', params: { delta: text } });
+						writeLine({
+							method: 'item/completed',
+							params: { item: { id: 'msg-doc-exec', type: 'agentMessage', text } },
+						});
+					}
 					writeLine({
 						method: 'turn/completed',
-						params: { threadId: 'thread-doc-exec', turn: { id: 'turn-doc-exec', status: fail ? 'failed' : 'completed' } },
+						params: { threadId, turn: { id: turnId, status: fail ? 'failed' : 'completed' } },
 					});
 					await sleep(200);
 					process.exit(fail ? 1 : 0);
@@ -321,23 +326,13 @@ function promptFromArgv() {
 
 async function runExec() {
 	try {
-		const { text, fail } = await produce(promptFromArgv());
-		writeLine({ type: 'thread.started', thread_id: 'thread-doc-exec' });
-		writeLine({ type: 'turn.started', turn_id: 'turn-doc-exec' });
+		const { text, fail, phase } = await produce(promptFromArgv());
+		writeLine({ type: 'thread.started', thread_id: threadId });
+		writeLine({ type: 'turn.started', turn_id: turnId });
 		writeLine({ type: 'item.completed', item: { id: 'msg-doc-exec', type: 'agent_message', text } });
-		writeLine({ method: 'item/agentMessage/delta', params: { delta: text } });
-		writeLine({
-			method: 'item/completed',
-			params: { item: { id: 'msg-doc-exec', type: 'agentMessage', text } },
-		});
-		writeLine({ type: 'turn.completed', turn_id: 'turn-doc-exec' });
-		writeLine({
-			method: 'turn/completed',
-			params: { turn: { id: 'turn-doc-exec', status: fail ? 'failed' : 'completed' } },
-		});
-		// Review and wrapup keep the raw stdout when no chunk is indexed. The
-		// parsers only accept a verdict or a section heading as its own line.
-		fs.writeSync(1, `${text.endsWith('\n') ? text : `${text}\n`}`);
+		writeLine({ type: 'turn.completed', turn_id: turnId });
+		// Closeout supports raw report stdout; review verdicts must traverse the native JSON mapper.
+		if (phase === 'wrapup') fs.writeSync(1, `${text.endsWith('\n') ? text : `${text}\n`}`);
 		await sleep(1200);
 		process.exit(fail ? 1 : 0);
 	} catch (error) {

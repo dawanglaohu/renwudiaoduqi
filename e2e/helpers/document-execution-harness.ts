@@ -26,7 +26,7 @@ export let artifactsDir = invocationDir;
 let evidenceStarted = Date.now();
 
 export function beginEvidence(name: string): void {
-	artifactsDir = join(invocationDir, name.replace(/[^\w.-]+/g, '_').slice(0, 100));
+	artifactsDir = join(invocationDir, name.replace(/[^\w.-]+/g, '_').slice(0, 64));
 	evidenceStarted = Date.now();
 	mkdirSync(artifactsDir, { recursive: true });
 	let head: string;
@@ -326,7 +326,7 @@ export async function openBrowser(): Promise<Browser> {
 	return chromium.launch({ headless: true });
 }
 
-export async function pairPage(page: Page, daemon: RunningDaemon, adminToken: string): Promise<void> {
+export async function pairPage(page: Page, daemon: RunningDaemon, adminToken: string): Promise<string> {
 	const codeResponse = await fetch(`http://127.0.0.1:${daemon.port}/api/v1/pair/code`, {
 		method: 'POST',
 		headers: {
@@ -344,8 +344,13 @@ export async function pairPage(page: Page, daemon: RunningDaemon, adminToken: st
 		await manual.click();
 		await page.locator('[data-testid="manual-host-input"]').fill(`127.0.0.1:${daemon.port}`);
 	}
+	const claimed = page.waitForResponse((response) => response.url().endsWith('/api/v1/pair/claim') && response.request().method() === 'POST');
 	await page.locator('[data-testid="pairing-submit-button"]').click();
+	const claim = await claimed;
+	const paired = await claim.json() as { token?: string };
+	if (!claim.ok() || !paired.token) throw new Error(`Browser pairing failed: ${claim.status()}`);
 	await page.waitForURL(`http://127.0.0.1:${daemon.port}/#/`, { timeout: 20000 });
+	return paired.token;
 }
 
 export function renderDocs(tasks: readonly DocTaskSpec[], project = '文档顺序自动执行验收'): string {
@@ -431,7 +436,12 @@ export async function importThroughPage(page: Page, docsPath: string, repoPath: 
 	await docs.waitFor({ state: 'visible', timeout: 20000 });
 	await docs.fill(docsPath);
 	await page.locator('[data-testid="import-repo-path"]').fill(repoPath);
+	const imported = page.waitForResponse((response) => response.url().endsWith('/api/v1/documents') && response.request().method() === 'POST');
 	await page.locator('[data-action="import-document"]').click();
+	const response = await imported;
+	const body = await response.json() as { document?: { id: string }; error?: unknown };
+	if (!response.ok() || !body.document?.id) throw new Error(`Document import failed: ${response.status()} ${JSON.stringify(body.error)}`);
+	await page.locator('[data-testid="document-execution-document"]').selectOption(body.document.id);
 	await page
 		.locator('[data-testid="document-execution-state"]')
 		.waitFor({ state: 'visible', timeout: 20000 });
@@ -479,6 +489,7 @@ export interface ListedRun {
 	readonly snapshotId?: string;
 	readonly reviewVerdict?: string | null;
 	readonly exitCode?: number | null;
+	readonly queuedReason?: string | null;
 	readonly effortTier?: string | null;
 }
 
@@ -598,6 +609,41 @@ export function readRunSnapshot(dataDir: string, runId: string): Record<string, 
 	} finally { db.close(); }
 }
 
+export function readAgentMessages(dataDir: string, runId: string): string {
+	const raw = readFileSync(join(dataDir, 'runs', runId, 'raw.log'), 'utf8');
+	const messages: string[] = [];
+	for (const line of raw.split(/\r?\n/)) {
+		try {
+			const item = JSON.parse(line)?.item;
+			if (item?.type === 'agent_message' && typeof item.text === 'string') messages.push(item.text);
+		} catch { /* Native stderr and non-JSON lines are kept in the raw failure artifacts. */ }
+	}
+	return redact(messages.join('\n'));
+}
+
+function daemonDiagnostic(dataDir: string): Record<string, unknown> {
+	if (!existsSync(join(dataDir, 'app.db'))) return { databaseCreated: false };
+	const Database = require('better-sqlite3');
+	const db = new Database(join(dataDir, 'app.db'), { readonly: true, fileMustExist: true });
+	try {
+		const documents = db.prepare('SELECT id, docs_path, repo_path, main_branch, content_fingerprint FROM documents').all();
+		const tasks = db.prepare('SELECT id,doc_id,task_key,batch_id,contract_hash,manual_state,lane_no FROM tasks').all();
+		const runs = db.prepare('SELECT id,task_id,batch_id,kind,state,review_verdict,branch_name,worktree_path,branch_tip_sha,is_in_head,in_head_checked_at,session_archived_at FROM runs').all();
+		const executions = db.prepare('SELECT doc_id,state,version,current_batch_id,plan_json FROM document_executions').all();
+		const command = (repo: string, args: string[]) => {
+			try { return { exitCode: 0, stdout: execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim() }; }
+			catch (error) { return { exitCode: (error as { status?: number }).status, stderr: String((error as { stderr?: unknown }).stderr ?? error) }; }
+		};
+		const branches = runs.filter((run: Record<string, unknown>) => run.kind === 'implement' && run.branch_name).map((run: Record<string, unknown>) => {
+			const task = tasks.find((row: Record<string, unknown>) => row.id === run.task_id);
+			const doc = documents.find((row: Record<string, unknown>) => row.id === task?.doc_id);
+			return { runId: run.id, repoPath: doc?.repo_path,
+				...(doc?.repo_path ? { head: command(doc.repo_path, ['rev-parse', 'HEAD']), ancestor: command(doc.repo_path, ['merge-base', '--is-ancestor', String(run.branch_name), 'HEAD']), tip: command(doc.repo_path, ['rev-parse', String(run.branch_name)]) } : {}) };
+		});
+		return { documents, tasks, executions, runs, branches };
+	} finally { db.close(); }
+}
+
 /** Send a real TCP request, retain no response, and disconnect after independent state observation. */
 export async function requestWithoutResponse(daemon: RunningDaemon, api: DocumentApi, path: string, body: unknown): Promise<() => void> {
 	const payload = JSON.stringify(body);
@@ -614,7 +660,7 @@ export async function requestWithoutResponse(daemon: RunningDaemon, api: Documen
 
 export async function captureFailure(page: Page | null, daemon: RunningDaemon | null, name: string): Promise<void> {
 	mkdirSync(artifactsDir, { recursive: true });
-	const dir = join(artifactsDir, name);
+	const dir = name === 'startup' ? join(artifactsDir, 'startup') : artifactsDir;
 	mkdirSync(dir, { recursive: true });
 	if (page) {
 		await page.screenshot({ path: join(dir, 'failure.png'), fullPage: true }).catch(() => undefined);
@@ -624,6 +670,8 @@ export async function captureFailure(page: Page | null, daemon: RunningDaemon | 
 	writeFileSync(join(dir, 'daemon.stdout.log'), daemon?.getStdout() ?? '', 'utf8');
 	writeFileSync(join(dir, 'daemon.stderr.log'), daemon?.getStderr() ?? '', 'utf8');
 	if (daemon) {
+		try { writeFileSync(join(dir, 'daemon-state.json'), JSON.stringify(daemonDiagnostic(daemon.dataDir), null, 2)); }
+		catch (error) { writeFileSync(join(dir, 'daemon-state.json'), JSON.stringify({ diagnosticError: String(error) })); }
 		if (existsSync(daemon.journalPath)) {
 			writeFileSync(join(dir, 'agent-journal.ndjson'), readFileSync(daemon.journalPath, 'utf8'), 'utf8');
 		}
@@ -639,6 +687,7 @@ export async function captureFailure(page: Page | null, daemon: RunningDaemon | 
 		return { file, sha256: createHash('sha256').update(readFileSync(path)).digest('hex') };
 	});
 	writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+		phase: name === 'startup' ? 'startup' : 'browser',
 		startedAt: new Date(evidenceStarted).toISOString(), capturedAt: new Date().toISOString(),
 		browserStarted: page !== null, files,
 	}, null, 2));
