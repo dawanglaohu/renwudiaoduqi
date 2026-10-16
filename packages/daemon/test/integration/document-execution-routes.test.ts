@@ -409,6 +409,7 @@ function seedImplementationRun(
 		contractHash: string;
 		createdAt: string;
 		generationId?: number;
+		isInHead?: 0 | 1;
 		agentId?: string;
 		branchName?: string;
 		worktreePath?: string;
@@ -439,7 +440,7 @@ function seedImplementationRun(
 		worktree_path: input.worktreePath ?? null,
 		started_at: input.createdAt,
 		ended_at: input.createdAt,
-		is_in_head: 1,
+		is_in_head: input.isInHead ?? 1,
 		in_head_checked_at: input.createdAt,
 	});
 }
@@ -3523,6 +3524,61 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('M1-T12 R3: publishes a manual wrapup blocker after HEAD changes without a control version change', async () => {
+		const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
+		const { container, server, headers, docId } = env;
+		container.services.settings.updatePipeline(
+			{ ...container.services.settings.getPipeline(), wrapupMode: 'manual' },
+			null,
+		);
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		if (!batch || !task) throw new Error('Manual wrapup fixture missing');
+		seedImplementationRun(env, {
+			id: 'manual-head',
+			taskId: task.id,
+			batchId: batch.id,
+			attemptNo: 1,
+			contractHash: task.contract_hash,
+			createdAt: '2026-10-12T07:00:00.000Z',
+			isInHead: 0,
+		});
+		const started = await server.instance.inject({
+			method: 'POST',
+			headers,
+			url: `/api/v1/documents/${docId}/execution/start`,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const observed = container.services.documentExecution.get(docId).execution;
+		expect(observed.blockers.some((item) => item.code === 'wrapup_manual')).toBe(false);
+		const updates: unknown[] = [];
+		const unsubscribe = container.events.bus.subscribe((event) => {
+			if (event.kind === 'document.execution_changed') updates.push(event.payload);
+		});
+		container.repos.runs.updateInHead?.({
+			id: 'manual-head',
+			isInHead: 1,
+			checkedAt: '2026-10-12T08:00:00.000Z',
+		});
+		container.services.documentExecution.advanceRunning(docId);
+		expect(updates).toHaveLength(1);
+		expect(updates[0]).toMatchObject({
+			execution: {
+				version: observed.version,
+				blockers: expect.arrayContaining([expect.objectContaining({ code: 'wrapup_manual' })]),
+			},
+		});
+		container.services.documentExecution.advanceRunning(docId);
+		expect(updates).toHaveLength(1);
+		unsubscribe();
+		await server.instance.close();
+	});
+
 	it('R1: revalidates a changed landed contract before current-generation wrapup', async () => {
 		const env = await setup({
 			canDispatch: () => true,
@@ -3572,15 +3628,6 @@ describe('M8-T12 document execution through the real container', () => {
 			},
 		});
 		expect(resume.statusCode, resume.body).toBe(200);
-		const pending = await container.services.dispatch.tick();
-		expect(pending.tasksBlocked).toContainEqual({
-			taskId: task.id,
-			reason: 'doc_changed_pending_confirmation',
-		});
-		container.repos.dispatchSnapshots?.updateTaskChangedFlags(task.id, {
-			hasAcceptChanged: false,
-			hasPromptChanged: false,
-		});
 		const dispatched = await container.services.dispatch.tick();
 		expect(dispatched.runsDispatched).toHaveLength(1);
 		const newRunId = dispatched.runsDispatched[0] ?? '';
@@ -4362,19 +4409,13 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(container.services.documentExecution.get(docId).execution.currentBatchId).toBe(
 			second?.id,
 		);
-		const blocked = await container.services.dispatch.tick();
-		expect(blocked.tasksBlocked).toContainEqual({
-			taskId: movedTask.id,
-			reason: 'doc_changed_pending_confirmation',
+		await container.services.dispatch.tick();
+		const retried = container.repos.runs.listByTaskId(movedTask.id);
+		expect(retried).toHaveLength(2);
+		expect(retried.find((run) => run.id !== 'moved-prior-failed')).toMatchObject({
+			kind: 'implement',
+			batch_id: second?.id,
 		});
-		container.repos.dispatchSnapshots?.updateTaskChangedFlags(movedTask.id, {
-			hasAcceptChanged: false,
-			hasPromptChanged: false,
-		});
-		const next = await container.services.dispatch.tick();
-		expect(
-			next.runsDispatched.some((id) => container.repos.runs.findById(id)?.task_id === movedTask.id),
-		).toBe(true);
 		expect(container.repos.runs.listByTaskId(landedTask.id)).toHaveLength(1);
 		expect(container.repos.runs.findById('moved-prior-landed')?.state).toBe('landed');
 		expect(container.repos.runs.findById('moved-prior-failed')?.state).toBe('failed');

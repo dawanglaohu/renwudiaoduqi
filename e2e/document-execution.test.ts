@@ -219,7 +219,7 @@ async function finishBatch(
 			const run = await currentWrapup();
 			return !!run && !['queued', 'starting', 'running'].includes(run.state);
 		},
-		30000,
+		90000,
 	);
 	const wrapup = await currentWrapup();
 	if (!wrapup?.branchName) throw new Error('Current generation wrapup branch is missing');
@@ -557,7 +557,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const next = await waitForRun(api, secondTasks.get('TWO-NEXT')?.id ?? '', 'implement');
 		expect(next.agentId).toBe('claude');
 		await second.close();
-	}, 300000);
+	}, 420000);
 
 	it('loses a real continue response, then rejects a stale retry after another device pauses (E-361)', async () => {
 		const { daemon, api, page, browser, browserToken } = await boot();

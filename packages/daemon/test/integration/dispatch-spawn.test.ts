@@ -447,6 +447,11 @@ function setupTestEnvironment(
 					return { exitCode: 0, stdout: `true\n${cwd}`, stderr: '' };
 				return createDefaultGitRunner({
 					platform: process.platform as 'win32' | 'linux' | 'darwin',
+					hostInputs: {
+						platform: process.platform as 'win32' | 'linux' | 'darwin',
+						homedir: tempDir,
+						pathEnv: process.env.Path ?? process.env.PATH,
+					},
 					ids: { newId: () => crypto.randomUUID() },
 				}).run(args, cwd);
 			},

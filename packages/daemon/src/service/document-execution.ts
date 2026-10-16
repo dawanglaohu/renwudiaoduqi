@@ -236,6 +236,7 @@ function buildPlanFromRows(
 export function createDocumentExecutionService(
 	deps: DocumentExecutionDeps,
 ): DocumentExecutionService {
+	const publishedProjections = new Map<string, string>();
 	function requireDocument(docId: string): DocumentRow {
 		const doc = deps.documents.findById(docId);
 		if (!doc)
@@ -811,7 +812,12 @@ export function createDocumentExecutionService(
 				changed = true;
 			}
 		});
-		if (changed) publishChanged(docId, batchEvents);
+		// HEAD, gates and Agent availability change blockers without changing the control version.
+		if (
+			changed ||
+			publishedProjections.get(docId) !== JSON.stringify(currentResponse(docId).execution)
+		)
+			publishChanged(docId, batchEvents);
 	}
 
 	function assertVersion(
@@ -863,6 +869,7 @@ export function createDocumentExecutionService(
 	): DocumentExecutionResponse {
 		for (const item of batchEvents) deps.bus.publish(item.envelope);
 		const result = currentResponse(docId);
+		publishedProjections.set(docId, JSON.stringify(result.execution));
 		deps.bus.publish(
 			deps.envelopeFactory.createEnvelope({
 				kind: 'document.execution_changed',
