@@ -1341,6 +1341,10 @@ describe('M1-T12 文档顺序自动执行', () => {
 		);
 		await importThroughPage(page, docsPath, repo.repo);
 		const docId = await documentId(api);
+		const nativeFrames = join(repoRoot, '.playwright-mcp', `gif-frames-m1-t12-native-${Date.now()}`);
+		mkdirSync(nativeFrames, { recursive: true });
+		await page.locator('[data-testid="document-execution"][data-execution-state="idle"]').waitFor();
+		await page.screenshot({ path: join(nativeFrames, '00-idle.png') });
 		await chooseAgent(page, 'codex');
 		await page.locator('[data-testid="document-execution"] [data-testid="model-picker"] [data-testid="grouped-select-trigger"]').click();
 		const modelOption = page.locator(`[data-testid="select-option-${modelName}"]`).first();
@@ -1353,7 +1357,11 @@ describe('M1-T12 文档顺序自动执行', () => {
 		}
 		await page.locator('[data-testid="document-execution"] [data-testid="effort-picker"] [data-testid="grouped-select-trigger"]').click();
 		await page.locator('[data-testid="select-option-tier:low"]').click();
+		expect(await page.locator('[data-action="start-document"]').isEnabled()).toBe(true);
+		await page.screenshot({ path: join(nativeFrames, '01-configured.png') });
 		await page.locator('[data-action="start-document"]').click();
+		await page.locator('[data-testid="document-execution"][data-execution-state="running"]').waitFor();
+		await page.screenshot({ path: join(nativeFrames, '02-started.png') });
 		const tasks = await taskIndex(api, docId);
 		const taskId = tasks.get('DE-REAL')?.id ?? '';
 		await waitFor(
@@ -1398,12 +1406,22 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect(readFileSync(daemon.journalPath, 'utf8').trim()).toBe('');
 		const reviewText = readAgentMessages(daemon.dataDir, reviews[0]?.id ?? '');
 		expect(reviewText).toMatch(/^VERDICT:\s*pass\s*$/im);
+		await page.screenshot({ path: join(artifactsDir, 'real-agent-success.png'), fullPage: true });
+		await page.locator('[data-blocker="awaiting_landing"]').waitFor({ state: 'visible', timeout: 30000 });
+		await page.screenshot({ path: join(nativeFrames, '03-accepted.png') });
+		await page.goto(`http://127.0.0.1:${daemon.port}/#/run/${reviews[0]?.id}`, { waitUntil: 'domcontentloaded' });
+		await page.locator('[data-testid="run-detail-page"]').waitFor();
+		await page.locator(`[data-run-id="${reviews[0]?.id}"]`).waitFor();
+		await page.screenshot({ path: join(nativeFrames, '04-review.png') });
 		writeFileSync(
 			recordPath,
 			JSON.stringify(
 				{
 					skipped: false,
 					status: 'passed',
+					browserEvidence: { frames: nativeFrames, origin: `http://127.0.0.1:${daemon.port}`,
+						browser: 'repository Playwright, headless Chromium, fresh isolated context',
+						mode: 'AGSCHED_DEV=1; production bootstrap and native Codex CLI; no fixture Agent, transport or event injection' },
 					reviewText,
 					snapshots: [...implementations, ...reviews].map((run) => {
 						const snapshot = readRunSnapshot(daemon.dataDir, run.id);
@@ -1428,7 +1446,6 @@ describe('M1-T12 文档顺序自动执行', () => {
 			),
 			'utf8',
 		);
-		await page.screenshot({ path: join(artifactsDir, 'real-agent-success.png'), fullPage: true });
 	}, 960000);
 
 	it('does not intercept fetch, write the database, or install a production test hook (E-370)', () => {
