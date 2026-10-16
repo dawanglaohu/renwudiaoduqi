@@ -217,12 +217,16 @@
   },
   "M1-T12": {
     "compiler": "eeddd07520a3431c9e3a6f44609ca79790d7653a1082674d6ca4e1c3f7107607",
-    "contractHash": "b979210e3935128b92aa5e43c4a387b64594f9b1a7c8df515cc4a5f4092cf4fa",
+    "contractHash": "35b800e6016fb2f470bcae99b9ccb7796cb2f72dba400cf28cd71c7210dd6531",
     "evidence": [
-      "本轮为M9-T30补齐必要入口回归和密度探针支持路径；完整原生跨批验收仍由M1-T12承担，M1-T12的要求和status保持未落地。",
-      "M9依赖仍是M8-T13 document-sequential-dispatch；语义复核只确认本补丁影响的提供方支持路径，不冒充M1-T12代码验收通过。"
+      "本记录仅复核任务契约，不表示代码验收通过或任务落地。M1-T12 的八项验收和 E-360 至 E-370 原有要求均保留，19 节与 22 节未修改；代码验收仍须处理本轮 REWORK。",
+      "已核 M9-T30 文档控制与 M8-T13 自动顺序派发前置能力；bootstrap、真实浏览器配对、文档导入、工作树和 SSE 为本层既定验收入口。当前分支基于 main a04585168e5fcc4353ebd91a889e1dfe1a4ba5aa。",
+      "仅将 E-367/E-369 审查准入必需的 dispatch.ts、review.ts、review-agent.ts 与既有 document-execution-routes、dispatch-spawn、review、review-agent 测试列为 supportPaths；不扩大其他功能。开放 PR #209 与新增支持代码路径无重叠。",
+      "已对照 06/08 节单向分层、service 唯一事务入口与事务外副作用、10 节执行 DTO/API、13 节边界、17 节 check/e2e 和三平台 CI 要求核对；tasks_json 与 BatchWrapupDto.tasks 继续为排序任务 ID string[]。",
+      "buildPipeline 已由 vite.config.ts 的 css.postcss、postcss.config.cjs 的 Tailwind/autoprefixer 和 tailwind.config.ts 的相对内容扫描接线；本轮完整 check 含 style-pipeline 八例通过。未为本任务复制已有类型或添加生产测试钩子。",
+      "Jev jev-1.13.0 本轮 review-scope 采纳 A(high 0.92)：局部补齐必要支持路径，保留原 PR，具体产品缺陷按第一轮返工处理。review-pause 采纳 B(low 0.41)，review-real-agent 采纳 A(high 0.83)；原候选均保留在仓库外状态文件，judgments.jsonl 留存裁决。"
     ],
-    "reviewed": "2026-10-15T11:24:18.977206+00:00",
+    "reviewed": "2026-10-16T03:42:56.278661+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

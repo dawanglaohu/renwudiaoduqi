@@ -952,4 +952,3 @@ async function restartDaemon(dataDir: string, port: number): Promise<RunningDaem
 	child.kill('SIGTERM');
 	throw new Error(`Restarted daemon did not become healthy\n${stderr}`);
 }
-
