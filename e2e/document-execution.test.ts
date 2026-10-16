@@ -1253,10 +1253,8 @@ describe('M1-T12 文档顺序自动执行', () => {
 			expect(oldGates.length).toBeGreaterThan(0);
 			const gateId = oldGates[0]?.id ?? '';
 			commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'BUDGET', hash: 'budget' }, { id: 'BUDGET-NEW', hash: 'budget-new' }]));
+			expect((await api.post(`/api/v1/documents/${docId}/refresh`, {})).status).toBe(200);
 			await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
-			await page.locator('[data-testid="import-doc-path"]').fill(path);
-			await page.locator('[data-testid="import-repo-path"]').fill(repo.repo);
-			await page.locator('[data-action="rebind-document"]').click();
 			await page.locator('[data-action="confirm-document-source"]').click();
 			writeControl(daemon, { implement: 'hold', wrapup: 'clean' });
 			// A running plan with changed source remains paused until explicit resume.
