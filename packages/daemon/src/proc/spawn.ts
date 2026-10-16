@@ -230,8 +230,8 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		shell: false,
 		windowsHide: platform === 'win32',
 		windowsVerbatimArguments: platform === 'win32' ? windowsVerbatimArguments : undefined,
-		// Restart reconciliation must observe live Agent PIDs on Windows as well as POSIX.
-		detached: true,
+		// Native Agents survive daemon exit; detached ComSpec wrappers lose piped output.
+		detached: !isCmdBat,
 		stdio: [spec.stdinMode === 'closed' ? 'ignore' : 'pipe', 'pipe', 'pipe'],
 	};
 

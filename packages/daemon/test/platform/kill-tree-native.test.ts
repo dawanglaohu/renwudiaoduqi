@@ -1,5 +1,5 @@
 import { type ChildProcess, execFile, spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -10,8 +10,34 @@ import type {
 } from '../../src/platform/kill-tree-contract.ts';
 import { posixKillTree } from '../../src/platform/kill-tree-posix.ts';
 import { windowsKillTree } from '../../src/platform/windows.ts';
+import { spawnManaged } from '../../src/proc/spawn.ts';
 
 describe('native process-tree integration (E-119)', () => {
+	it.skipIf(process.platform !== 'win32')(
+		'M1-T12 R3: a managed ComSpec wrapper preserves native command output',
+		async () => {
+			const workingRoot = await mkdtemp(join(tmpdir(), 'm1-t12-comspec-output-'));
+			expect(dirname(resolve(workingRoot))).toBe(resolve(tmpdir()));
+			const wrapper = join(workingRoot, 'agent.cmd');
+			await writeFile(wrapper, `@"${process.execPath}" %*\r\n`);
+			const lines: string[] = [];
+			const managed = spawnManaged(
+				{ runId: 'm1-t12-comspec-output', file: wrapper, args: ['-p', '12345'], cwd: workingRoot },
+				{ platform: 'win32', onLine: (line) => lines.push(line.text) },
+			);
+			try {
+				const result = await new Promise<{ exitCode: number | null }>((done) =>
+					managed.onExit(done),
+				);
+				expect(result.exitCode, managed.stderrTail).toBe(0);
+				expect(lines).toEqual(['12345']);
+			} finally {
+				if (!managed.isExited) await managed.kill({ graceMs: 50 });
+				await rm(workingRoot, { recursive: true, force: true });
+			}
+		},
+	);
+
 	it.skipIf(process.platform !== 'win32')(
 		'M1-T12 R3: a managed Windows process outlives its daemon parent for real PID reconciliation',
 		async () => {

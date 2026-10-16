@@ -1207,7 +1207,10 @@ describe('M1-T12 文档顺序自动执行', () => {
 		for (let attempt = 1; attempt <= count; attempt += 1) {
 			await waitFor(`budget attempt ${attempt} finishes`, async () => {
 				const runs = (await listRuns(api)).filter((run) => run.kind === 'wrapup');
-				return runs.length === attempt && runs.every((run) => !['queued', 'starting', 'running'].includes(run.state));
+				const finishedState = action === 'open' ? 'landed' : 'awaiting_human';
+				if (runs.length !== attempt || runs.some((run) => run.state !== finishedState)) return false;
+				const progress = (await executionOf(api, docId)).wrapupProgress;
+				return progress?.physicalAttempts === attempt && progress.validRounds === (action === 'open' ? attempt : 0);
 			}, 60000);
 			if (attempt < count) {
 				const result = await api.post(`/api/v1/batches/${task.batchId}/wrapup`, { idempotencyKey: `budget-${attempt + 1}` });
