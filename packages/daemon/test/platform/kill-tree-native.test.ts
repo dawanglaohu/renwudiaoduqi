@@ -40,7 +40,7 @@ describe('native process-tree integration (E-119)', () => {
 			});
 			let pid: number | undefined;
 			try {
-			pid = await readPid(pidPath, 15000);
+				pid = await readPid(pidPath, 15000);
 				expect(await parentExited, stderr).toBe(true);
 				expect(parent.exitCode, stderr).toBe(0);
 				await new Promise((done) => setTimeout(done, 250));
