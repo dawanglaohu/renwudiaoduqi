@@ -1,0 +1,61 @@
+{
+  "task": "M1-T12",
+  "scope": "R3 dispatch confirmation",
+  "state": {
+    "requirement": "Rework only R1-R5 for M1-T12 PR223. R3 must prove real manual wrapup and human gate blocking through normal browser/API; E-364 names pre-dispatch, review and landing waits. Preserve explicit human control, final admission, source/generation isolation and attempt/snapshot/lane counts. Do not merge or mark landed.",
+    "task": {
+      "title": "M1-T12 real sequential document execution acceptance",
+      "accept": "Before a required human confirmation, no automatic next-stage or next-batch run may start. Confirmed source changes invalidate old-generation authority. Use real API/browser, no DB injection or production test hook."
+    },
+    "conflict": "Fresh Ubuntu E2E proves global settings.dispatch=manual is ignored by automatic document scheduling: first implementation ran and passed review instead of creating a dispatch gate. Review/landing waits and manual wrapup already work. Existing GateService can create/decide dispatch gates but has no dispatch continuation. A document start button is explicit authorization to execute the document, but the task boundary also requires existing human gates. User review text asks manual/human gate coverage without naming all three in R3. Current E2E independently tests all three. Fixing pre-dispatch confirmation requires bounded production wiring and persisted authority; simply deleting its failing test would leave the named E-364 boundary ambiguous.",
+    "options": {
+      "A": "Honor dispatch=manual for automatic document tasks in this PR. Persist a per-task gate ID in the current DocumentPlanBatch, tied to its frozen generation/membership. Create a waiting task gate before any implementation attempt/snapshot/lane, with no fake run. Only the matching current-plan decided pass authorizes one normal automatic admission; pause/source/version guards remain. Preserve IDs on same-generation controls and invalidate/supersede on changed membership. Add exact necessary internal domain/gate support paths and red-green tests; run all R3 gate E2Es.",
+      "B": "Treat the explicit document Start as sufficient pre-dispatch human consent for document automation. Keep real review and landing human gate cases plus manual wrapup, remove only the test expecting a second task-level dispatch confirmation after Start, and document this authorization meaning while leaving the existing E-364 wording unchanged.",
+      "C": "Keep the dispatch gate test visibly failing and report M1-T12 blocked on an independent M8 gate implementation. Do not change production dispatch behavior or claim R1-R5 complete."
+    }
+  },
+  "ruling": {
+    "status": "ok",
+    "template": "adjudicate",
+    "model": "jev-1.13.0",
+    "verdicts": {
+      "pick": {
+        "choice": "A",
+        "confidence": 0.86,
+        "band": "high",
+        "probabilities": {
+          "A": 0.91,
+          "B": 0.06,
+          "C": 0.03
+        }
+      },
+      "spec_change": {
+        "p": 0.31,
+        "verdict": "no"
+      },
+      "outside_stack": {
+        "p": 0.17,
+        "verdict": "no"
+      },
+      "needs_owner": {
+        "p": 0.21,
+        "verdict": "no"
+      },
+      "reversible": {
+        "p": 0.6,
+        "verdict": "unsure"
+      },
+      "adopt": {
+        "action": "take",
+        "option": "A",
+        "confidence": "high",
+        "why": "Jev 选 A（high）"
+      }
+    },
+    "line": "adjudicate: pick=A(high 0.86) spec_change=no(0.31) outside_stack=no(0.17) needs_owner=no(0.21) reversible=unsure(0.60) adopt=take(A)",
+    "usage": {
+      "input_tokens": 1353,
+      "output_tokens": 108
+    }
+  }
+}

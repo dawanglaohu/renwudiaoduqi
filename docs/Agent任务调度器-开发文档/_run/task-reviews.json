@@ -217,15 +217,15 @@
   },
   "M1-T12": {
     "compiler": "eeddd07520a3431c9e3a6f44609ca79790d7653a1082674d6ca4e1c3f7107607",
-    "contractHash": "00a099344515041ce7582d3a98244b185c1d40f9d3cf6d6e01ab4b79987dc766",
+    "contractHash": "f17bd657aabdee615773991765583e85278eed5b9881925db893bddca8418dfd",
     "evidence": [
-      "仅复核 R3 精确支持路径 packages/daemon/src/service/document-execution.ts；八条验收、全部边界、todo 状态不变，原 PR #223 不合并、不标落地。",
-      "本轮 Ubuntu/macOS manual E2E 已由 API 读到 wrapup_manual，页面却未出现；HEAD 更新不增加控制 version，原 advanceRunning 因此没有发布 document.execution_changed。",
-      "真实容器和 SQLite 的 r3-projection-red.log 断言同 version 的 blocker 变化有通知，旧实现 0 条失败；r3-projection-green.log 通过且无变化的下一轮不会重复发送。",
-      "投影变化只发布实时通知，不更改执行 version、冻结 generation、成员契约、预算、任务完成语义。所有派发入口继续经过原有准入。",
-      "补丁变化集仅有 M1-T12；支持路径用于 R3 manual/人工等待验收，完整 check、完整 E2E 及最终同一 head 三平台 CI 均需另行真实通过。"
+      "仅增补 packages/daemon/src/domain/document-execution.ts 精确支持路径。M1-T12 八条验收、全部边界、todo 状态、原 PR #223 均保持；不合并、不标落地。",
+      "Jev 实测模型 jev-1.13.0，adjudicate pick=A high 0.86，needs_owner=no，spec_change=no，outside_stack=no；原始 state/裁决见 M1-T12.dispatch-confirmation.adjudication.json。A 的动作已经落实于当前计划成员的派发闸门映射。",
+      "派发 manual 原来完全绕过确认；r3-dispatch-gate-red.log 三例红。r3-r4-final-green.log 中等待无尝试/快照/占槽、同代暂停继续保留闸门、待决/已批准旧代换约失效三例均通过，并实际批准当前闸门触发唯一实施。",
+      "R4 旧约已归档审查阻塞新实施：r4-proof-red.log 使用旧候选过滤真实失败，恢复过滤后 r4-proof-green.log 通过。wrapping 变更保持 idle/source_runs_pending 三个晚到旧回调变体通过；同代 2/6 预算语义未更改。",
+      "manual 已进主干但批次仍 awaiting_landing 时错误展示：r3-manual-state-red.log 先红，running/awaiting_landing 两例均在 r3-r4-final-green.log 转绿。完整 check/e2e 与最终同 head 三平台 CI 独立验证，不由契约复核冒充。"
     ],
-    "reviewed": "2026-10-16T07:27:52.586304+00:00",
+    "reviewed": "2026-10-16T08:20:00.383482+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

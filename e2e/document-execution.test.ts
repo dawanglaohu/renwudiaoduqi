@@ -745,6 +745,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect((await executionOf(api, docId)).currentBatchNo).toBe(1);
 		expect((await listRuns(api)).some((run) => run.taskId === tasks.get('HUMAN-NEXT')?.id)).toBe(false);
 		expect((await listRuns(api)).some((run) => run.kind === 'wrapup')).toBe(false);
+		expect(await visibleText(page, '[data-blocker="gate_waiting"]')).toBeTruthy();
 	}, 180000);
 
 	it('pauses an unreadable source, preserves the accepted snapshot, and resumes only after source confirmation (E-369)', async () => {
@@ -1252,6 +1253,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 			expect(oldGates.length).toBeGreaterThan(0);
 			const gateId = oldGates[0]?.id ?? '';
 			commitDocs(repo.repo, 'docs-data.js', renderDocs([{ id: 'BUDGET', hash: 'budget' }, { id: 'BUDGET-NEW', hash: 'budget-new' }]));
+			await page.goto(`http://127.0.0.1:${daemon.port}/#/`, { waitUntil: 'domcontentloaded' });
 			await page.locator('[data-testid="import-doc-path"]').fill(path);
 			await page.locator('[data-testid="import-repo-path"]').fill(repo.repo);
 			await page.locator('[data-action="rebind-document"]').click();

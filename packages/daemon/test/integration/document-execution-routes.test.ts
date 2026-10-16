@@ -2534,6 +2534,7 @@ describe('M8-T12 document execution through the real container', () => {
 				batchId: batch.id,
 				taskIds: [],
 			});
+			expect(container.repos.batches.findById(batch.id)?.state).toBe('idle');
 			expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(0);
 			const cleanReport = readFileSync(
 				join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
@@ -2546,7 +2547,7 @@ describe('M8-T12 document execution through the real container', () => {
 				rawText: cleanReport,
 			});
 			expect(container.repos.runs.findById(oldRunId)?.state).toBe(terminal ?? 'landed');
-			expect(container.repos.batches.findById(batch.id)?.state).toBe('running');
+			expect(container.repos.batches.findById(batch.id)?.state).toBe('idle');
 			expect(container.repos.batchWrapups?.listByBatchId(batch.id).at(-1)?.run_id).toBe(oldRunId);
 			const callbackEvents = container.events.ringBuffer
 				.getAll()
@@ -3524,60 +3525,193 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
-	it('M1-T12 R3: publishes a manual wrapup blocker after HEAD changes without a control version change', async () => {
-		const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
-		const { container, server, headers, docId } = env;
-		container.services.settings.updatePipeline(
-			{ ...container.services.settings.getPipeline(), wrapupMode: 'manual' },
-			null,
-		);
-		const batch = container.repos.batches.listByDocId(docId)[0];
-		const task = container.repos.tasks.listByDocId(docId)[0];
-		if (!batch || !task) throw new Error('Manual wrapup fixture missing');
-		seedImplementationRun(env, {
-			id: 'manual-head',
-			taskId: task.id,
-			batchId: batch.id,
-			attemptNo: 1,
-			contractHash: task.contract_hash,
-			createdAt: '2026-10-12T07:00:00.000Z',
-			isInHead: 0,
-		});
-		const started = await server.instance.inject({
-			method: 'POST',
-			headers,
-			url: `/api/v1/documents/${docId}/execution/start`,
-			payload: {
-				expectedVersion: 0,
-				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
-				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
-			},
-		});
-		expect(started.statusCode, started.body).toBe(200);
-		const observed = container.services.documentExecution.get(docId).execution;
-		expect(observed.blockers.some((item) => item.code === 'wrapup_manual')).toBe(false);
-		const updates: unknown[] = [];
-		const unsubscribe = container.events.bus.subscribe((event) => {
-			if (event.kind === 'document.execution_changed') updates.push(event.payload);
-		});
-		container.repos.runs.updateInHead?.({
-			id: 'manual-head',
-			isInHead: 1,
-			checkedAt: '2026-10-12T08:00:00.000Z',
-		});
-		container.services.documentExecution.advanceRunning(docId);
-		expect(updates).toHaveLength(1);
-		expect(updates[0]).toMatchObject({
-			execution: {
-				version: observed.version,
-				blockers: expect.arrayContaining([expect.objectContaining({ code: 'wrapup_manual' })]),
-			},
-		});
-		container.services.documentExecution.advanceRunning(docId);
-		expect(updates).toHaveLength(1);
-		unsubscribe();
-		await server.instance.close();
-	});
+	it.each(['unchanged', 'waiting-change', 'approved-change'] as const)(
+		'M1-T12 R3: dispatch confirmation binds the current generation without attempts or slots (%s)',
+		async (change) => {
+			const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+			const { container, server, headers, docId, docsPath, database } = env;
+			await container.services.settings.updateGates(
+				{ dispatch: 'manual', review: 'auto', landing: 'auto' },
+				null,
+			);
+			const url = `/api/v1/documents/${docId}/execution`;
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!task) throw new Error('Dispatch gate task missing');
+			const started = await server.instance.inject({
+				method: 'POST',
+				headers,
+				url: `${url}/start`,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			expect((await container.services.dispatch.tick()).runsDispatched).toEqual([]);
+			const gates = container.repos.gates?.list({ pendingOnly: true }) ?? [];
+			expect(gates).toHaveLength(1);
+			const oldGate = gates[0];
+			if (!oldGate) throw new Error('Dispatch gate missing');
+			expect(oldGate).toMatchObject({ kind: 'dispatch', task_id: task.id, run_id: null });
+			const plan = JSON.parse(
+				container.repos.documentExecutions.findByDocId(docId)?.plan_json ?? '[]',
+			);
+			expect(plan[0].dispatchGateIds[task.id]).toBe(oldGate.id);
+			expect(container.services.documentExecution.get(docId).execution.blockers).toContainEqual(
+				expect.objectContaining({ code: 'gate_waiting', taskIds: [task.id] }),
+			);
+			await container.services.dispatch.tick();
+			expect(container.repos.gates?.list()).toHaveLength(1);
+			expect(container.repos.runs.listAll()).toHaveLength(0);
+			expect(database.prepare('SELECT COUNT(*) AS n FROM dispatch_snapshots').get()).toEqual({
+				n: 0,
+			});
+			expect(container.repos.tasks.findById(task.id)?.lane_no).toBeNull();
+			const pause = await server.instance.inject({
+				method: 'POST',
+				headers,
+				url: `${url}/pause`,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				},
+			});
+			expect(pause.statusCode, pause.body).toBe(200);
+			if (change === 'approved-change') {
+				expect(
+					(
+						await server.instance.inject({
+							method: 'POST',
+							headers,
+							url: `/api/v1/gates/${oldGate.id}/decide`,
+							payload: { decision: 'pass' },
+						})
+					).statusCode,
+				).toBe(200);
+			}
+			if (change !== 'unchanged') {
+				writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
+				expect(
+					(
+						await server.instance.inject({
+							method: 'POST',
+							headers,
+							url: `/api/v1/documents/${docId}/refresh`,
+							payload: {},
+						})
+					).statusCode,
+				).toBe(200);
+			}
+			const resumed = await server.instance.inject({
+				method: 'POST',
+				headers,
+				url: `${url}/resume`,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				},
+			});
+			expect(resumed.statusCode, resumed.body).toBe(200);
+			expect((await container.services.dispatch.tick()).runsDispatched).toEqual([]);
+			const currentGates = container.repos.gates?.list({ pendingOnly: true }) ?? [];
+			expect(currentGates).toHaveLength(1);
+			const currentGate = currentGates[0];
+			if (!currentGate) throw new Error('Current dispatch gate missing');
+			if (change === 'unchanged') expect(currentGate.id).toBe(oldGate.id);
+			else {
+				expect(currentGate.id).not.toBe(oldGate.id);
+				expect(
+					(
+						await server.instance.inject({
+							method: 'POST',
+							headers,
+							url: `/api/v1/gates/${oldGate.id}/decide`,
+							payload: { decision: 'pass' },
+						})
+					).statusCode,
+				).toBe(409);
+			}
+			expect(container.repos.runs.listAll()).toHaveLength(0);
+			expect(
+				(
+					await server.instance.inject({
+						method: 'POST',
+						headers,
+						url: `/api/v1/gates/${currentGate.id}/decide`,
+						payload: { decision: 'pass' },
+					})
+				).statusCode,
+			).toBe(200);
+			const accepted = await container.services.dispatch.tick();
+			expect(accepted.runsDispatched).toHaveLength(1);
+			expect(container.repos.runs.listAll()).toHaveLength(1);
+			const run = container.repos.runs.findById(accepted.runsDispatched[0] ?? '');
+			expect(
+				container.repos.dispatchSnapshots?.findById(run?.snapshot_id ?? '')?.contract_hash,
+			).toBe(change === 'unchanged' ? 'contract-1' : 'contract-2');
+			await server.instance.close();
+		},
+	);
+
+	it.each(['running', 'awaiting_landing'] as const)(
+		'M1-T12 R3: publishes a manual wrapup blocker after HEAD changes without a control version change (%s)',
+		async (batchState) => {
+			const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
+			const { container, server, headers, docId } = env;
+			container.services.settings.updatePipeline(
+				{ ...container.services.settings.getPipeline(), wrapupMode: 'manual' },
+				null,
+			);
+			const batch = container.repos.batches.listByDocId(docId)[0];
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!batch || !task) throw new Error('Manual wrapup fixture missing');
+			seedImplementationRun(env, {
+				id: 'manual-head',
+				taskId: task.id,
+				batchId: batch.id,
+				attemptNo: 1,
+				contractHash: task.contract_hash,
+				createdAt: '2026-10-12T07:00:00.000Z',
+				isInHead: 0,
+			});
+			const started = await server.instance.inject({
+				method: 'POST',
+				headers,
+				url: `/api/v1/documents/${docId}/execution/start`,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			if (batchState === 'awaiting_landing')
+				await container.services.batch?.transitionBatch(batch.id, batchState, 'tasks_landed');
+			const observed = container.services.documentExecution.get(docId).execution;
+			expect(observed.blockers.some((item) => item.code === 'wrapup_manual')).toBe(false);
+			const updates: unknown[] = [];
+			const unsubscribe = container.events.bus.subscribe((event) => {
+				if (event.kind === 'document.execution_changed') updates.push(event.payload);
+			});
+			container.repos.runs.updateInHead?.({
+				id: 'manual-head',
+				isInHead: 1,
+				checkedAt: '2026-10-12T08:00:00.000Z',
+			});
+			container.services.documentExecution.advanceRunning(docId);
+			expect(updates).toHaveLength(1);
+			expect(updates[0]).toMatchObject({
+				execution: {
+					version: observed.version,
+					blockers: expect.arrayContaining([expect.objectContaining({ code: 'wrapup_manual' })]),
+				},
+			});
+			container.services.documentExecution.advanceRunning(docId);
+			expect(updates).toHaveLength(1);
+			unsubscribe();
+			await server.instance.close();
+		},
+	);
 
 	it('R1: revalidates a changed landed contract before current-generation wrapup', async () => {
 		const env = await setup({
@@ -3596,6 +3730,20 @@ describe('M8-T12 document execution through the real container', () => {
 			attemptNo: 1,
 			contractHash: task.contract_hash,
 			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		container.repos.runs.insert({
+			id: 'r4-old-contract-review',
+			task_id: task.id,
+			parent_run_id: 'r1-old-landed',
+			attempt_no: 2,
+			kind: 'review',
+			state: 'exited',
+			agent_id: 'codex',
+			permission_tier: 'readOnly',
+			snapshot_id: 'snapshot-r1-old-landed',
+			exit_code: 0,
+			review_verdict: 'pass',
+			session_archived_at: '2026-10-12T07:30:00.000Z',
 		});
 		container.repos.tasks.updateManualState(task.id, 'landed');
 		const url = `/api/v1/documents/${docId}/execution`;
@@ -3629,7 +3777,7 @@ describe('M8-T12 document execution through the real container', () => {
 		});
 		expect(resume.statusCode, resume.body).toBe(200);
 		const dispatched = await container.services.dispatch.tick();
-		expect(dispatched.runsDispatched).toHaveLength(1);
+		expect(dispatched.runsDispatched, JSON.stringify(dispatched)).toHaveLength(1);
 		const newRunId = dispatched.runsDispatched[0] ?? '';
 		const newRun = container.repos.runs.findById(newRunId);
 		expect(newRun?.kind).toBe('implement');

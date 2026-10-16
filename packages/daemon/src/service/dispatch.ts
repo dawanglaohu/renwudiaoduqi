@@ -33,6 +33,7 @@ import {
 import { computeDispatchCandidates } from '../domain/dispatch-candidates.ts';
 import type { DocumentPlanBatch } from '../domain/document-execution.ts';
 import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
+import { DEFAULT_GATE_SETTINGS, isValidGateSettings } from '../domain/gates.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import { deriveLanes } from '../domain/lanes.ts';
 import {
@@ -575,6 +576,22 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 	function runGeneration(run: RunRow): number {
 		return readDocumentRunGeneration(run, runsRepo, deps.dispatchSnapshotsRepo);
+	}
+	function manualDispatchRequired(batchId: string): boolean {
+		const override = batchGateOverridesMap.get(batchId)?.dispatch;
+		if (override) return override === 'manual';
+		try {
+			const value = JSON.parse(deps.settingsRepo?.get('gates')?.value_json ?? 'null');
+			return (isValidGateSettings(value) ? value : DEFAULT_GATE_SETTINGS).dispatch === 'manual';
+		} catch {
+			return DEFAULT_GATE_SETTINGS.dispatch === 'manual';
+		}
+	}
+	function documentDispatchAllowed(taskId: string, entry: DocumentPlanBatch): boolean {
+		if (!manualDispatchRequired(entry.batchId)) return true;
+		const id = entry.dispatchGateIds?.[taskId];
+		const gate = id ? deps.gatesRepo?.findById(id) : null;
+		return gate?.state === 'decided' && gate.decision === 'pass';
 	}
 
 	function reviewAdmission(run: RunRow): () => boolean {
@@ -2441,7 +2458,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							if (!run.task_id || !currentMemberIds.has(run.task_id)) return true;
 							return run.kind === 'implement'
 								? currentRunIds.has(run.id)
-								: !isTerminalRunState(run.state as RunState);
+								: !run.session_archived_at &&
+										!isTerminalRunState(run.state as RunState) &&
+										runGeneration(run) === planBatch.generationId &&
+										deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash ===
+											planBatch.members.find((member) => member.taskId === run.task_id)
+												?.contractHash;
 						})
 					: allRuns;
 				const dispatchCandidates = computeDispatchCandidates({
@@ -2466,6 +2488,65 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						pendingTaskIds.size > 0
 							? candidateTasks.filter((task) => !pendingTaskIds.has(task.id))
 							: [];
+				}
+				if (planBatch && manualDispatchRequired(planBatch.batchId)) {
+					candidateTasks = candidateTasks.filter((task) => {
+						if (documentDispatchAllowed(task.id, planBatch)) return true;
+						tasksBlocked.push({ taskId: task.id, reason: 'gate_waiting' });
+						if (planBatch.dispatchGateIds?.[task.id]) return false;
+						pendingAssignmentTx.push(() => {
+							if (
+								!executionStillCurrent(doc.id, documentExecution ?? null) ||
+								deps.tasksRepo.findById(task.id)?.is_contract_ready !== 1
+							)
+								return;
+							try {
+								deps.validateSourceAtCommit?.(doc.id, [task.id]);
+							} catch (error) {
+								logFailure(error);
+								return;
+							}
+							const row = deps.documentExecutionsRepo?.findByDocId(doc.id);
+							if (!row || !deps.gatesRepo || !deps.documentExecutionsRepo) return;
+							const entries = JSON.parse(row.plan_json) as readonly DocumentPlanBatch[];
+							const current = entries.find((entry) => entry.batchId === planBatch.batchId);
+							if (!current || current.dispatchGateIds?.[task.id]) return;
+							const gateId = deps.ids.newId();
+							deps.gatesRepo.create({
+								id: gateId,
+								task_id: task.id,
+								run_id: null,
+								kind: 'dispatch',
+								state: 'waiting',
+								comment: 'document_dispatch_confirmation',
+								created_at: deps.clock.now(),
+							});
+							deps.documentExecutionsRepo.save({
+								...row,
+								version: row.version + 1,
+								plan_json: JSON.stringify(
+									entries.map((entry) =>
+										entry.batchId === current.batchId
+											? {
+													...entry,
+													dispatchGateIds: { ...entry.dispatchGateIds, [task.id]: gateId },
+												}
+											: entry,
+									),
+								),
+							});
+							if (deps.envelopeFactory)
+								pendingAssignmentEnvelopes.push(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'task.gate_waiting',
+										taskId: task.id,
+										actorDeviceId: null,
+										payload: { gate: 'dispatch' },
+									}),
+								);
+						});
+						return false;
+					});
 				}
 
 				if (candidateTasks.length === 0 && reworkTasks.length === 0) {
@@ -2644,6 +2725,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							continue;
 						}
 						if (!candidate.isRework && (!newWorkAllowed || pendingTaskIds.has(candidate.task.id)))
+							continue;
+						if (
+							!candidate.isRework &&
+							planBatch &&
+							!documentDispatchAllowed(candidate.task.id, planBatch)
+						)
 							continue;
 
 						if (candidate.isRework && candidate.reworkRun) {

@@ -24,6 +24,7 @@ export interface DocumentPlanBatch {
 	readonly membershipFingerprint: string;
 	readonly generationId: number;
 	readonly wrapupRunIds: readonly string[];
+	readonly dispatchGateIds?: Readonly<Record<string, string>>;
 	readonly completion: { readonly wrapupId: string; readonly completionFingerprint: string } | null;
 }
 
@@ -72,6 +73,7 @@ export function buildDocumentPlan(
 				generationId: unchanged ? old.generationId : version,
 				wrapupRunIds: unchanged ? old.wrapupRunIds : [],
 				completion: unchanged ? old.completion : null,
+				...(unchanged && old.dispatchGateIds ? { dispatchGateIds: old.dispatchGateIds } : {}),
 			},
 		];
 	});

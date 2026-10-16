@@ -1064,6 +1064,7 @@ export function createContainer(input: {
 		createDocumentExecutionService({
 			executions: documentExecutions,
 			settings,
+			gates,
 			documents,
 			batches,
 			tasks,

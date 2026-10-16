@@ -1913,7 +1913,8 @@
         "packages/daemon/test/unit/review-agent.test.ts",
         "e2e/batch-14-composition.test.ts",
         "packages/daemon/src/boot/container.ts",
-        "packages/daemon/src/service/document-execution.ts"
+        "packages/daemon/src/service/document-execution.ts",
+        "packages/daemon/src/domain/document-execution.ts"
       ]
     }
   }

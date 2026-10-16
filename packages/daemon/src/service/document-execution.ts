@@ -27,6 +27,7 @@ import type { BatchRow, BatchesRepo } from '../repo/batches.ts';
 import type { DispatchSnapshotsRepo } from '../repo/dispatch-snapshots.ts';
 import type { DocumentExecutionRow, DocumentExecutionsRepo } from '../repo/document-executions.ts';
 import type { DocumentRow, DocumentsRepo } from '../repo/documents.ts';
+import type { GatesRepo } from '../repo/gates.ts';
 import type { RunRow, RunsRepo } from '../repo/runs.ts';
 import type { SettingsRepo } from '../repo/settings.ts';
 import type { TaskRow, TasksRepo } from '../repo/tasks.ts';
@@ -42,6 +43,7 @@ export interface DocumentExecutionDeps {
 	readonly snapshots: DispatchSnapshotsRepo;
 	readonly wrapups: BatchWrapupsRepo;
 	readonly settings?: SettingsRepo;
+	readonly gates?: Pick<GatesRepo, 'findById' | 'updateDecision'>;
 	readonly batchService: BatchService;
 	readonly unitOfWork: UnitOfWork;
 	readonly clock: { readonly now: () => string };
@@ -237,6 +239,26 @@ export function createDocumentExecutionService(
 	deps: DocumentExecutionDeps,
 ): DocumentExecutionService {
 	const publishedProjections = new Map<string, string>();
+	function oldSourceProcesses(
+		docId: string,
+		entry: DocumentPlanBatch,
+		runs: readonly RunRow[],
+	): readonly RunRow[] {
+		return runs.filter((run) => {
+			if (run.state !== 'starting' && run.state !== 'running') return false;
+			const task = run.task_id ? deps.tasks.findById(run.task_id) : null;
+			const parent = run.parent_run_id ? deps.runs.findById(run.parent_run_id) : null;
+			const batchId = run.batch_id ?? parent?.batch_id ?? task?.batch_id;
+			if (task?.doc_id !== docId && (!batchId || deps.batches.findById(batchId)?.doc_id !== docId))
+				return false;
+			return (
+				batchId !== entry.batchId ||
+				(run.kind === 'wrapup'
+					? !entry.wrapupRunIds.includes(run.id)
+					: readDocumentRunGeneration(run, deps.runs, deps.snapshots) !== entry.generationId)
+			);
+		});
+	}
 	function requireDocument(docId: string): DocumentRow {
 		const doc = deps.documents.findById(docId);
 		if (!doc)
@@ -484,7 +506,10 @@ export function createDocumentExecutionService(
 		const currentLanding = summarizeBatchLanding(currentEvidence.tasks, currentEvidence.runs);
 		const blockers: DocumentExecutionBlocker[] = [];
 		const currentBatch = current ? byId.get(current.batchId) : null;
-		if (currentBatch?.state === 'awaiting_landing' || currentBatch?.state === 'done')
+		if (
+			(currentBatch?.state === 'awaiting_landing' && !currentLanding.allInHead) ||
+			currentBatch?.state === 'done'
+		)
 			blockers.push({ code: 'awaiting_landing', batchId: current?.batchId ?? null, taskIds: [] });
 		if (currentBatch?.state === 'needs_attention')
 			blockers.push({ code: 'wrapup_attention', batchId: current?.batchId ?? null, taskIds: [] });
@@ -502,6 +527,10 @@ export function createDocumentExecutionService(
 			);
 		});
 		const gateTaskIds = new Set(gateTasks.map((task) => task.id));
+		for (const [taskId, gateId] of Object.entries(current?.dispatchGateIds ?? {})) {
+			const gate = deps.gates?.findById(gateId);
+			if (gate && gate.decision !== 'pass') gateTaskIds.add(taskId);
+		}
 		if (current?.wrapupRunIds.length) {
 			const members = new Map(
 				tasks.filter((task) => task.is_removed_from_doc === 0).map((task) => [task.id, task]),
@@ -546,25 +575,14 @@ export function createDocumentExecutionService(
 				taskIds: failedTasks.map((task) => task.id),
 			});
 		if (
-			currentBatch?.state === 'running' &&
+			(currentBatch?.state === 'running' || currentBatch?.state === 'awaiting_landing') &&
 			currentEvidence.tasks.length > 0 &&
 			currentLanding.allInHead &&
 			parsePipelineSettings(deps.settings?.get('pipeline')?.value_json).wrapupMode === 'manual'
 		)
 			blockers.push({ code: 'wrapup_manual', batchId: current?.batchId ?? null, taskIds: [] });
 		if (current) {
-			const oldSourceRuns = runs
-				.filter(
-					(run) =>
-						((run.batch_id && deps.batches.findById(run.batch_id)?.doc_id === doc.id) ||
-							(run.task_id && deps.tasks.findById(run.task_id)?.doc_id === doc.id)) &&
-						(run.state === 'starting' || run.state === 'running'),
-				)
-				.filter((run) => {
-					if (run.batch_id !== current.batchId) return true;
-					if (run.kind === 'wrapup') return !current.wrapupRunIds.includes(run.id);
-					return readDocumentRunGeneration(run, deps.runs, deps.snapshots) !== current.generationId;
-				});
+			const oldSourceRuns = oldSourceProcesses(doc.id, current, runs);
 			const sourceRunIds = oldSourceRuns
 				.map((run) => run.task_id)
 				.filter((taskId): taskId is string => taskId !== null);
@@ -788,7 +806,11 @@ export function createDocumentExecutionService(
 				);
 			});
 			const nextBatch = earliest ? byId.get(earliest.batchId) : null;
-			if (nextBatch?.state === 'idle' || nextBatch?.state === 'paused') {
+			if (
+				(nextBatch?.state === 'idle' || nextBatch?.state === 'paused') &&
+				earliest &&
+				oldSourceProcesses(docId, earliest, runs).length === 0
+			) {
 				batchEvents.push(
 					deps.batchService.transitionBatchInTx(nextBatch.id, 'running', 'document_execution'),
 				);
@@ -1002,6 +1024,19 @@ export function createDocumentExecutionService(
 					details: { batchIds: active.map((batch) => batch.id) },
 				});
 			const oldById = new Map(oldPlan.map((item) => [item.batchId, item]));
+			for (const old of oldPlan) {
+				const replacement = plan.find((entry) => entry.batchId === old.batchId);
+				for (const [taskId, gateId] of Object.entries(old.dispatchGateIds ?? {})) {
+					if (replacement?.dispatchGateIds?.[taskId] !== gateId)
+						deps.gates?.updateDecision(
+							gateId,
+							'reject',
+							'source_changed',
+							actorDeviceId,
+							deps.clock.now(),
+						);
+				}
+			}
 			const plannedBatchIds = new Set(plan.map((entry) => entry.batchId));
 			for (const old of oldPlan) {
 				if (plannedBatchIds.has(old.batchId) || old.members.length === 0) continue;
@@ -1069,6 +1104,7 @@ export function createDocumentExecutionService(
 				);
 			if (
 				earliest &&
+				oldSourceProcesses(docId, earliest, runs).length === 0 &&
 				(byId.get(earliest.batchId)?.state === 'idle' ||
 					byId.get(earliest.batchId)?.state === 'paused')
 			)
