@@ -2837,6 +2837,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								createdAt: deps.clock.now(),
 								assignmentJson: tickAssignmentJson,
 							});
+							// A fresh current-contract attempt consumes the obsolete acceptance badge with its snapshot.
+							if (
+								planBatch &&
+								currentTask.manual_state === 'landed' &&
+								task.manual_state === 'landed'
+							)
+								deps.tasksRepo.updateManualState(task.id, null);
 
 							const runInsert: RunInsertRow = {
 								id: runId,

@@ -3720,6 +3720,10 @@ describe('M8-T12 document execution through the real container', () => {
 			withImplementationProcess: true,
 		});
 		const { server, container, headers, docId, docsPath } = env;
+		await container.services.settings.updateGates(
+			{ dispatch: 'auto', review: 'auto', landing: 'auto' },
+			null,
+		);
 		const batch = container.repos.batches.listByDocId(docId)[0];
 		const task = container.repos.tasks.listByDocId(docId)[0];
 		if (!batch || !task) return;
@@ -3785,11 +3789,22 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(
 			container.repos.dispatchSnapshots?.findById(newRun?.snapshot_id ?? '')?.contract_hash,
 		).toBe('contract-2');
-		container.repos.runs.updateState({
-			id: newRunId,
-			toState: 'landed',
-			endedAt: '2026-10-12T09:00:00.000Z',
+		const currentTasks = await server.instance.inject({
+			method: 'GET',
+			headers,
+			url: `/api/v1/documents/${docId}/tasks`,
 		});
+		expect(currentTasks.statusCode).toBe(200);
+		expect(
+			currentTasks.json().tasks.find((row: { id: string }) => row.id === task.id),
+		).toMatchObject({ state: expect.stringMatching(/^(queued|starting|running)$/) });
+		container.repos.runs.updateState({ id: newRunId, toState: 'reviewing' });
+		await container.services.gates.resolveAfterReviewAndApply({
+			taskId: task.id,
+			runId: newRunId,
+			reviewVerdict: 'pass',
+		});
+		expect(container.repos.runs.findById(newRunId)?.state).toBe('landed');
 		container.repos.runs.updateInHead?.({
 			id: newRunId,
 			isInHead: 1,

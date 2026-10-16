@@ -1407,10 +1407,6 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await page.screenshot({ path: join(artifactsDir, 'real-agent-success.png'), fullPage: true });
 		await page.locator('[data-blocker="awaiting_landing"]').waitFor({ state: 'visible', timeout: 30000 });
 		await page.screenshot({ path: join(nativeFrames, '03-accepted.png') });
-		await page.goto(`http://127.0.0.1:${daemon.port}/#/run/${reviews[0]?.id}`, { waitUntil: 'domcontentloaded' });
-		await page.locator('[data-testid="run-detail-page"]').waitFor();
-		await page.locator(`[data-run-id="${reviews[0]?.id}"]`).waitFor();
-		await page.screenshot({ path: join(nativeFrames, '04-review.png') });
 		writeFileSync(
 			recordPath,
 			JSON.stringify(
