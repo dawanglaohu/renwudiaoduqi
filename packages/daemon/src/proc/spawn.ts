@@ -230,7 +230,8 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		shell: false,
 		windowsHide: platform === 'win32',
 		windowsVerbatimArguments: platform === 'win32' ? windowsVerbatimArguments : undefined,
-		detached: platform !== 'win32',
+		// Restart reconciliation must observe live Agent PIDs on Windows as well as POSIX.
+		detached: true,
 		stdio: [spec.stdinMode === 'closed' ? 'ignore' : 'pipe', 'pipe', 'pipe'],
 	};
 

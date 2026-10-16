@@ -618,6 +618,7 @@ jobs:
           path: |
             e2e/artifacts/document-execution/**/invocation.json
             e2e/artifacts/document-execution/**/document-execution*.json
+            e2e/artifacts/document-execution/**/restart-states.json
             e2e/artifacts/document-execution/**/real-agent-success.png
           if-no-files-found: error
           retention-days: 7

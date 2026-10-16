@@ -136,54 +136,26 @@ async function mergeWhenReady(repo: string, branch: string): Promise<void> {
 	}
 }
 
-async function landTasks(
-	api: DocumentApi,
-	repo: string,
-	taskIds: readonly string[],
-): Promise<void> {
-	await waitFor(
-		'implement runs to leave the slot',
-		async () => {
-			const runs = await listRuns(api);
-			return taskIds.every((taskId) =>
-				runs.some(
-					(run) =>
-						run.taskId === taskId &&
-						run.kind === 'implement' &&
-						!['queued', 'starting', 'running'].includes(run.state),
-				),
-			);
-		},
-		60000,
-	);
-	await waitFor(
-		'review to start',
-		async () => {
-			const runs = await listRuns(api);
-			return taskIds.every((taskId) => runs.some((run) => run.taskId === taskId && run.kind === 'review'));
-		},
-		90000,
-	);
-	await waitFor(
-		'review to finish',
-		async () => {
-			const runs = await listRuns(api);
-			return taskIds.every((taskId) => {
-				const reviews = runs.filter((run) => run.taskId === taskId && run.kind === 'review');
-				return (
-					reviews.length > 0 &&
-					reviews.every((run) => !['queued', 'starting', 'running'].includes(run.state))
-				);
-			});
-		},
-		90000,
-	);
-	const implementRuns = (await listRuns(api)).filter(
-		(run) => run.kind === 'implement' && taskIds.includes(run.taskId ?? ''),
-	);
-	for (const run of implementRuns) {
+async function landTasks(api: DocumentApi, repo: string, taskIds: readonly string[]): Promise<void> {
+	let targets: ListedRun[] = [];
+	await waitFor('current implementations and their successful reviews', async () => {
+		const runs = await listRuns(api);
+		const latest = taskIds.map((taskId) => runs.filter((run) => run.kind === 'implement' && run.taskId === taskId)
+			.reduce<ListedRun | undefined>((previous, run) => !previous || run.attemptNo > previous.attemptNo ? run : previous, undefined));
+		if (latest.some((run) => !run)) return false;
+		const implementations = latest as ListedRun[];
+		const accepted = implementations.every((implementation) => {
+			const review = runs.filter((run) => run.kind === 'review' && run.parentRunId === implementation.id)
+				.reduce<ListedRun | undefined>((previous, run) => !previous || run.attemptNo > previous.attemptNo ? run : previous, undefined);
+			return implementation.state === 'landed' && review?.state === 'exited' && review.exitCode === 0 && review.reviewVerdict === 'pass';
+		});
+		if (accepted) targets = implementations;
+		return accepted;
+	}, 120000);
+	for (const run of targets) {
 		if (run.worktreePath) rmSync(join(run.worktreePath, 'untracked-diff.txt'), { force: true });
-		if (run.branchName) await mergeWhenReady(repo, run.branchName);
+		if (!run.branchName) throw new Error(`Accepted implementation ${run.id} has no branch`);
+		await mergeWhenReady(repo, run.branchName);
 	}
 }
 
@@ -872,6 +844,13 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await page.locator('[data-action="start-document"]').click();
 		const tasks = await taskIndex(api, docId);
 		await waitFor('four admitted implementations', async () => (await listRuns(api)).filter((run) => run.kind === 'implement' && run.state === 'running').length === 4);
+		await waitFor('four Agent requests entered held work', async () => {
+			const entries = readFileSync(daemon.journalPath, 'utf8').trim().split('\n').flatMap((line) => {
+				try { return [JSON.parse(line) as { phase?: string; event?: string; task?: string }]; }
+				catch { return []; }
+			});
+			return specs.slice(0, 4).every((spec) => entries.some((entry) => entry.phase === 'implement' && entry.event === 'start' && entry.task === spec.id));
+		}, 90000);
 		writeControl(daemon, { tasks: { 'DE-A-FAIL': 'empty' }, implement: 'hold', review: 'pass' });
 		releaseAgents(daemon, ['DE-A-FAIL']);
 		let gateId = '';
@@ -896,7 +875,10 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const port = daemon.port;
 		await daemon.stop({ keepData: true });
 		// Only the owned child dies while the daemon is down; the other remains live for orphan reconciliation.
-		process.kill(interrupted.pid ?? 0, 'SIGKILL');
+		if (process.platform === 'win32') {
+			const stopped = spawnSync('taskkill.exe', ['/PID', String(interrupted.pid), '/T', '/F'], { encoding: 'utf8', windowsHide: true });
+			expect(stopped.status, `${stopped.stdout}\n${stopped.stderr}`).toBe(0);
+		} else process.kill(interrupted.pid ?? 0, 'SIGKILL');
 		process.kill(orphaned.pid ?? 0, 0);
 		commitDocs(repo.repo, 'docs-data.js', renderDocs(specs.map((spec) => ({ ...spec, ready: true }))));
 		const restarted = await restartDaemon(dataDir, port);

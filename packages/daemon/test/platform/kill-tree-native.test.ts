@@ -1,7 +1,8 @@
 import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type {
 	KillTreeAttemptResult,
@@ -11,6 +12,52 @@ import { posixKillTree } from '../../src/platform/kill-tree-posix.ts';
 import { windowsKillTree } from '../../src/platform/windows.ts';
 
 describe('native process-tree integration (E-119)', () => {
+	it.skipIf(process.platform !== 'win32')(
+		'M1-T12 R3: a managed Windows process outlives its daemon parent for real PID reconciliation',
+		async () => {
+			const workingRoot = await mkdtemp(join(tmpdir(), 'm1-t12-parent-exit-'));
+			expect(dirname(resolve(workingRoot))).toBe(resolve(tmpdir()));
+			const pidPath = join(workingRoot, 'managed.pid');
+			const daemonRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+			const parentScript = [
+				"import { register } from 'node:module';",
+				"import { writeFileSync } from 'node:fs';",
+				`register(${JSON.stringify(pathToFileURL(join(daemonRoot, 'typescript-loader.mjs')).href)});`,
+				`const { spawnManaged } = await import(${JSON.stringify(pathToFileURL(join(daemonRoot, 'src/proc/spawn.ts')).href)});`,
+				`const managed = spawnManaged({ runId: 'm1-t12-parent-exit', file: process.execPath, args: ['-e', "console.log('READY'); setInterval(() => {}, 1000)"], cwd: ${JSON.stringify(workingRoot)} }, { platform: 'win32' });`,
+				`writeFileSync(${JSON.stringify(pidPath)}, String(managed.pid));`,
+				"managed.onLine((line) => { if (line.text === 'READY') process.exit(0); });",
+				'setTimeout(() => process.exit(2), 10000);',
+			].join('\n');
+			const parent = spawn(process.execPath, ['--input-type=module', '-e', parentScript], {
+				windowsHide: true,
+				stdio: 'pipe',
+			});
+			const parentExited = waitForChildExit(parent);
+			let stderr = '';
+			parent.stderr?.on('data', (chunk) => {
+				stderr += String(chunk);
+			});
+			let pid: number | undefined;
+			try {
+			pid = await readPid(pidPath, 15000);
+				expect(await parentExited, stderr).toBe(true);
+				expect(parent.exitCode, stderr).toBe(0);
+				await new Promise((done) => setTimeout(done, 250));
+				expect(await probePidExited(pid)).toBe(false);
+			} finally {
+				if (parent.pid && parent.exitCode === null)
+					await runTaskkill(['/PID', String(parent.pid), '/T', '/F']);
+				if (pid !== undefined) {
+					await runTaskkill(['/PID', String(pid), '/T', '/F']);
+					expect(await waitUntilExited(pid)).toBe(true);
+				}
+				await rm(workingRoot, { recursive: true, force: true });
+			}
+		},
+		30000,
+	);
+
 	it('terminates an isolated native process group through the host policy', async () => {
 		const workingRoot = await mkdtemp(join(tmpdir(), 'm1-t9-kill-tree-'));
 		const descendantPidPath = join(workingRoot, 'descendant.pid');
@@ -99,8 +146,8 @@ function signalGroup(pid: number, signal: 'SIGTERM' | 'SIGKILL'): KillTreeAttemp
 	}
 }
 
-async function readPid(path: string): Promise<number> {
-	const deadline = Date.now() + 5000;
+async function readPid(path: string, timeoutMs = 5000): Promise<number> {
+	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		try {
 			const pid = Number.parseInt(await readFile(path, 'utf8'), 10);

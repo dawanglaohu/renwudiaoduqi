@@ -217,15 +217,15 @@
   },
   "M1-T12": {
     "compiler": "eeddd07520a3431c9e3a6f44609ca79790d7653a1082674d6ca4e1c3f7107607",
-    "contractHash": "f17bd657aabdee615773991765583e85278eed5b9881925db893bddca8418dfd",
+    "contractHash": "8aaff67d32a8df0d51f3b4d7a73b339a0a29128dbc687c595201cdc726633710",
     "evidence": [
-      "仅增补 packages/daemon/src/domain/document-execution.ts 精确支持路径。M1-T12 八条验收、全部边界、todo 状态、原 PR #223 均保持；不合并、不标落地。",
-      "Jev 实测模型 jev-1.13.0，adjudicate pick=A high 0.86，needs_owner=no，spec_change=no，outside_stack=no；原始 state/裁决见 M1-T12.dispatch-confirmation.adjudication.json。A 的动作已经落实于当前计划成员的派发闸门映射。",
-      "派发 manual 原来完全绕过确认；r3-dispatch-gate-red.log 三例红。r3-r4-final-green.log 中等待无尝试/快照/占槽、同代暂停继续保留闸门、待决/已批准旧代换约失效三例均通过，并实际批准当前闸门触发唯一实施。",
-      "R4 旧约已归档审查阻塞新实施：r4-proof-red.log 使用旧候选过滤真实失败，恢复过滤后 r4-proof-green.log 通过。wrapping 变更保持 idle/source_runs_pending 三个晚到旧回调变体通过；同代 2/6 预算语义未更改。",
-      "manual 已进主干但批次仍 awaiting_landing 时错误展示：r3-manual-state-red.log 先红，running/awaiting_landing 两例均在 r3-r4-final-green.log 转绿。完整 check/e2e 与最终同 head 三平台 CI 独立验证，不由契约复核冒充。"
+      "仅补齐 proc/spawn.ts、unit/proc.test.ts、platform/kill-tree-native.test.ts 三个必要支持路径，和 PR #209 的有效文件无冲突；既定验收、边界与 todo 不变，不合并、不标落地。",
+      "Jev 实测 jev-1.13.0 adjudicate A high 0.95；spec_change=no、outside_stack=no、needs_owner=no。state 与真实裁决见 M1-T12.windows-lifetime.adjudication.json，动作已落实于生产 spawnManaged 的 Windows 进程生命周期。",
+      "Windows 原 detached=false 时，真实父进程退出会使注册执行 PID 消失而子级仍活；libuv src/win/process.c 1077-1079 确认非 detached 子进程属于随父进程结束的 Job。独立进程保持 windowsHide=true、shell=false、原管道及显式 windowsKillTree。",
+      "windows-managed-lifetime-red.log：生产构造参数及真正 import 生产 spawnManaged 的 Windows 父进程退出测试两例失败；windows-managed-lifetime-green.log：包括该实际 PID 存活与原进程树终止在内 50 项全部通过。没有伪造 PID、数据库或会话。",
+      "R4 end-to-end helper 必须等当前最新实施及其关联成功审查，才清理其工作树并正常合并；不能由旧 landed/旧 review 提前进入收口等待。完整 check/e2e 和最终同一 head 三平台 CI 仍另行验证。"
     ],
-    "reviewed": "2026-10-16T08:20:00.383482+00:00",
+    "reviewed": "2026-10-16T10:07:31.226323+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },
