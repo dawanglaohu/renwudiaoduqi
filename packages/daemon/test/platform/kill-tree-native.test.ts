@@ -90,10 +90,10 @@ describe('native process-tree integration (E-119)', () => {
 		const parentScript = [
 			"const { spawn } = require('node:child_process');",
 			"const { writeFileSync } = require('node:fs');",
-			'const script = \'process.on(\\"SIGTERM\\", () => {}); setInterval(() => {}, 1000)\';',
-			"const child = spawn(process.execPath, ['-e', script], { stdio: 'ignore', windowsHide: true });",
-			'writeFileSync(process.argv[1], String(child.pid));',
 			"if (process.platform !== 'win32') process.on('SIGTERM', () => {});",
+			'const script = \'process.on(\\"SIGTERM\\", () => {}); process.send(\\"ready\\"); setInterval(() => {}, 1000)\';',
+			"const child = spawn(process.execPath, ['-e', script], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true });",
+			"child.once('message', () => writeFileSync(process.argv[1], String(child.pid)));",
 			'setInterval(() => {}, 1000);',
 		].join(' ');
 		const parent = spawn(process.execPath, ['-e', parentScript, descendantPidPath], {
