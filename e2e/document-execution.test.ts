@@ -138,6 +138,8 @@ async function mergeWhenReady(repo: string, branch: string): Promise<void> {
 
 async function landTasks(api: DocumentApi, repo: string, taskIds: readonly string[]): Promise<void> {
 	let targets: ListedRun[] = [];
+	// A shared Agent slot can serialize every implementation and review in this batch.
+	const completionTimeoutMs = 120000 * Math.max(1, taskIds.length);
 	await waitFor('current implementations and their successful reviews', async () => {
 		const runs = await listRuns(api);
 		const latest = taskIds.map((taskId) => runs.filter((run) => run.kind === 'implement' && run.taskId === taskId)
@@ -151,7 +153,7 @@ async function landTasks(api: DocumentApi, repo: string, taskIds: readonly strin
 		});
 		if (accepted) targets = implementations;
 		return accepted;
-	}, 120000);
+	}, completionTimeoutMs);
 	for (const run of targets) {
 		if (run.worktreePath) rmSync(join(run.worktreePath, 'untracked-diff.txt'), { force: true });
 		if (!run.branchName) throw new Error(`Accepted implementation ${run.id} has no branch`);
@@ -541,7 +543,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const next = await waitForRun(api, secondTasks.get('TWO-NEXT')?.id ?? '', 'implement');
 		expect(next.agentId).toBe('claude');
 		await second.close();
-	}, 420000);
+	}, 600000);
 
 	it('loses a real continue response, then rejects a stale retry after another device pauses (E-361)', async () => {
 		const { daemon, api, page, browser, browserToken } = await boot();
