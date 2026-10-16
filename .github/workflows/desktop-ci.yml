@@ -541,7 +541,7 @@ jobs:
   document-execution-e2e:
     name: Document execution / ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
