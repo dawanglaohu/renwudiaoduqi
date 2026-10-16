@@ -735,6 +735,12 @@ describe('M1-T12 文档顺序自动执行', () => {
 			if (!old) throw new Error('Dispatch confirmation missing');
 			const before = readResources(daemon.dataDir, docId);
 			const card = page.locator('[data-component="gate-card"][data-gate-kind="dispatch"]');
+			await card.waitFor({ state: 'visible' });
+			await page.locator('[data-action="pause-document"]').click();
+			await waitFor('pause immediately after the first confirmation', async () => (await executionOf(api, docId)).state === 'paused');
+			expect(readResources(daemon.dataDir, docId)).toEqual(before);
+			await page.locator('[data-action="resume-document"]').click();
+			await waitFor('resume the same dispatch confirmation', async () => (await executionOf(api, docId)).state === 'running');
 			let replacementId = '';
 			await card.locator('[data-action="reject"]').click();
 			await page.locator('[data-testid="confirm-reject"]').click();

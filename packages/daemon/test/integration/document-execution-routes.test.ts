@@ -3838,7 +3838,23 @@ describe('M8-T12 document execution through the real container', () => {
 				},
 			});
 			expect(started.statusCode, started.body).toBe(200);
+			let observedVersion: number = started.json().execution.version;
+			const publicationTransactions: boolean[] = [];
+			container.events.bus.subscribe((event) => {
+				if (event.kind === 'document.execution_changed') {
+					const payload = event.payload as { execution?: { docId: string; version: number } };
+					if (payload.execution?.docId === docId) {
+						observedVersion = payload.execution.version;
+						publicationTransactions.push(database.inTransaction);
+					}
+				}
+			});
 			expect((await container.services.dispatch.tick()).runsDispatched).toEqual([]);
+			expect(observedVersion).toBe(
+				container.services.documentExecution.get(docId).execution.version,
+			);
+			expect(publicationTransactions.length).toBeGreaterThan(0);
+			expect(publicationTransactions.every((inTransaction) => !inTransaction)).toBe(true);
 			const gates = container.repos.gates?.list({ pendingOnly: true }) ?? [];
 			expect(gates).toHaveLength(1);
 			const oldGate = gates[0];
@@ -3863,7 +3879,7 @@ describe('M8-T12 document execution through the real container', () => {
 				headers,
 				url: `${url}/pause`,
 				payload: {
-					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+					expectedVersion: observedVersion,
 				},
 			});
 			expect(pause.statusCode, pause.body).toBe(200);

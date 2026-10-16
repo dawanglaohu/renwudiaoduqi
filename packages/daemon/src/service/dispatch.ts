@@ -285,6 +285,7 @@ export interface DispatchServiceDeps {
 	readonly agentRegistry?: AgentRegistry;
 	readonly documentExecutionsRepo?: DocumentExecutionsRepo;
 	readonly advanceDocumentExecution?: (docId: string) => void;
+	readonly publishDocumentExecutionChange?: (docId: string, previousVersion: number) => void;
 	readonly listDocumentExecutions?: () => readonly DocumentExecutionDto[];
 	readonly listVendorEffortDomain?: (agentId: string) => Promise<readonly string[]>;
 	readonly modelEffortOptions?: (
@@ -1538,6 +1539,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			// 以及待发事件与待启动列表都必须一起回滚，否则数据库、事件与返回值三者不一致。
 			const pendingAssignmentTx: Array<() => void> = [];
 			const pendingAssignmentEnvelopes: EventEnvelope[] = [];
+			const pendingExecutionVersions = new Map<string, number>();
 			const pendingRunsToLaunch: string[] = [];
 			const pendingReworksToDispatch: Array<{
 				readonly targetRunId: string;
@@ -1581,6 +1583,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 				if (assignmentCommitted) {
 					publishPendingEvents(pendingAssignmentEnvelopes, deps);
+					for (const [docId, previousVersion] of pendingExecutionVersions)
+						deps.publishDocumentExecutionChange?.(docId, previousVersion);
 					for (const runId of pendingRunsToLaunch) {
 						// launchRun records the failure before rejecting.
 						void launchRun(runId).catch(() => undefined);
@@ -1625,6 +1629,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				}
 
 				pendingAssignmentTx.length = 0;
+				pendingExecutionVersions.clear();
 			};
 
 			const resumePausedReviews = (docId: string): void => {
@@ -2558,6 +2563,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 									),
 								),
 							});
+							if (!pendingExecutionVersions.has(doc.id))
+								pendingExecutionVersions.set(doc.id, row.version);
 							if (deps.envelopeFactory)
 								pendingAssignmentEnvelopes.push(
 									deps.envelopeFactory.createEnvelope({

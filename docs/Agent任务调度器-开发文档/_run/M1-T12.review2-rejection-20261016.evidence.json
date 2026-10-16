@@ -10,7 +10,8 @@
         "拒绝当前无运行的派发确认时，GateService 在同一 service 事务保留拒绝历史、创建一个新的 waiting gate 并更新当前 plan 映射/version；事件在事务外由现有 documentExecution.publishIfVersionChanged 发布。没有假运行、快照、占槽或新状态枚举。",
         "Jev jev-1.13.0 复核拒绝处理的三个完整候选 A 新待确认/B 暂停整份文档/C 新增重试API和UI，采纳 A(high 0.98)，spec_change=no、outside_stack=no；动作已落到代码，judgments.jsonl:206。",
         "拒绝前回归证明错误占用 lane 1；修后唯一新确认、零新增运行/快照/窗口、旧 gate 409、显式批准才派发和版本通知通过。GateCard、gate unit 与 auto-release 相邻 36 项通过，类型、格式通过。",
-        "补丁仅影响 M1-T12 的有效支持范围；自身待复验由 verify/--landed 清除，不手改标记。最终合并仍以原 PR 同一 head 的全部门禁及实际 Agent 证据为准。"
+        "补丁仅影响 M1-T12 的有效支持范围；自身待复验由 verify/--landed 清除，不手改标记。最终合并仍以原 PR 同一 head 的全部门禁及实际 Agent 证据为准。",
+        "首次派发确认的事务提交后通过 composition root 调用既有 publishIfVersionChanged，立即发布新执行版本；回滚不发布，遵守已保留事件 ID 的先后顺序。三条相同断言修前 observedVersion=1、数据库 version=2，修后四条闸门回归通过；65 条容器/派发相邻回归、类型和格式通过。真实 WSL 浏览器验证首次确认后立即暂停、继续、拒绝再批准以及成功实施/审查和后批阻断，122.597 秒通过。最终合并仍须同一最终 head 全部门禁及实际 Agent 证据。"
       ]
     }
   }

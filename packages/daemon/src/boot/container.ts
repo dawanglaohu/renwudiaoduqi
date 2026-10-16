@@ -950,6 +950,8 @@ export function createContainer(input: {
 			isBranchInHead: (candidate) => isBranchInHead(candidate, gitRunner),
 			documentExecutionsRepo: documentExecutions,
 			advanceDocumentExecution: (docId) => documentExecutionHolder.current?.advanceRunning(docId),
+			publishDocumentExecutionChange: (docId, previousVersion) =>
+				documentExecutionHolder.current?.publishIfVersionChanged(docId, previousVersion),
 			listDocumentExecutions: () => documentExecutionHolder.current?.list() ?? [],
 			validateWorkspace: (docId, taskIds) => docsService.validateWorkspace(docId, taskIds),
 			validateSourceAtCommit: (docId, taskIds) =>
