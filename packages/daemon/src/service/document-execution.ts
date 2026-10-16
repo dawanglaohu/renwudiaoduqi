@@ -908,14 +908,11 @@ export function createDocumentExecutionService(
 		actorDeviceId: string | null = null,
 	): void {
 		const current = currentResponse(docId);
-		if (current.execution.version !== previousVersion)
-			deps.bus.publish(
-				deps.envelopeFactory.createEnvelope({
-					kind: 'document.execution_changed',
-					actorDeviceId,
-					payload: { execution: current.execution },
-				}),
-			);
+		if (
+			current.execution.version !== previousVersion ||
+			publishedProjections.get(docId) !== JSON.stringify(current.execution)
+		)
+			publishChanged(docId, [], actorDeviceId);
 	}
 
 	async function activate(

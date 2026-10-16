@@ -767,7 +767,7 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
-	it('E-369: refresh publishes a pause after source becomes unreadable', async () => {
+	it('E-369: refresh publishes unreadable pause and same-version source recovery', async () => {
 		const { server, container, headers, docId, docsPath } = await setup();
 		const url = `/api/v1/documents/${docId}/execution`;
 		const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
@@ -783,6 +783,7 @@ describe('M8-T12 document execution through the real container', () => {
 		});
 		expect(start.statusCode).toBe(200);
 		const before = container.events.ringBuffer.latest()?.id ?? 0;
+		const source = readFileSync(docsPath, 'utf8');
 		rmSync(docsPath);
 		const refresh = await server.instance.inject({
 			method: 'POST',
@@ -801,6 +802,35 @@ describe('M8-T12 document execution through the real container', () => {
 				.filter((event) => event.id > before)
 				.map((event) => event.kind),
 		).toContain('document.execution_changed');
+		const pausedVersion = container.repos.documentExecutions.findByDocId(docId)?.version;
+		const beforeRestore = container.events.ringBuffer.latest()?.id ?? 0;
+		writeFileSync(docsPath, source);
+		const restored = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(restored.statusCode, restored.body).toBe(200);
+		const recoveryEvents = container.events.ringBuffer
+			.getAll()
+			.filter((event) => event.id > beforeRestore && event.kind === 'document.execution_changed');
+		expect(recoveryEvents).toHaveLength(1);
+		expect(recoveryEvents[0]?.payload).toMatchObject({
+			execution: { state: 'paused', version: pausedVersion, canResume: true },
+		});
+		const beforeRepeat = container.events.ringBuffer.latest()?.id ?? 0;
+		await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(
+			container.events.ringBuffer
+				.getAll()
+				.filter((event) => event.id > beforeRepeat && event.kind === 'document.execution_changed'),
+		).toHaveLength(0);
 		await server.instance.close();
 	});
 

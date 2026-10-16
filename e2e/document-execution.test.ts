@@ -157,6 +157,11 @@ async function landTasks(api: DocumentApi, repo: string, taskIds: readonly strin
 		if (!run.branchName) throw new Error(`Accepted implementation ${run.id} has no branch`);
 		await mergeWhenReady(repo, run.branchName);
 	}
+	// The production HEAD scan throttles unchanged results for 30 seconds.
+	await waitFor('merged accepted implementations observed in HEAD', async () => {
+		const runs = await listRuns(api);
+		return targets.every((target) => runs.some((run) => run.id === target.id && run.isInHead));
+	}, 60000);
 }
 
 async function finishBatch(
@@ -999,31 +1004,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const tasks = await taskIndex(api, docId);
 		const batch = (await batchesOf(api, docId))[0];
 		if (!batch) throw new Error('Batch is missing');
-		await waitFor(
-			'generation implement',
-			async () =>
-				(await listRuns(api)).some(
-					(run) => run.taskId === tasks.get('DE-GEN')?.id && run.kind === 'implement' && !occupies(run),
-				),
-			45000,
-		);
-		await waitFor(
-			'generation review to finish',
-			async () =>
-				(await listRuns(api)).some(
-					(run) =>
-						run.taskId === tasks.get('DE-GEN')?.id &&
-						run.kind === 'review' &&
-						!['queued', 'starting', 'running'].includes(run.state),
-				),
-			45000,
-		);
-		const implement = (await listRuns(api)).find(
-			(run) => run.taskId === tasks.get('DE-GEN')?.id && run.kind === 'implement',
-		);
-		if (!implement?.branchName) throw new Error('Generation branch is missing');
-		if (implement.worktreePath) rmSync(join(implement.worktreePath, 'untracked-diff.txt'), { force: true });
-		await mergeWhenReady(repo.repo, implement.branchName);
+		await landTasks(api, repo.repo, [tasks.get('DE-GEN')?.id ?? '']);
 		await waitFor(
 			'first failed wrapup',
 			async () => ((await executionOf(api, docId)).wrapupProgress as { physicalAttempts?: number } | null)?.physicalAttempts === 1,
