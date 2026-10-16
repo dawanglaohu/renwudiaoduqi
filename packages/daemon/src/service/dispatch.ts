@@ -402,7 +402,21 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
 	const consecutiveInHeadErrors = new Map<string, number>();
 	const inFlightLaunches = new Set<string>();
+	// 同一实施只做一次机械检查。检查还在读 diff 时再进一次，会在未跟踪文件
+	// 已删除后把 landed 写成 awaiting_human：updateState 不比较 fromState。
+	// 暂停恢复与退出回调共用这把占位。
+	const reviewKickoffs = new Set<string>();
 	let isTicking = false;
+
+	const claimReviewKickoff = (runId: string): boolean => {
+		if (reviewKickoffs.has(runId)) return false;
+		const runs = runsRepo.listAll();
+		if (runs.some((child) => child.kind === 'review' && child.parent_run_id === runId)) {
+			return false;
+		}
+		reviewKickoffs.add(runId);
+		return true;
+	};
 
 	const effectiveBatchService =
 		deps.batchService ??
@@ -1527,6 +1541,28 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				pendingAssignmentTx.length = 0;
 			};
 
+			const resumePausedReviews = async (docId: string): Promise<void> => {
+				if (!deps.reviewService) return;
+				const runs = runsRepo.listAll();
+				const pending = runs.filter((run) => {
+					if (run.kind !== 'implement' || run.state !== 'exited' || run.exit_code !== 0)
+						return false;
+					const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
+					if (task?.doc_id !== docId) return false;
+					return !runs.some((child) => child.kind === 'review' && child.parent_run_id === run.id);
+				});
+				for (const run of pending) {
+					if (!claimReviewKickoff(run.id)) continue;
+					try {
+						await deps.reviewService.evaluateMechanicalCheck({ runId: run.id });
+					} catch (err) {
+						logFailure(err);
+					} finally {
+						reviewKickoffs.delete(run.id);
+					}
+				}
+			};
+
 			for (const previousDoc of documents) {
 				const doc = deps.documentsRepo.findById(previousDoc.id);
 				if (!doc) continue;
@@ -1537,8 +1573,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					(documentExecution.state === 'paused' || documentExecution.state === 'completed')
 				)
 					continue;
-				if (documentExecution?.state === 'running')
+				if (documentExecution?.state === 'running') {
 					await deps.wrapupService?.resumeDeferredFixes(doc.id);
+					await resumePausedReviews(doc.id);
+				}
 				const documentAssignment: DocumentDefaultAssignment | null =
 					documentExecution?.state === 'running' && documentExecution.default_assignment_json
 						? (JSON.parse(documentExecution.default_assignment_json) as DocumentDefaultAssignment)
@@ -3236,10 +3274,16 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const isImplementLike =
 						run.kind === 'implement' || run.origin === 'rework' || run.origin === 'wrapup-fix';
 					if (isImplementLike && result.exitCode === 0 && deps.reviewService) {
+						const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
+						const execution = task ? deps.documentExecutionsRepo?.findByDocId(task.doc_id) : null;
+						if (execution?.state === 'paused') return;
+						if (!claimReviewKickoff(runId)) return;
 						try {
 							await deps.reviewService.evaluateMechanicalCheck({ runId });
 						} catch (err) {
 							logFailure(err);
+						} finally {
+							reviewKickoffs.delete(runId);
 						}
 					}
 				},
