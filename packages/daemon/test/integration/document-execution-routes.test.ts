@@ -2906,6 +2906,63 @@ describe('M8-T12 document execution through the real container', () => {
 		}
 	});
 
+	it('M1-T12 review2 R2: scheduler shutdown drains a held review without admitting another stage', async () => {
+		const { container, server, headers, docId, pauseNextGitRun, getGitCommands } = await setup({
+			canDispatch: () => true,
+			withImplementationProcess: true,
+			reviewDiff: true,
+		});
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'claude', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		await container.services.dispatch.tick();
+		const run = container.repos.runs.listAll().find((item) => item.kind === 'implement');
+		if (!run) throw new Error('Implementation missing');
+		await vi.waitFor(() => expect(container.repos.runs.findById(run.id)?.state).toBe('running'));
+		container.repos.runs.updateState({
+			id: run.id,
+			toState: 'exited',
+			exitCode: 0,
+			worktreePath: root,
+		});
+		const commandsBefore = getGitCommands().length;
+		const held = pauseNextGitRun();
+		await container.services.dispatch.tick();
+		await held.entered;
+		const job = container.jobs.find((item) => item.name === 'scheduler-tick');
+		if (!job) throw new Error('Scheduler job missing');
+		let stopped = false;
+		const stopping = job.stop().then(() => {
+			stopped = true;
+		});
+		try {
+			await new Promise<void>((done) => setImmediate(done));
+			expect(stopped).toBe(false);
+		} finally {
+			held.release();
+			await stopping;
+			await vi.waitFor(() =>
+				expect(
+					getGitCommands()
+						.slice(commandsBefore)
+						.some((args) => args[0] === 'diff' && !args.includes('--numstat')),
+				).toBe(true),
+			);
+			await new Promise<void>((done) => setImmediate(done));
+			await server.instance.close();
+		}
+		expect(container.repos.runs.listAll().filter((item) => item.kind === 'review')).toHaveLength(0);
+		expect(container.repos.runs.findById(run.id)?.state).toBe('exited');
+	});
+
 	it.each([false, true])(
 		'M1-T12 review2 R3: global auto respects batch manual override=%s',
 		async (override) => {

@@ -314,6 +314,7 @@ export interface DispatchServiceDeps {
 			readonly admitReview?: () => boolean;
 		}) => Promise<unknown>;
 	};
+	readonly registerReviewCleanup?: (cleanup: () => Promise<void>) => void;
 	readonly bughuntService?: {
 		readonly finalizeBughuntRun: (input: {
 			readonly bughuntRunId: string;
@@ -410,7 +411,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	// 已删除后把 landed 写成 awaiting_human：updateState 不比较 fromState。
 	// 暂停恢复与退出回调共用这把占位。
 	const reviewKickoffs = new Set<string>();
+	const reviewChecks = new Set<Promise<void>>();
+	let reviewAdmissionClosed = false;
 	let isTicking = false;
+	deps.registerReviewCleanup?.(async () => {
+		reviewAdmissionClosed = true;
+		await Promise.allSettled(reviewChecks);
+	});
 
 	const claimReviewKickoff = (runId: string): boolean => {
 		if (reviewKickoffs.has(runId)) return false;
@@ -421,6 +428,20 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		reviewKickoffs.add(runId);
 		return true;
 	};
+	function startReviewCheck(runId: string, admitReview: () => boolean): Promise<void> {
+		const check: Promise<void> = Promise.resolve()
+			.then(async () => {
+				if (admitReview())
+					await deps.reviewService?.evaluateMechanicalCheck({ runId, admitReview });
+			})
+			.catch(logFailure)
+			.finally(() => {
+				reviewKickoffs.delete(runId);
+				reviewChecks.delete(check);
+			});
+		reviewChecks.add(check);
+		return check;
+	}
 
 	const effectiveBatchService =
 		deps.batchService ??
@@ -595,9 +616,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	}
 
 	function reviewAdmission(run: RunRow): () => boolean {
+		if (reviewAdmissionClosed) return () => false;
 		const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
 		const observed = task ? (deps.documentExecutionsRepo?.findByDocId(task.doc_id) ?? null) : null;
 		return () => {
+			if (reviewAdmissionClosed) return false;
 			if (!task) return false;
 			if (!executionStillCurrent(task.doc_id, observed)) return false;
 			if (!observed || observed.state === 'idle') return true;
@@ -1619,10 +1642,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					if (!admitReview()) continue;
 					if (!claimReviewKickoff(run.id)) continue;
 					// The per-run claim spans the check; other documents must not wait for its I/O.
-					void deps.reviewService
-						.evaluateMechanicalCheck({ runId: run.id, admitReview })
-						.catch(logFailure)
-						.finally(() => reviewKickoffs.delete(run.id));
+					void startReviewCheck(run.id, admitReview);
 				}
 			};
 
@@ -3428,13 +3448,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						const admitReview = reviewAdmission(run);
 						if (!admitReview()) return;
 						if (!claimReviewKickoff(runId)) return;
-						try {
-							await deps.reviewService.evaluateMechanicalCheck({ runId, admitReview });
-						} catch (err) {
-							logFailure(err);
-						} finally {
-							reviewKickoffs.delete(runId);
-						}
+						await startReviewCheck(runId, admitReview);
 					}
 				},
 			});

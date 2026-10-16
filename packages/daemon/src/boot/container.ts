@@ -940,9 +940,13 @@ export function createContainer(input: {
 		}
 	}
 
+	let stopReviewChecks = async (): Promise<void> => {};
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
+			registerReviewCleanup: (stop) => {
+				stopReviewChecks = stop;
+			},
 			isBranchInHead: (candidate) => isBranchInHead(candidate, gitRunner),
 			documentExecutionsRepo: documentExecutions,
 			advanceDocumentExecution: (docId) => documentExecutionHolder.current?.advanceRunning(docId),
@@ -1087,7 +1091,7 @@ export function createContainer(input: {
 		});
 	documentExecutionHolder.current = documentExecutionService;
 
-	const schedulerTickJob =
+	const schedulerTickJobBase =
 		input.schedulerTickJob ??
 		createSchedulerTickJob({
 			dispatchService,
@@ -1095,6 +1099,16 @@ export function createContainer(input: {
 				input.logViolation?.(error instanceof Error ? error.message : String(error));
 			},
 		});
+	const schedulerTickJob = Object.freeze({
+		...schedulerTickJobBase,
+		async stop(): Promise<void> {
+			try {
+				await schedulerTickJobBase.stop();
+			} finally {
+				await stopReviewChecks();
+			}
+		},
+	});
 
 	schedulerTickJobHolder.current = schedulerTickJob;
 
