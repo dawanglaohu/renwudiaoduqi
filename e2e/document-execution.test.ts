@@ -477,7 +477,8 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const secondPath = commitDocs(repo.repo, 'two-docs-data.js', renderDocs([
 			{ id: 'TWO-SHARED', hash: 'two-shared', paths: ['src/shared.ts'] },
 			{ id: 'TWO-FREE', hash: 'two-free', paths: ['src/two.ts'] },
-			{ id: 'TWO-NEXT', hash: 'two-next', deps: ['TWO-SHARED', 'TWO-FREE'] },
+			{ id: 'TWO-AGENT', hash: 'two-agent', paths: ['src/agent-slot.ts'] },
+			{ id: 'TWO-NEXT', hash: 'two-next', deps: ['TWO-SHARED', 'TWO-FREE', 'TWO-AGENT'] },
 		], 'Second document'));
 		writeControl(daemon, { implement: 'hold', review: 'pass', wrapup: 'clean' });
 		await importThroughPage(page, firstPath, repo.repo);
@@ -493,20 +494,26 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const documents = (await api.get('/api/v1/documents')).body.documents as Array<{ id: string; projectName: string }>;
 		const secondId = documents.find((doc) => doc.projectName === 'Second document')?.id ?? '';
 		expect(secondId).not.toBe(firstId);
-		await setLaneCount(api, secondId, 2);
+		await setLaneCount(api, secondId, 3);
 		await chooseAgent(second, 'claude');
+		const secondTasks = await taskIndex(api, secondId);
+		const agentTask = secondTasks.get('TWO-AGENT');
+		if (!agentTask?.batchId) throw new Error('Shared Agent task missing');
+		expect((await api.post(`/api/v1/batches/${agentTask.batchId}/assignments`, {
+			assignments: [{ taskId: agentTask.id, agentId: 'codex', effort: null }],
+		})).status).toBe(200);
 		const pipeline = (await api.get('/api/v1/settings/pipeline')).body.pipeline as Record<string, unknown>;
 		const stages = await api.patch('/api/v1/settings/pipeline', { ...pipeline,
 			reviewOverride: { agentId: 'codex', modelName: 'doc-exec' },
 			wrapupAssignment: { mode: 'fixed', agentId: 'codex', modelName: 'doc-exec' } });
 		expect(stages.status, JSON.stringify(stages.body)).toBe(200);
 		await second.locator('[data-action="start-document"]').click();
-		const secondTasks = await taskIndex(api, secondId);
 		await waitForRun(api, secondTasks.get('TWO-FREE')?.id ?? '', 'implement');
 		await new Promise((resolveWait) => setTimeout(resolveWait, 5500));
 		const held = (await listRuns(api)).filter(occupies);
 		expect(held.filter((run) => run.agentId === 'codex')).toHaveLength(1);
 		expect(held.some((run) => run.taskId === secondTasks.get('TWO-SHARED')?.id)).toBe(false);
+		expect(held.some((run) => run.taskId === agentTask.id)).toBe(false);
 		expect(held.some((run) => run.taskId === firstTasks.get('ONE-B')?.id)).toBe(false);
 		expect((await executionOf(api, firstId)).currentBatchNo).toBe(1);
 		expect((await executionOf(api, secondId)).currentBatchNo).toBe(1);
@@ -518,14 +525,16 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const stopped = await api.post(`/api/v1/runs/${firstHolder?.id}/abort`, {});
 		expect(stopped.status, JSON.stringify(stopped.body)).toBe(200);
 		await waitForRun(api, secondTasks.get('TWO-SHARED')?.id ?? '', 'implement');
+		await waitForRun(api, agentTask.id, 'implement');
+		expect((await listRuns(api)).filter((run) => occupies(run) && run.agentId === 'codex')).toHaveLength(1);
 		expect((await executionOf(api, firstId)).state).toBe('paused');
 		expect((await executionOf(api, secondId)).state).toBe('running');
 		expect((await listRuns(api)).some((run) => run.taskId === firstTasks.get('ONE-B')?.id)).toBe(false);
 		expect((await listRuns(api)).some((run) => run.taskId === secondTasks.get('TWO-NEXT')?.id)).toBe(false);
-		releaseAgents(daemon, ['TWO-FREE', 'TWO-SHARED']);
+		releaseAgents(daemon, ['TWO-FREE', 'TWO-SHARED', 'TWO-AGENT']);
 		const secondBatch = (await batchesOf(api, secondId)).find((batch) => batch.batchNo === 1);
 		if (!secondBatch) throw new Error('Second document batch missing');
-		await finishBatch(api, repo.repo, [secondTasks.get('TWO-FREE')?.id ?? '', secondTasks.get('TWO-SHARED')?.id ?? ''], secondBatch.id);
+		await finishBatch(api, repo.repo, [secondTasks.get('TWO-FREE')?.id ?? '', secondTasks.get('TWO-SHARED')?.id ?? '', agentTask.id], secondBatch.id);
 		await waitFor('second cursor advances independently', async () => (await executionOf(api, secondId)).currentBatchNo === 2, 60000);
 		expect((await executionOf(api, firstId)).currentBatchNo).toBe(1);
 		expect((await executionOf(api, firstId)).state).toBe('paused');

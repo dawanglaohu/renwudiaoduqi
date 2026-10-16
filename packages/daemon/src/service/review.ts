@@ -1577,12 +1577,6 @@ export async function runMechanicalCheck(
 	});
 }
 
-class ReviewAdmissionDeferred extends AppError {
-	constructor() {
-		super('E_VALIDATION', 'Document execution changed before review admission.');
-	}
-}
-
 /** Creates the review service with mechanical checks and transactional stage admission. */
 export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService {
 	const clock = deps.clock ?? { now: () => new Date().toISOString() };
@@ -1646,6 +1640,10 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		}
 
 		let currentState: RunState = previousState;
+		const admissionDeferred = new AppError(
+			'E_VALIDATION',
+			'Document execution changed before review admission.',
+		);
 		const deferredResult = (): EvaluateMechanicalCheckResult =>
 			Object.freeze({
 				result: checkResult,
@@ -1843,7 +1841,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 
 		// 2. 两次迁移收进同一个 unitOfWork.run，且每次迁移显式传 clock.now()（R3）
 		const applyTransitions = () => {
-			if (input.admitReview && !input.admitReview()) throw new ReviewAdmissionDeferred();
+			if (input.admitReview && !input.admitReview()) throw admissionDeferred;
 			const now = clock.now();
 
 			if (previousState === 'exited') {
@@ -2121,7 +2119,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					});
 				}
 			} catch (dispatchErr) {
-				if (dispatchErr instanceof ReviewAdmissionDeferred) return deferredResult();
+				if (dispatchErr === admissionDeferred) return deferredResult();
 				// R3: 审查派发失败不能空吞；两条运行与闸门须在 service 事务内一致落到可恢复状态，并留错误证据。
 				const now = clock.now();
 				const errMessage = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);

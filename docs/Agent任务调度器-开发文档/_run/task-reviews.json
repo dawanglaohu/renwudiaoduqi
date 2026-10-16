@@ -217,15 +217,16 @@
   },
   "M1-T12": {
     "compiler": "eeddd07520a3431c9e3a6f44609ca79790d7653a1082674d6ca4e1c3f7107607",
-    "contractHash": "8aaff67d32a8df0d51f3b4d7a73b339a0a29128dbc687c595201cdc726633710",
+    "contractHash": "6d4986bf0fba2054f71651b351447d379efb47c70572800ac6b48e5133faa34a",
     "evidence": [
-      "仅补齐 proc/spawn.ts、unit/proc.test.ts、platform/kill-tree-native.test.ts 三个必要支持路径，和 PR #209 的有效文件无冲突；既定验收、边界与 todo 不变，不合并、不标落地。",
-      "Jev 实测 jev-1.13.0 adjudicate A high 0.95；spec_change=no、outside_stack=no、needs_owner=no。state 与真实裁决见 M1-T12.windows-lifetime.adjudication.json，动作已落实于生产 spawnManaged 的 Windows 进程生命周期。",
-      "Windows 原 detached=false 时，真实父进程退出会使注册执行 PID 消失而子级仍活；libuv src/win/process.c 1077-1079 确认非 detached 子进程属于随父进程结束的 Job。独立进程保持 windowsHide=true、shell=false、原管道及显式 windowsKillTree。",
-      "windows-managed-lifetime-red.log：生产构造参数及真正 import 生产 spawnManaged 的 Windows 父进程退出测试两例失败；windows-managed-lifetime-green.log：包括该实际 PID 存活与原进程树终止在内 50 项全部通过。没有伪造 PID、数据库或会话。",
-      "R4 end-to-end helper 必须等当前最新实施及其关联成功审查，才清理其工作树并正常合并；不能由旧 landed/旧 review 提前进入收口等待。完整 check/e2e 和最终同一 head 三平台 CI 仍另行验证。"
+      "第二轮仅复核原 R1-R5 与必要支持路径。八项验收及 E-360 至 E-370 原要求未降低；此 verdict 只登记任务契约，不代替代码、真实 Agent 或最终 CI 验收。",
+      "补丁仅增加 packages/daemon/src/service/gates.ts，用既有 getBatchGateOverrides 阻止全局 auto 更新绕过批次 manual。对应回归位于原已授权 document-execution-routes.test.ts；没有新增 API、状态枚举、事务层或运行模式。",
+      "已核 06/08 的事务与分层、10 的控制 DTO、13/17/19 和 22 的边界及验收；移除额外错误子类，合法审查延后使用 AppError 实例，不通过错误消息分支。",
+      "原前置 M9-T30/M8-T13 能力、buildPipeline 接线和真实 bootstrap/配对/工作树/SSE 入口保持；tasks_json/BatchWrapupDto.tasks 仍为排序 string[]。",
+      "本轮完整 check 基线 256 文件/3371 passed/3 skipped；新问题有失败复现，定点 8 项、相邻 129 项、TypeScript 与 Biome 均通过。R3 跨文档 Agent 名额负控另补独立路径任务；最终交付仍等待更新后真实 E2E 与同一 head CI。",
+      "实施两条裁决均复用全部原候选加入最终 diff 事实：Jev jev-1.13.0 仍采纳 Windows lifetime A(high 0.97)、dispatch confirmation A(high 0.97)，记录于 judgments.jsonl:204-205。仅 M1-T12 契约变化，revalidation 为空。"
     ],
-    "reviewed": "2026-10-16T10:07:31.226323+00:00",
+    "reviewed": "2026-10-16T12:32:50.011645+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

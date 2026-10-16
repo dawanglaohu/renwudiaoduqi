@@ -157,6 +157,7 @@ async function setup(
 	let gitAvailable = true;
 	let gitPause: { entered: () => void; wait: Promise<void> } | null = null;
 	const spawnedRuns: string[] = [];
+	const gitCommands: string[][] = [];
 	const container = (options.containerFactory ?? createContainer)({
 		config: { port: 0, bind: '127.0.0.1', dataDir: folder, logLevel: 'error', dev: false },
 		database,
@@ -225,6 +226,7 @@ async function setup(
 			: undefined,
 		gitRunner: options.gitRunner ?? {
 			run: async (args: readonly string[]) => {
+				gitCommands.push([...args]);
 				const held = gitPause;
 				if (held) {
 					gitPause = null;
@@ -319,6 +321,7 @@ async function setup(
 			return { entered: enteredPromise, release };
 		},
 		getSpawnedRuns: () => [...spawnedRuns],
+		getGitCommands: () => [...gitCommands],
 		workspaceRepoPath,
 		allocationReady,
 		releaseAllocation,
@@ -2767,6 +2770,196 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it('M1-T12 review2 R2: an explicitly created current-batch run retains its generation and review', async () => {
+		const { container, server, headers, docId } = await setup({
+			canDispatch: () => true,
+			withImplementationProcess: true,
+			reviewDiff: true,
+		});
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'claude', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		if (!task) throw new Error('Current task missing');
+		const created = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/runs',
+			headers,
+			payload: { taskId: task.id, agentId: 'claude', idempotencyKey: 'manual-current-generation' },
+		});
+		expect(created.statusCode, created.body).toBe(200);
+		const runId = created.json().run.id as string;
+		await vi.waitFor(() => expect(container.repos.runs.findById(runId)?.state).toBe('running'));
+		const run = container.repos.runs.findById(runId);
+		const snapshot = container.repos.dispatchSnapshots?.findById(run?.snapshot_id ?? '');
+		const plan = JSON.parse(
+			container.repos.documentExecutions.findByDocId(docId)?.plan_json ?? '[]',
+		);
+		expect(JSON.parse(snapshot?.launch_spec_json ?? '{}').documentGenerationId).toBe(
+			plan[0].generationId,
+		);
+		container.repos.runs.updateState({
+			id: runId,
+			toState: 'exited',
+			exitCode: 0,
+			worktreePath: root,
+		});
+		await container.services.dispatch.tick();
+		await vi.waitFor(() =>
+			expect(
+				container.repos.runs
+					.listAll()
+					.filter((item) => item.kind === 'review' && item.parent_run_id === runId),
+			).toHaveLength(1),
+		);
+		expect(container.repos.runs.findById(runId)?.state).toBe('reviewing');
+		await server.instance.close();
+	});
+
+	it('M1-T12 review2 R2: a held resumed mechanical check does not block another document tick', async () => {
+		const { container, server, headers, docId, folder, pauseNextGitRun } = await setup({
+			canDispatch: () => true,
+			withImplementationProcess: true,
+			reviewDiff: true,
+		});
+		const start = async (id: string) => {
+			const response = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${id}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(id)?.content_fingerprint,
+					defaultAssignment: {
+						agentId: id === docId ? 'claude' : 'codex',
+						modelName: null,
+						effort: null,
+					},
+				},
+			});
+			expect(response.statusCode, response.body).toBe(200);
+		};
+		await start(docId);
+		await container.services.dispatch.tick();
+		const first = container.repos.runs.listAll().find((run) => run.kind === 'implement');
+		if (!first) throw new Error('First implementation missing');
+		await vi.waitFor(() => expect(container.repos.runs.findById(first.id)?.state).toBe('running'));
+		container.repos.runs.updateState({
+			id: first.id,
+			toState: 'exited',
+			exitCode: 0,
+			worktreePath: root,
+		});
+		const held = pauseNextGitRun();
+		const pendingTick = container.services.dispatch.tick();
+		await held.entered;
+		try {
+			const path = join(folder, 'second-docs-data.js');
+			writeTasksDocsData(path, [{ id: 'M1-T2', hash: 'second-contract' }]);
+			const source = JSON.parse(
+				readFileSync(path, 'utf8')
+					.replace(/^window\.DOCS\s*=\s*/, '')
+					.replace(/;\s*$/, ''),
+			);
+			source.handoff.contracts['M1-T2'].effectivePaths = ['second/task.ts'];
+			source.handoff.effectivePaths['M1-T2'] = ['second/task.ts'];
+			writeFileSync(path, `window.DOCS = ${JSON.stringify(source)};`);
+			const imported = await server.instance.inject({
+				method: 'POST',
+				url: '/api/v1/documents',
+				headers,
+				payload: { docsPath: path, repoPath: root },
+			});
+			expect(imported.statusCode, imported.body).toBe(200);
+			const secondId = imported.json().document.id as string;
+			await start(secondId);
+			const secondTick = await container.services.dispatch.tick();
+			expect(secondTick.executed).toBe(true);
+			const secondTask = container.repos.tasks.listByDocId(secondId)[0];
+			await vi.waitFor(() =>
+				expect(
+					container.repos.runs
+						.listAll()
+						.some((run) => run.kind === 'implement' && run.task_id === secondTask?.id),
+					JSON.stringify(secondTick),
+				).toBe(true),
+			);
+		} finally {
+			held.release();
+			await pendingTick;
+			await vi.waitFor(() =>
+				expect(
+					container.repos.runs
+						.listAll()
+						.filter((run) => run.kind === 'review' && run.parent_run_id === first.id),
+				).toHaveLength(1),
+			);
+			await server.instance.close();
+		}
+	});
+
+	it.each([false, true])(
+		'M1-T12 review2 R3: global auto respects batch manual override=%s',
+		async (override) => {
+			const { container, server, headers, docId } = await setup({
+				canDispatch: () => true,
+				withImplementationProcess: true,
+			});
+			await container.services.settings.updateGates(
+				{ dispatch: 'manual', review: 'auto', landing: 'auto' },
+				null,
+			);
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!task?.batch_id) throw new Error('Batch task missing');
+			if (override)
+				container.services.dispatch.setBatchGateOverrides(task.batch_id, { dispatch: 'manual' });
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			await container.services.dispatch.tick();
+			const gate = container.repos.gates?.list({ pendingOnly: true })[0];
+			if (!gate) throw new Error('Dispatch confirmation missing');
+			const changed = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/settings/gates',
+				headers,
+				payload: { dispatch: 'auto', review: 'auto', landing: 'auto' },
+			});
+			expect(changed.statusCode, changed.body).toBe(200);
+			expect(container.repos.gates?.findById(gate.id)?.state).toBe(
+				override ? 'waiting' : 'decided',
+			);
+			if (override) {
+				expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(0);
+				const approved = await server.instance.inject({
+					method: 'POST',
+					url: `/api/v1/gates/${gate.id}/decide`,
+					headers,
+					payload: { decision: 'pass' },
+				});
+				expect(approved.statusCode, approved.body).toBe(200);
+			}
+			expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(1);
+			await server.instance.close();
+		},
+	);
+
 	it.each([false, true])(
 		'M1-T12 R2: mechanical checks defer review after pause (already resumed=%s) without a gate, snapshot or attempt',
 		async (alreadyResumed) => {
@@ -2775,7 +2968,7 @@ describe('M8-T12 document execution through the real container', () => {
 				withImplementationProcess: true,
 				reviewDiff: true,
 			});
-			const { server, container, headers, docId, pauseNextGitRun } = env;
+			const { server, container, headers, docId, pauseNextGitRun, getGitCommands } = env;
 			const url = `/api/v1/documents/${docId}/execution`;
 			const control = async (action: string) => {
 				const execution = container.services.documentExecution.get(docId).execution;
@@ -2813,19 +3006,22 @@ describe('M8-T12 document execution through the real container', () => {
 				implementation?.task_id ?? '',
 			).length;
 			const held = pauseNextGitRun();
+			const commandsBefore = getGitCommands().length;
 			const tick = container.services.dispatch.tick();
-			await Promise.race([
-				held.entered,
-				tick.then((result) => {
-					throw new Error(
-						`Mechanical check did not enter: ${JSON.stringify({ result, runs: container.repos.runs.listAll(), execution: container.services.documentExecution.get(docId) })}`,
-					);
-				}),
-			]);
+			await held.entered;
 			await control('pause');
 			if (alreadyResumed) await control('resume');
 			held.release();
 			await tick;
+			await vi.waitFor(() =>
+				expect(
+					getGitCommands()
+						.slice(commandsBefore)
+						.some((args) => args[0] === 'diff' && !args.includes('--numstat')),
+				).toBe(true),
+			);
+			// After this injected patch read, only resolved Git promises remain before admission.
+			await new Promise<void>((done) => setImmediate(done));
 			expect(container.repos.runs.listAll().filter((run) => run.kind === 'review')).toHaveLength(0);
 			expect(container.repos.runs.findById(runId)?.state).toBe('exited');
 			expect(container.repos.gates?.findPendingByRunId?.(runId)).toBeNull();
@@ -2834,6 +3030,13 @@ describe('M8-T12 document execution through the real container', () => {
 			).toBe(snapshotsBefore);
 			if (!alreadyResumed) await control('resume');
 			await container.services.dispatch.tick();
+			await vi.waitFor(() =>
+				expect(
+					container.repos.runs
+						.listAll()
+						.filter((run) => run.kind === 'review' && run.state === 'running'),
+				).toHaveLength(1),
+			);
 			const reviews = container.repos.runs.listAll().filter((run) => run.kind === 'review');
 			expect(reviews).toHaveLength(1);
 			expect(reviews[0]?.parent_run_id).toBe(runId);

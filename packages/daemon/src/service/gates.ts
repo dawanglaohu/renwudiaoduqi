@@ -1158,6 +1158,12 @@ export function createGateService(deps: GateServiceDeps): GateService {
 							continue;
 					}
 					if (kind === 'dispatch') {
+						const task = gate.task_id ? deps.tasksRepo?.findById(gate.task_id) : null;
+						const overrides = task?.batch_id
+							? (deps.getBatchGateOverrides?.(task.batch_id) ??
+								batchGateOverridesMap.get(task.batch_id))
+							: undefined;
+						if (overrides?.dispatch === 'manual') continue;
 						deps.gatesRepo.updateDecision(
 							gate.id,
 							'pass',

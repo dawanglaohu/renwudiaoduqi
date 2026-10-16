@@ -600,7 +600,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		return () => {
 			if (!task) return false;
 			if (!executionStillCurrent(task.doc_id, observed)) return false;
-			if (!observed) return true;
+			if (!observed || observed.state === 'idle') return true;
 			if (observed.state !== 'running') return false;
 			const current = deps.tasksRepo.findById(task.id);
 			const batch = activePlanBatch(observed);
@@ -920,7 +920,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			modelEffortOptions: deps.modelEffortOptions,
 		});
 
-		const launchSpecJson = JSON.stringify({
+		const launchConfigurationSnapshot = {
 			agentId,
 			...launchConfiguration(agentId),
 			model: resolvedAssignment.modelName ?? null,
@@ -928,7 +928,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			permissionTier: input.permissionTier ?? 'workspaceWrite',
 			baseRef: input.baseRef ?? { kind: 'head' },
 			worktreeMode: input.worktreeMode ?? 'fresh',
-		});
+		};
 
 		const existingRuns = runsRepo.listByTaskId(taskId);
 		const attemptNo = existingRuns.length + 1;
@@ -969,7 +969,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 			const snapshot = deps.dispatchSnapshotsRepo.takeSnapshotForTask({
 				taskId,
-				launchSpecJson,
+				launchSpecJson: JSON.stringify({
+					...launchConfigurationSnapshot,
+					...(currentExecution?.state === 'running'
+						? { documentGenerationId: activePlanBatch(currentExecution)?.generationId }
+						: {}),
+				}),
 				createdAt: now,
 				assignmentJson,
 			});
@@ -1599,7 +1604,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				pendingAssignmentTx.length = 0;
 			};
 
-			const resumePausedReviews = async (docId: string): Promise<void> => {
+			const resumePausedReviews = (docId: string): void => {
 				if (!deps.reviewService) return;
 				const runs = runsRepo.listAll();
 				const pending = runs.filter((run) => {
@@ -1613,13 +1618,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const admitReview = reviewAdmission(run);
 					if (!admitReview()) continue;
 					if (!claimReviewKickoff(run.id)) continue;
-					try {
-						await deps.reviewService.evaluateMechanicalCheck({ runId: run.id, admitReview });
-					} catch (err) {
-						logFailure(err);
-					} finally {
-						reviewKickoffs.delete(run.id);
-					}
+					// The per-run claim spans the check; other documents must not wait for its I/O.
+					void deps.reviewService
+						.evaluateMechanicalCheck({ runId: run.id, admitReview })
+						.catch(logFailure)
+						.finally(() => reviewKickoffs.delete(run.id));
 				}
 			};
 
@@ -1635,7 +1638,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					continue;
 				if (documentExecution?.state === 'running') {
 					await deps.wrapupService?.resumeDeferredFixes(doc.id);
-					await resumePausedReviews(doc.id);
+					resumePausedReviews(doc.id);
 				}
 				const documentAssignment: DocumentDefaultAssignment | null =
 					documentExecution?.state === 'running' && documentExecution.default_assignment_json

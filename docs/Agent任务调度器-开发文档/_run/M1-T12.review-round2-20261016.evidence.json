@@ -1,0 +1,17 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T12": {
+      "contractHash": "6d4986bf0fba2054f71651b351447d379efb47c70572800ac6b48e5133faa34a",
+      "verdict": "pass",
+      "evidence": [
+        "第二轮仅复核原 R1-R5 与必要支持路径。八项验收及 E-360 至 E-370 原要求未降低；此 verdict 只登记任务契约，不代替代码、真实 Agent 或最终 CI 验收。",
+        "补丁仅增加 packages/daemon/src/service/gates.ts，用既有 getBatchGateOverrides 阻止全局 auto 更新绕过批次 manual。对应回归位于原已授权 document-execution-routes.test.ts；没有新增 API、状态枚举、事务层或运行模式。",
+        "已核 06/08 的事务与分层、10 的控制 DTO、13/17/19 和 22 的边界及验收；移除额外错误子类，合法审查延后使用 AppError 实例，不通过错误消息分支。",
+        "原前置 M9-T30/M8-T13 能力、buildPipeline 接线和真实 bootstrap/配对/工作树/SSE 入口保持；tasks_json/BatchWrapupDto.tasks 仍为排序 string[]。",
+        "本轮完整 check 基线 256 文件/3371 passed/3 skipped；新问题有失败复现，定点 8 项、相邻 129 项、TypeScript 与 Biome 均通过。R3 跨文档 Agent 名额负控另补独立路径任务；最终交付仍等待更新后真实 E2E 与同一 head CI。",
+        "实施两条裁决均复用全部原候选加入最终 diff 事实：Jev jev-1.13.0 仍采纳 Windows lifetime A(high 0.97)、dispatch confirmation A(high 0.97)，记录于 judgments.jsonl:204-205。仅 M1-T12 契约变化，revalidation 为空。"
+      ]
+    }
+  }
+}

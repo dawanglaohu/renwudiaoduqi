@@ -1917,7 +1917,8 @@
         "packages/daemon/src/domain/document-execution.ts",
         "packages/daemon/src/proc/spawn.ts",
         "packages/daemon/test/unit/proc.test.ts",
-        "packages/daemon/test/platform/kill-tree-native.test.ts"
+        "packages/daemon/test/platform/kill-tree-native.test.ts",
+        "packages/daemon/src/service/gates.ts"
       ]
     }
   }
