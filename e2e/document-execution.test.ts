@@ -713,7 +713,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 	}, 240000);
 
 	it.each(['dispatch', 'review', 'landing'] as const)('keeps the next batch blocked by the real %s human gate (E-364)', async (kind) => {
-		const { api, page } = await boot();
+		const { daemon, api, page } = await boot();
 		await configureAutoPipeline(api);
 		expect((await api.patch('/api/v1/settings/gates', { dispatch: 'auto', review: 'auto', landing: 'auto', [kind]: 'manual' })).status).toBe(200);
 		const repo = createRepo('agsched-doc-exec-human-');
@@ -727,11 +727,33 @@ describe('M1-T12 文档顺序自动执行', () => {
 			const gates = (await api.get('/api/v1/gates?pending=true')).body.gates as Array<{ kind: string; taskId: string }>;
 			return gates.some((gate) => gate.kind === kind && gate.taskId === tasks.get('HUMAN')?.id);
 		}, 60000);
+		if (kind === 'dispatch') {
+			const gates = (await api.get('/api/v1/gates?pending=true')).body.gates as Array<{ id: string; taskId: string }>;
+			const old = gates.find(gate => gate.taskId === tasks.get('HUMAN')?.id);
+			if (!old) throw new Error('Dispatch confirmation missing');
+			const before = readResources(daemon.dataDir, docId);
+			const card = page.locator('[data-component="gate-card"][data-gate-kind="dispatch"]');
+			let replacementId = '';
+			await card.locator('[data-action="reject"]').click();
+			await page.locator('[data-testid="confirm-reject"]').click();
+			await waitFor('replacement dispatch confirmation', async () => {
+				const pending = (await api.get('/api/v1/gates?pending=true')).body.gates as Array<{ id: string; taskId: string }>;
+				if (pending.length !== 1 || pending[0]?.taskId !== old.taskId || pending[0]?.id === old.id) return false;
+				replacementId = pending[0].id;
+				return true;
+			});
+			expect(readResources(daemon.dataDir, docId)).toEqual(before);
+			expect((await executionOf(api, docId)).state).toBe('running');
+			await page.locator(`[data-gate-id="${replacementId}"] [data-action="approve"]`).click();
+			await waitFor('explicitly approved replacement runs', async () =>
+				(await listRuns(api)).some(run => run.kind === 'implement' && run.taskId === old.taskId && run.state === 'landed'), 60000);
+			expect((await listRuns(api)).filter(run => run.kind === 'implement' && run.taskId === old.taskId)).toHaveLength(1);
+		}
 		await new Promise((resolveWait) => setTimeout(resolveWait, 5500));
 		expect((await executionOf(api, docId)).currentBatchNo).toBe(1);
 		expect((await listRuns(api)).some((run) => run.taskId === tasks.get('HUMAN-NEXT')?.id)).toBe(false);
 		expect((await listRuns(api)).some((run) => run.kind === 'wrapup')).toBe(false);
-		expect(await visibleText(page, '[data-blocker="gate_waiting"]')).toBeTruthy();
+		expect(await visibleText(page, kind === 'dispatch' ? '[data-blocker="awaiting_landing"]' : '[data-blocker="gate_waiting"]')).toBeTruthy();
 	}, 180000);
 
 	it('pauses an unreadable source, preserves the accepted snapshot, and resumes only after source confirmation (E-369)', async () => {
@@ -1291,6 +1313,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		active.page = page;
 		await pairPage(page, daemon, token);
 		await configureAutoPipeline(api);
+		expect((await api.patch('/api/v1/settings/gates', { dispatch: 'manual', review: 'auto', landing: 'auto' })).status).toBe(200);
 		const agentsPath = join(daemon.dataDir, 'agents.json');
 		const registry = JSON.parse(readFileSync(agentsPath, 'utf8'));
 		registry.overrides.codex.defaultModel = modelName;
@@ -1317,7 +1340,6 @@ describe('M1-T12 文档顺序自动执行', () => {
 		const nativeFrames = join(repoRoot, '.playwright-mcp', `gif-frames-m1-t12-native-${Date.now()}`);
 		mkdirSync(nativeFrames, { recursive: true });
 		await page.locator('[data-testid="document-execution"][data-execution-state="idle"]').waitFor();
-		await page.screenshot({ path: join(nativeFrames, '00-idle.png') });
 		await chooseAgent(page, 'codex');
 		await page.locator('[data-testid="document-execution"] [data-testid="model-picker"] [data-testid="grouped-select-trigger"]').click();
 		const modelOption = page.locator(`[data-testid="select-option-${modelName}"]`).first();
@@ -1331,12 +1353,41 @@ describe('M1-T12 文档顺序自动执行', () => {
 		await page.locator('[data-testid="document-execution"] [data-testid="effort-picker"] [data-testid="grouped-select-trigger"]').click();
 		await page.locator('[data-testid="select-option-tier:low"]').click();
 		expect(await page.locator('[data-action="start-document"]').isEnabled()).toBe(true);
-		await page.screenshot({ path: join(nativeFrames, '01-configured.png') });
+		await page.screenshot({ path: join(nativeFrames, '00-configured.png') });
 		await page.locator('[data-action="start-document"]').click();
 		await page.locator('[data-testid="document-execution"][data-execution-state="running"]').waitFor();
-		await page.screenshot({ path: join(nativeFrames, '02-started.png') });
 		const tasks = await taskIndex(api, docId);
 		const taskId = tasks.get('DE-REAL')?.id ?? '';
+		let initialGateId = '';
+		await waitFor('native dispatch confirmation', async () => {
+			const gates = (await api.get('/api/v1/gates?pending=true')).body.gates as Array<{ id: string; taskId: string }>;
+			initialGateId = gates.find(gate => gate.taskId === taskId)?.id ?? '';
+			return initialGateId.length > 0;
+		});
+		const initialCard = page.locator(`[data-gate-id="${initialGateId}"]`);
+		await initialCard.waitFor({ state: 'visible' });
+		const beforeApproval = readResources(daemon.dataDir, docId);
+		expect(await listRuns(api)).toHaveLength(0);
+		await page.screenshot({ path: join(nativeFrames, '01-confirmation.png') });
+		await initialCard.locator('[data-action="reject"]').click();
+		await page.locator('[data-testid="reject-confirm-dialog"]').waitFor({ state: 'visible' });
+		await page.screenshot({ path: join(nativeFrames, '02-reject.png') });
+		await page.locator('[data-testid="confirm-reject"]').click();
+		let replacementGateId = '';
+		await waitFor('native replacement confirmation', async () => {
+			const gates = (await api.get('/api/v1/gates?pending=true')).body.gates as Array<{ id: string; taskId: string }>;
+			replacementGateId = gates.find(gate => gate.taskId === taskId && gate.id !== initialGateId)?.id ?? '';
+			return replacementGateId.length > 0;
+		});
+		const replacementCard = page.locator(`[data-gate-id="${replacementGateId}"]`);
+		await replacementCard.waitFor({ state: 'visible' });
+		expect(readResources(daemon.dataDir, docId)).toEqual(beforeApproval);
+		await page.screenshot({ path: join(nativeFrames, '03-confirmation.png') });
+		await replacementCard.locator('[data-action="approve"]').click();
+		await waitForRun(api, taskId, 'implement');
+		await replacementCard.waitFor({ state: 'detached' });
+		await page.locator('[data-testid="deck-rail"]').filter({ hasText: 'DE-REAL' }).waitFor({ state: 'visible' });
+		await page.screenshot({ path: join(nativeFrames, '04-started.png') });
 		await waitFor(
 			'real implement to leave the slot',
 			async () => {
@@ -1381,7 +1432,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect(reviewText).toMatch(/^VERDICT:\s*pass\s*$/im);
 		await page.screenshot({ path: join(artifactsDir, 'real-agent-success.png'), fullPage: true });
 		await page.locator('[data-blocker="awaiting_landing"]').waitFor({ state: 'visible', timeout: 30000 });
-		await page.screenshot({ path: join(nativeFrames, '03-accepted.png') });
+		await page.screenshot({ path: join(nativeFrames, '05-accepted.png') });
 		writeFileSync(
 			recordPath,
 			JSON.stringify(
@@ -1390,14 +1441,15 @@ describe('M1-T12 文档顺序自动执行', () => {
 					status: 'passed',
 					browserEvidence: { frames: nativeFrames, origin: `http://127.0.0.1:${daemon.port}`,
 						browser: 'repository Playwright, headless Chromium, fresh isolated context',
-						mode: 'AGSCHED_DEV=1; production bootstrap and native Codex CLI; no fixture Agent, transport or event injection' },
+						mode: 'AGSCHED_DEV=1; manual dispatch confirmation with rejection and renewed approval; production bootstrap and native Codex CLI; no fixture Agent, transport or event injection' },
+					dispatchConfirmation: { initialGateId, replacementGateId, resourcesUnchangedAfterRejection: true },
 					reviewText,
 					snapshots: [...implementations, ...reviews].map((run) => {
 						const snapshot = readRunSnapshot(daemon.dataDir, run.id);
 						return { runId: run.id, contractHash: snapshot.contract_hash, assignment: snapshot.assignment };
 					}),
 					version: `${version.stdout ?? ''}`.trim(), modelName, effort: { tier: 'low' },
-					steps: ['production bootstrap', 'normal browser pairing', 'import idle document', 'choose Codex, explicit model and low effort', 'one start button', 'one implementation exits 0', 'one read-only review exits 0 with pass', 'implementation landed'],
+					steps: ['production bootstrap', 'normal browser pairing', 'import idle document', 'choose Codex, explicit model and low effort', 'one start button', 'reject initial dispatch confirmation without a run or slot', 'approve the new visible confirmation', 'one implementation exits 0', 'one read-only review exits 0 with pass', 'implementation landed'],
 					login: login.trim(),
 					script,
 					runs: runs.map((run) => ({

@@ -1,0 +1,64 @@
+{
+  "task": "M1-T12",
+  "scope": "R3 rejected pre-dispatch confirmation",
+  "state": {
+    "requirement": "M1-T12 R3/E-364 must retain real pre-dispatch human gates, provide an actionable way to proceed, and let independent siblings continue. Before an explicit pass there must be no implementation run, snapshot or lane allocation. This is the second bounded review; repair concrete errors in the same PR without relaxing the requirement or asking routine product questions.",
+    "task": {
+      "title": "Pre-dispatch rejection in real document execution",
+      "accept": "A human rejection must not authorize a run or trap the document behind a gate_waiting blocker with no actionable gate. Same-generation authority and historical decisions must be retained; source changes must invalidate old authorization."
+    },
+    "conflict": "The new current-plan dispatchGateIds mapping points to a gate after it is rejected and decided. The pending-gates UI removes that gate. Automatic dispatch requires pass, while the tick refuses to create another gate when any mapped ID exists. The generic reject code is designed for reworking an existing implementation and can allocate a task lane even though this pre-dispatch gate has no run. There is no existing document-gate retry API or retry UI.",
+    "options": {
+      "A": "Treat rejection as deferring this unstarted task: atomically retain the rejected gate as history and replace its current-plan mapping with exactly one new waiting dispatch confirmation. Do not enter implementation rework or allocate a lane. The new visible confirmation still requires an explicit pass; independent siblings continue. Repeated ticks do not create more gates. Source changes invalidate the replacement normally. No new API or UI control is needed.",
+      "B": "Pause the entire document when its pre-dispatch gate is rejected, and reissue a waiting gate only after explicit document resume. This gives a clear existing resume action, but also pauses independent siblings and requires accepting that exception to the current sibling-progress requirement.",
+      "C": "Keep the rejected gate terminal and the document running, and add an explicit task-level retry confirmation API and UI action that creates a fresh waiting gate. Independent siblings continue and the user sees a distinct rejected state; additional API/UI contract and support paths are required."
+    }
+  },
+  "ruling": {
+    "status": "ok",
+    "ts": "2026-10-16T06:45:10",
+    "template": "adjudicate",
+    "model": "jev-1.13.0",
+    "state_sha256": "e38af6b553512ab4",
+    "label": "M1-T12:review2-dispatch-rejection",
+    "verdicts": {
+      "pick": {
+        "choice": "A",
+        "confidence": 0.98,
+        "band": "high",
+        "probabilities": {
+          "A": 0.99,
+          "B": 0.0,
+          "C": 0.01
+        }
+      },
+      "spec_change": {
+        "p": 0.15,
+        "verdict": "no"
+      },
+      "outside_stack": {
+        "p": 0.1,
+        "verdict": "no"
+      },
+      "needs_owner": {
+        "p": 0.1,
+        "verdict": "no"
+      },
+      "reversible": {
+        "p": 0.52,
+        "verdict": "unsure"
+      },
+      "adopt": {
+        "action": "take",
+        "option": "A",
+        "confidence": "high",
+        "why": "Jev 选 A（high）"
+      }
+    },
+    "usage": {
+      "input_tokens": 1235,
+      "output_tokens": 108
+    },
+    "line": "adjudicate: pick=A(high 0.98) spec_change=no(0.15) outside_stack=no(0.10) needs_owner=no(0.10) reversible=unsure(0.52) adopt=take(A)"
+  }
+}

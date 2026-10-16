@@ -3943,6 +3943,89 @@ describe('M8-T12 document execution through the real container', () => {
 		},
 	);
 
+	it('M1-T12 review2 R3: rejecting dispatch preserves one actionable confirmation without a phantom lane', async () => {
+		const { container, server, headers, docId, database } = await setup({
+			canDispatch: () => true,
+			withImplementationProcess: true,
+		});
+		await container.services.settings.updateGates(
+			{ dispatch: 'manual', review: 'auto', landing: 'auto' },
+			null,
+		);
+		const started = await server.instance.inject({
+			method: 'POST',
+			headers,
+			url: `/api/v1/documents/${docId}/execution/start`,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		await container.services.dispatch.tick();
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const old = container.repos.gates?.list({ pendingOnly: true })[0];
+		if (!task || !old) throw new Error('Current confirmation missing');
+		const publishedVersions: number[] = [];
+		container.events.bus.subscribe((event) => {
+			if (event.kind !== 'document.execution_changed') return;
+			const payload = event.payload as { execution?: { docId: string; version: number } };
+			if (payload.execution?.docId === docId) publishedVersions.push(payload.execution.version);
+		});
+		const rejected = await server.instance.inject({
+			method: 'POST',
+			headers,
+			url: `/api/v1/gates/${old.id}/decide`,
+			payload: { decision: 'reject', comment: 'Defer this task' },
+		});
+		expect(rejected.statusCode, rejected.body).toBe(200);
+		expect(publishedVersions).toContain(
+			container.services.documentExecution.get(docId).execution.version,
+		);
+		expect(container.repos.tasks.findById(task.id)?.lane_no).toBeNull();
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		expect(database.prepare('SELECT COUNT(*) AS n FROM dispatch_snapshots').get()).toEqual({
+			n: 0,
+		});
+		expect(container.repos.gates?.findById(old.id)).toMatchObject({
+			state: 'decided',
+			decision: 'reject',
+			comment: 'Defer this task',
+		});
+		const waiting = container.repos.gates?.list({ pendingOnly: true }) ?? [];
+		expect(waiting).toHaveLength(1);
+		const next = waiting[0];
+		if (!next) throw new Error('Replacement confirmation missing');
+		expect(next.id).not.toBe(old.id);
+		expect(next).toMatchObject({ kind: 'dispatch', task_id: task.id, run_id: null });
+		const plan = JSON.parse(
+			container.repos.documentExecutions.findByDocId(docId)?.plan_json ?? '[]',
+		);
+		expect(plan[0].dispatchGateIds[task.id]).toBe(next.id);
+		expect(container.services.documentExecution.get(docId).execution.state).toBe('running');
+		await container.services.dispatch.tick();
+		await container.services.dispatch.tick();
+		expect(container.repos.gates?.list()).toHaveLength(2);
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		const stale = await server.instance.inject({
+			method: 'POST',
+			headers,
+			url: `/api/v1/gates/${old.id}/decide`,
+			payload: { decision: 'pass' },
+		});
+		expect(stale.statusCode).toBe(409);
+		const approved = await server.instance.inject({
+			method: 'POST',
+			headers,
+			url: `/api/v1/gates/${next.id}/decide`,
+			payload: { decision: 'pass' },
+		});
+		expect(approved.statusCode, approved.body).toBe(200);
+		expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(1);
+		await server.instance.close();
+	});
+
 	it.each(['running', 'awaiting_landing'] as const)(
 		'M1-T12 R3: publishes a manual wrapup blocker after HEAD changes without a control version change (%s)',
 		async (batchState) => {

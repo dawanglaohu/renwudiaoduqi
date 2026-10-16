@@ -217,16 +217,16 @@
   },
   "M1-T12": {
     "compiler": "eeddd07520a3431c9e3a6f44609ca79790d7653a1082674d6ca4e1c3f7107607",
-    "contractHash": "6d4986bf0fba2054f71651b351447d379efb47c70572800ac6b48e5133faa34a",
+    "contractHash": "b34bea5b660b0b0456b3e841252a8de6b17e55580fe348fe788c21e949cdca35",
     "evidence": [
-      "第二轮仅复核原 R1-R5 与必要支持路径。八项验收及 E-360 至 E-370 原要求未降低；此 verdict 只登记任务契约，不代替代码、真实 Agent 或最终 CI 验收。",
-      "补丁仅增加 packages/daemon/src/service/gates.ts，用既有 getBatchGateOverrides 阻止全局 auto 更新绕过批次 manual。对应回归位于原已授权 document-execution-routes.test.ts；没有新增 API、状态枚举、事务层或运行模式。",
-      "已核 06/08 的事务与分层、10 的控制 DTO、13/17/19 和 22 的边界及验收；移除额外错误子类，合法审查延后使用 AppError 实例，不通过错误消息分支。",
-      "原前置 M9-T30/M8-T13 能力、buildPipeline 接线和真实 bootstrap/配对/工作树/SSE 入口保持；tasks_json/BatchWrapupDto.tasks 仍为排序 string[]。",
-      "本轮完整 check 基线 256 文件/3371 passed/3 skipped；新问题有失败复现，定点 8 项、相邻 129 项、TypeScript 与 Biome 均通过。R3 跨文档 Agent 名额负控另补独立路径任务；最终交付仍等待更新后真实 E2E 与同一 head CI。",
-      "实施两条裁决均复用全部原候选加入最终 diff 事实：Jev jev-1.13.0 仍采纳 Windows lifetime A(high 0.97)、dispatch confirmation A(high 0.97)，记录于 judgments.jsonl:204-205。仅 M1-T12 契约变化，revalidation 为空。"
+      "仅补齐既有 GateCard.tsx 的真实资源身份 DOM 标识支持路径；不增加控制 API、运行注入或测试绕过。八项验收、全部边界、前置能力与接口形状均未降低。",
+      "Gate ID 来自现有 GateDto，浏览器等待服务端新确认呈现后才正常点击批准；所有动作仍经过原页面、配对、HTTP、SSE 与生产 spawn。真实 WSL 拒绝、再确认、实施/审查落地及后批零运行用例已通过。",
+      "拒绝当前无运行的派发确认时，GateService 在同一 service 事务保留拒绝历史、创建一个新的 waiting gate 并更新当前 plan 映射/version；事件在事务外由现有 documentExecution.publishIfVersionChanged 发布。没有假运行、快照、占槽或新状态枚举。",
+      "Jev jev-1.13.0 复核拒绝处理的三个完整候选 A 新待确认/B 暂停整份文档/C 新增重试API和UI，采纳 A(high 0.98)，spec_change=no、outside_stack=no；动作已落到代码，judgments.jsonl:206。",
+      "拒绝前回归证明错误占用 lane 1；修后唯一新确认、零新增运行/快照/窗口、旧 gate 409、显式批准才派发和版本通知通过。GateCard、gate unit 与 auto-release 相邻 36 项通过，类型、格式通过。",
+      "补丁仅影响 M1-T12 的有效支持范围；自身待复验由 verify/--landed 清除，不手改标记。最终合并仍以原 PR 同一 head 的全部门禁及实际 Agent 证据为准。"
     ],
-    "reviewed": "2026-10-16T12:32:50.011645+00:00",
+    "reviewed": "2026-10-16T14:27:21.530948+00:00",
     "scope": "task-contract",
     "verdict": "pass"
   },

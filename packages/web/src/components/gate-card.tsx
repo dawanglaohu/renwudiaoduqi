@@ -428,6 +428,7 @@ export function GateCard(props: GateCardProps) {
 	return (
 		<section
 			data-component="gate-card"
+			data-gate-id={gate?.id}
 			data-resident-card="true"
 			data-gate-kind={resolvedKind}
 			data-tier={tier}

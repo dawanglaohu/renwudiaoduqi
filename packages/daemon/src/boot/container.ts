@@ -1143,6 +1143,9 @@ export function createContainer(input: {
 		input.gateService ??
 		createGateService({
 			gatesRepo: gates,
+			documentExecutionsRepo: documentExecutions,
+			notifyDocumentExecution: (docId, previousVersion, actorDeviceId) =>
+				documentExecutionService.publishIfVersionChanged(docId, previousVersion, actorDeviceId),
 			tasksRepo: tasks,
 			runsRepo: runs,
 			batchesRepo: batches,
