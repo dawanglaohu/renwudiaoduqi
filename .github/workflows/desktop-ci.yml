@@ -586,9 +586,9 @@ jobs:
           pnpm --filter @agent-scheduler/web build
           pnpm_bin="$(command -v pnpm)"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts --bail=1 --reporter=verbose
+            "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts --reporter=verbose
           else
-            sudo -E env "PATH=$PATH" "HOME=$HOME" "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts --bail=1 --reporter=verbose
+            sudo -E env "PATH=$PATH" "HOME=$HOME" "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts --reporter=verbose
           fi
 
       - name: Upload screenshot, daemon logs and DOM

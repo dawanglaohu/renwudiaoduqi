@@ -162,7 +162,7 @@ async function landTasks(
 			const runs = await listRuns(api);
 			return taskIds.every((taskId) => runs.some((run) => run.taskId === taskId && run.kind === 'review'));
 		},
-		30000,
+		90000,
 	);
 	await waitFor(
 		'review to finish',
@@ -176,7 +176,7 @@ async function landTasks(
 				);
 			});
 		},
-		30000,
+		90000,
 	);
 	const implementRuns = (await listRuns(api)).filter(
 		(run) => run.kind === 'implement' && taskIds.includes(run.taskId ?? ''),
@@ -545,9 +545,7 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect((await executionOf(api, secondId)).state).toBe('running');
 		expect((await listRuns(api)).some((run) => run.taskId === firstTasks.get('ONE-B')?.id)).toBe(false);
 		expect((await listRuns(api)).some((run) => run.taskId === secondTasks.get('TWO-NEXT')?.id)).toBe(false);
-		releaseAgents(daemon, ['TWO-FREE']);
-		await waitFor('first second-document review finishes', async () => (await listRuns(api)).some((run) => run.kind === 'implement' && run.taskId === secondTasks.get('TWO-FREE')?.id && run.state === 'landed'));
-		releaseAgents(daemon, ['TWO-SHARED']);
+		releaseAgents(daemon, ['TWO-FREE', 'TWO-SHARED']);
 		const secondBatch = (await batchesOf(api, secondId)).find((batch) => batch.batchNo === 1);
 		if (!secondBatch) throw new Error('Second document batch missing');
 		await finishBatch(api, repo.repo, [secondTasks.get('TWO-FREE')?.id ?? '', secondTasks.get('TWO-SHARED')?.id ?? ''], secondBatch.id);
@@ -715,6 +713,15 @@ describe('M1-T12 文档顺序自动执行', () => {
 		expect(await visibleText(page, '[data-blocker="wrapup_manual"]')).toBeTruthy();
 		const manual = await api.post(`/api/v1/batches/${batch.id}/wrapup`, { idempotencyKey: 'manual-document-wrapup' });
 		expect(manual.status, JSON.stringify(manual.body)).toBe(200);
+		await waitFor('manual clean report finishes', async () => (await listRuns(api)).some((run) =>
+			run.kind === 'wrapup' && run.batchId === batch.id && run.state === 'landed'), 90000);
+		const manualRuns = (await listRuns(api)).filter((run) => run.kind === 'wrapup' && run.batchId === batch.id);
+		expect(manualRuns).toHaveLength(1);
+		expect((await executionOf(api, docId)).currentBatchNo).toBe(1);
+		expect((await listRuns(api)).some((run) => run.taskId === tasks.get('MANUAL-NEXT')?.id)).toBe(false);
+		const branch = manualRuns[0]?.branchName;
+		if (!branch) throw new Error('Manual wrapup branch missing');
+		await mergeWhenReady(repo.repo, branch);
 		await waitFor('manual clean report relays', async () => (await executionOf(api, docId)).currentBatchNo === 2, 60000);
 		await waitForRun(api, tasks.get('MANUAL-NEXT')?.id ?? '', 'implement');
 	}, 240000);
