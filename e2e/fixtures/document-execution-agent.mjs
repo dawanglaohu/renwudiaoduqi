@@ -181,7 +181,7 @@ async function produce(prompt) {
 		journal({ phase: plan.phase, task: plan.task, action: plan.action, event: 'released' });
 	}
 	if (plan.action === 'slow') await sleep(1500);
-	if (plan.phase === 'implement' && plan.action !== 'fail') {
+	if (plan.phase === 'implement' && plan.action !== 'fail' && plan.action !== 'no-change') {
 		const control = readControl();
 		if (control.implementCommit !== false) {
 			const task = plan.task || 'task';

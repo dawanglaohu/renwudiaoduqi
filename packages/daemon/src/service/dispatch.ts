@@ -308,7 +308,10 @@ export interface DispatchServiceDeps {
 	readonly codexSessions?: CodexSessionRegistry;
 	readonly runService?: RunService;
 	readonly reviewService?: {
-		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
+		readonly evaluateMechanicalCheck: (input: {
+			readonly runId: string;
+			readonly admitReview?: () => boolean;
+		}) => Promise<unknown>;
 	};
 	readonly bughuntService?: {
 		readonly finalizeBughuntRun: (input: {
@@ -572,6 +575,43 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 	function runGeneration(run: RunRow): number {
 		return readDocumentRunGeneration(run, runsRepo, deps.dispatchSnapshotsRepo);
+	}
+
+	function reviewAdmission(run: RunRow): () => boolean {
+		const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
+		const observed = task ? (deps.documentExecutionsRepo?.findByDocId(task.doc_id) ?? null) : null;
+		return () => {
+			if (!task) return false;
+			if (!executionStillCurrent(task.doc_id, observed)) return false;
+			if (!observed) return true;
+			if (observed.state !== 'running') return false;
+			const current = deps.tasksRepo.findById(task.id);
+			const batch = activePlanBatch(observed);
+			if (
+				!batch ||
+				!current ||
+				current.is_removed_from_doc !== 0 ||
+				run.batch_id !== batch.batchId ||
+				runGeneration(run) !== batch.generationId ||
+				deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
+					current.contract_hash
+			)
+				return false;
+			if (run.origin === 'wrapup-fix' && run.spawned_by_run_id) {
+				const owner = runsRepo.findById(run.spawned_by_run_id);
+				return (
+					owner?.kind === 'wrapup' &&
+					owner.batch_id === batch.batchId &&
+					batch.wrapupRunIds.includes(owner.id)
+				);
+			}
+			const member = batch?.members.find((item) => item.taskId === task.id);
+			return Boolean(
+				member &&
+					current.batch_id === batch.batchId &&
+					member.contractHash === current.contract_hash,
+			);
+		};
 	}
 
 	function frozenRunTaskPaths(run: RunRow): readonly string[] {
@@ -1552,9 +1592,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					return !runs.some((child) => child.kind === 'review' && child.parent_run_id === run.id);
 				});
 				for (const run of pending) {
+					const admitReview = reviewAdmission(run);
+					if (!admitReview()) continue;
 					if (!claimReviewKickoff(run.id)) continue;
 					try {
-						await deps.reviewService.evaluateMechanicalCheck({ runId: run.id });
+						await deps.reviewService.evaluateMechanicalCheck({ runId: run.id, admitReview });
 					} catch (err) {
 						logFailure(err);
 					} finally {
@@ -3274,12 +3316,11 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const isImplementLike =
 						run.kind === 'implement' || run.origin === 'rework' || run.origin === 'wrapup-fix';
 					if (isImplementLike && result.exitCode === 0 && deps.reviewService) {
-						const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
-						const execution = task ? deps.documentExecutionsRepo?.findByDocId(task.doc_id) : null;
-						if (execution?.state === 'paused') return;
+						const admitReview = reviewAdmission(run);
+						if (!admitReview()) return;
 						if (!claimReviewKickoff(runId)) return;
 						try {
-							await deps.reviewService.evaluateMechanicalCheck({ runId });
+							await deps.reviewService.evaluateMechanicalCheck({ runId, admitReview });
 						} catch (err) {
 							logFailure(err);
 						} finally {

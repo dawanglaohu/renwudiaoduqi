@@ -118,7 +118,7 @@ daemon 的机器级单实例锁位于系统目录（Linux `/var/lib/agent-schedu
 > - 展开后的安装载荷不得包含构建机绝对路径 (E-209)；daemon（含随包运行时与 `web/dist`）、路径适配器、桌面壳二进制任一产品层缺失均阻断发布并列出缺失项 (E-257)。
 > - CI 用 Tauri CLI 生成并上传真实安装包；Windows/Linux 产物通过构建与解包 smoke，macOS 缺签名/公证凭据时仍只标**构建验证件**，正式发布另由签名/公证门禁放行 (E-267)。
 > - 壳能否真的创建窗口、通知与自启是否生效，CI 不作声明，见第 7 节人工验收 (E-266)。
-- 文档顺序自动执行另有 `document-execution-e2e`：Windows、macOS、Ubuntu 三个 runner 都用生产 bootstrap 和 headless Chromium 跑 `e2e/document-execution.test.ts`。失败时同一份工件必须同时带上截图、daemon 的 stdout/stderr 和页面 DOM，缺任何一种都不算这次验收有证据 (E-370)。这不代替第 7 节的人工桌面验收。
+- 文档顺序自动执行另有 `document-execution-e2e`：Windows、macOS、Ubuntu 三个 runner 都用生产 bootstrap 和 headless Chromium 跑 `e2e/document-execution.test.ts`。证据按调用和测试隔离，记录代码 head、源码摘要与时间。页面失败的工件必须包含本轮截图、daemon stdout/stderr、DOM 和文件摘要清单；页面建立前的启动失败保留启动日志，并保持验收失败。真实 Agent 用例在无安装或登录时明确 skip，有登录时核唯一实施、成功审查、有效模型与 effort 冻结记录 (E-370)。这不代替第 7 节的人工桌面验收。
 
 ### 壳 smoke 的覆盖范围与不覆盖范围（M10-T6）
 

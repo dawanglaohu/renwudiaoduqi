@@ -1,4 +1,5 @@
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import {
 	chmodSync,
@@ -20,7 +21,32 @@ import { type Browser, type Page, chromium } from 'playwright';
 const currentDir = dirname(fileURLToPath(import.meta.url));
 export const repoRoot = resolve(currentDir, '../..');
 export const fixturesDir = join(repoRoot, 'e2e/fixtures');
-export const artifactsDir = join(repoRoot, 'e2e/artifacts');
+const invocationDir = join(repoRoot, 'e2e/artifacts/document-execution', randomUUID());
+export let artifactsDir = invocationDir;
+let evidenceStarted = Date.now();
+
+export function beginEvidence(name: string): void {
+	artifactsDir = join(invocationDir, name.replace(/[^\w.-]+/g, '_').slice(0, 100));
+	evidenceStarted = Date.now();
+	mkdirSync(artifactsDir, { recursive: true });
+	let head: string;
+	try {
+		head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+	} catch (error) {
+		const pointer = readFileSync(join(repoRoot, '.git'), 'utf8').trim().replace(/^gitdir: /, '');
+		if (process.platform !== 'linux' || !/^[A-Za-z]:\//.test(pointer)) throw error;
+		const gitDir = execFileSync('wslpath', ['-u', pointer], { encoding: 'utf8' }).trim();
+		head = execFileSync('git', [`--git-dir=${gitDir}`, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+	}
+	writeFileSync(join(artifactsDir, 'invocation.json'), JSON.stringify({
+		test: name, startedAt: new Date(evidenceStarted).toISOString(), platform: process.platform,
+		head, sourceDigest: createHash('sha256').update([
+			'e2e/document-execution.test.ts', 'e2e/helpers/document-execution-harness.ts',
+			'e2e/fixtures/document-execution-agent.mjs', 'packages/daemon/src/service/dispatch.ts',
+			'packages/daemon/src/service/review.ts',
+		].map((path) => `${path}\n${readFileSync(join(repoRoot, path), 'utf8')}`).join('\n')).digest('hex'),
+	}, null, 2));
+}
 const bootstrapPath = join(repoRoot, 'packages/daemon/bootstrap.mjs');
 const agentSource = join(fixturesDir, 'document-execution-agent.mjs');
 
@@ -35,6 +61,8 @@ export interface DocTaskSpec {
 	readonly ready?: boolean;
 	readonly reasons?: readonly string[];
 	readonly implement?: string;
+	readonly review?: string;
+	readonly accept?: string;
 }
 
 export interface RunningDaemon {
@@ -100,7 +128,7 @@ function windowsLauncher(): string {
 
 const WINDOWS_LAUNCHER_CS = Buffer.from("dXNpbmcgU3lzdGVtOwp1c2luZyBTeXN0ZW0uRGlhZ25vc3RpY3M7CnVzaW5nIFN5c3RlbS5JTzsKdXNpbmcgU3lzdGVtLlRleHQ7CnVzaW5nIFN5c3RlbS5UaHJlYWRpbmc7CgpzZWFsZWQgY2xhc3MgTGF1bmNoZXIgewoJc3RhdGljIGludCBNYWluKHN0cmluZ1tdIGFyZ3MpIHsKCQlzdHJpbmcgZXhlID0gUHJvY2Vzcy5HZXRDdXJyZW50UHJvY2VzcygpLk1haW5Nb2R1bGUuRmlsZU5hbWU7CgkJc3RyaW5nIHN0ZW0gPSBQYXRoLkdldEZpbGVOYW1lV2l0aG91dEV4dGVuc2lvbihleGUpID8/ICIiOwoJCXN0cmluZyBwZXJzb25hID0gc3RlbS5JbmRleE9mKCJjbGF1ZGUiLCBTdHJpbmdDb21wYXJpc29uLk9yZGluYWxJZ25vcmVDYXNlKSA+PSAwID8gImNsYXVkZSIgOiAiY29kZXgiOwoJCXN0cmluZyBub2RlID0gRW52aXJvbm1lbnQuR2V0RW52aXJvbm1lbnRWYXJpYWJsZSgiQUdTQ0hFRF9ET0NfRVhFQ19OT0RFIik7CgkJc3RyaW5nIHNjcmlwdCA9IEVudmlyb25tZW50LkdldEVudmlyb25tZW50VmFyaWFibGUoIkFHU0NIRURfRE9DX0VYRUNfU0NSSVBUIik7CgkJaWYgKHN0cmluZy5Jc051bGxPckVtcHR5KG5vZGUpIHx8IHN0cmluZy5Jc051bGxPckVtcHR5KHNjcmlwdCkpIHJldHVybiAyOwoJCVByb2Nlc3NTdGFydEluZm8gcHNpID0gbmV3IFByb2Nlc3NTdGFydEluZm8oKTsKCQlwc2kuRmlsZU5hbWUgPSBub2RlOwoJCXBzaS5Bcmd1bWVudHMgPSBKb2luQXJncyhzY3JpcHQsIGFyZ3MpOwoJCXBzaS5Vc2VTaGVsbEV4ZWN1dGUgPSBmYWxzZTsKCQlwc2kuUmVkaXJlY3RTdGFuZGFyZE91dHB1dCA9IHRydWU7CgkJcHNpLkVudmlyb25tZW50VmFyaWFibGVzWyJBR1NDSEVEX0RPQ19FWEVDX1BFUlNPTkEiXSA9IHBlcnNvbmE7CgkJUHJvY2VzcyBjaGlsZCA9IFByb2Nlc3MuU3RhcnQocHNpKTsKCQlpZiAoY2hpbGQgPT0gbnVsbCkgcmV0dXJuIDI7CgkJVGhyZWFkIHB1bXAgPSBuZXcgVGhyZWFkKGRlbGVnYXRlKCkgewoJCQlTdHJlYW0gaW5wdXQgPSBjaGlsZC5TdGFuZGFyZE91dHB1dC5CYXNlU3RyZWFtOwoJCQlTdHJlYW0gb3V0cHV0ID0gQ29uc29sZS5PcGVuU3RhbmRhcmRPdXRwdXQoKTsKCQkJYnl0ZVtdIGJ1ZiA9IG5ldyBieXRlWzQwOTZdOwoJCQlpbnQgcmVhZDsKCQkJd2hpbGUgKChyZWFkID0gaW5wdXQuUmVhZChidWYsIDAsIGJ1Zi5MZW5ndGgpKSA+IDApIHsKCQkJCW91dHB1dC5Xcml0ZShidWYsIDAsIHJlYWQpOwoJCQkJb3V0cHV0LkZsdXNoKCk7CgkJCX0KCQl9KTsKCQlwdW1wLklzQmFja2dyb3VuZCA9IHRydWU7CgkJcHVtcC5TdGFydCgpOwoJCWNoaWxkLldhaXRGb3JFeGl0KCk7CgkJcHVtcC5Kb2luKCk7CgkJcmV0dXJuIGNoaWxkLkV4aXRDb2RlOwoJfQoKCXN0YXRpYyBzdHJpbmcgSm9pbkFyZ3Moc3RyaW5nIHNjcmlwdCwgc3RyaW5nW10gYXJncykgewoJCVN0cmluZ0J1aWxkZXIgYnVpbGRlciA9IG5ldyBTdHJpbmdCdWlsZGVyKCk7CgkJYnVpbGRlci5BcHBlbmQoUXVvdGUoc2NyaXB0KSk7CgkJZm9yIChpbnQgaSA9IDA7IGkgPCBhcmdzLkxlbmd0aDsgaSsrKSB7CgkJCWJ1aWxkZXIuQXBwZW5kKCcgJyk7CgkJCWJ1aWxkZXIuQXBwZW5kKFF1b3RlKGFyZ3NbaV0pKTsKCQl9CgkJcmV0dXJuIGJ1aWxkZXIuVG9TdHJpbmcoKTsKCX0KCglzdGF0aWMgc3RyaW5nIFF1b3RlKHN0cmluZyB2YWx1ZSkgewoJCWlmICh2YWx1ZS5MZW5ndGggPT0gMCkgcmV0dXJuICJcIlwiIjsKCQlpZiAodmFsdWUuSW5kZXhPZkFueShuZXcgY2hhcltdIHsgJyAnLCAnXHQnLCAnXG4nLCAnXHInLCAnIicgfSkgPCAwKSByZXR1cm4gdmFsdWU7CgkJU3RyaW5nQnVpbGRlciBidWlsZGVyID0gbmV3IFN0cmluZ0J1aWxkZXIoKTsKCQlidWlsZGVyLkFwcGVuZCgnIicpOwoJCWludCBzbGFzaGVzID0gMDsKCQlmb3IgKGludCBpID0gMDsgaSA8IHZhbHVlLkxlbmd0aDsgaSsrKSB7CgkJCWNoYXIgY2ggPSB2YWx1ZVtpXTsKCQkJaWYgKGNoID09ICdcXCcpIHsgc2xhc2hlcysrOyBjb250aW51ZTsgfQoJCQlpZiAoY2ggPT0gJyInKSB7CgkJCQlidWlsZGVyLkFwcGVuZCgnXFwnLCBzbGFzaGVzICogMiArIDEpOwoJCQkJYnVpbGRlci5BcHBlbmQoJyInKTsKCQkJCXNsYXNoZXMgPSAwOwoJCQkJY29udGludWU7CgkJCX0KCQkJaWYgKHNsYXNoZXMgPiAwKSB7IGJ1aWxkZXIuQXBwZW5kKCdcXCcsIHNsYXNoZXMpOyBzbGFzaGVzID0gMDsgfQoJCQlidWlsZGVyLkFwcGVuZChjaCk7CgkJfQoJCWlmIChzbGFzaGVzID4gMCkgYnVpbGRlci5BcHBlbmQoJ1xcJywgc2xhc2hlcyAqIDIpOwoJCWJ1aWxkZXIuQXBwZW5kKCciJyk7CgkJcmV0dXJuIGJ1aWxkZXIuVG9TdHJpbmcoKTsKCX0KfQo=", 'base64').toString('utf8');
 
-function writeLauncher(dir: string, persona: 'codex' | 'claude'): string {
+function writeLauncher(dir: string, persona: 'codex' | 'claude', script = agentSource): string {
 	mkdirSync(dir, { recursive: true });
 	if (process.platform === 'win32') {
 		const path = join(dir, `${persona}-agent.exe`);
@@ -110,7 +138,7 @@ function writeLauncher(dir: string, persona: 'codex' | 'claude'): string {
 	const path = join(dir, `${persona}-agent`);
 	writeFileSync(
 		path,
-		`#!/bin/sh\nexport AGSCHED_DOC_EXEC_PERSONA=${persona}\nexec "${process.execPath}" "${agentSource}" "$@"\n`,
+		`#!/bin/sh\nexport AGSCHED_DOC_EXEC_PERSONA=${persona}\nexec "${process.execPath}" "${script}" "$@"\n`,
 		'utf8',
 	);
 	chmodSync(path, 0o755);
@@ -140,6 +168,7 @@ export function clearRelease(daemon: RunningDaemon): void {
 
 export async function startDocumentDaemon(options?: {
 	readonly agentScript?: string;
+	readonly startupTimeoutMs?: number;
 }): Promise<RunningDaemon> {
 	const port = await freePort();
 	const dataDir = mkdtempSync(join(tmpdir(), 'agsched-doc-exec-'));
@@ -151,8 +180,8 @@ export async function startDocumentDaemon(options?: {
 	writeFileSync(controlPath, JSON.stringify({ review: 'pass', wrapup: 'clean' }), 'utf8');
 	writeFileSync(journalPath, '', 'utf8');
 	writeFileSync(releasePath, '', 'utf8');
-	const codexPath = writeLauncher(join(dataDir, 'bin'), 'codex');
-	const claudePath = writeLauncher(join(dataDir, 'bin'), 'claude');
+	const codexPath = writeLauncher(join(dataDir, 'bin'), 'codex', options?.agentScript);
+	const claudePath = writeLauncher(join(dataDir, 'bin'), 'claude', options?.agentScript);
 	writeFileSync(
 		join(dataDir, 'agents.json'),
 		JSON.stringify(
@@ -185,7 +214,7 @@ export async function startDocumentDaemon(options?: {
 		},
 		stdio: ['ignore', 'pipe', 'pipe'],
 	});
-	return trackDaemon(child, { port, dataDir, controlPath, journalPath, releasePath, stdoutPath, stderrPath });
+	return trackDaemon(child, { port, dataDir, controlPath, journalPath, releasePath, stdoutPath, stderrPath }, options?.startupTimeoutMs);
 }
 
 function trackDaemon(
@@ -199,6 +228,7 @@ function trackDaemon(
 		stdoutPath: string;
 		stderrPath: string;
 	},
+	startupTimeoutMs = 90000,
 ): Promise<RunningDaemon> {
 	let stdout = '';
 	let stderr = '';
@@ -227,7 +257,7 @@ function trackDaemon(
 			if (!options?.keepData) rmSync(paths.dataDir, { recursive: true, force: true });
 		},
 	};
-	const deadline = Date.now() + 45000;
+	const deadline = Date.now() + startupTimeoutMs;
 	return (async () => {
 		while (Date.now() < deadline) {
 			if (child.exitCode !== null) break;
@@ -239,12 +269,7 @@ function trackDaemon(
 			}
 			await new Promise((resolveWait) => setTimeout(resolveWait, 250));
 		}
-		mkdirSync(artifactsDir, { recursive: true });
-		writeFileSync(
-			join(artifactsDir, 'document-execution-startup.log'),
-			`STDOUT\n${daemon.getStdout()}\nSTDERR\n${daemon.getStderr()}\n`,
-			'utf8',
-		);
+		await captureFailure(null, daemon, 'startup');
 		await daemon.stop();
 		throw new Error('Document-execution daemon did not become healthy');
 	})();
@@ -342,7 +367,7 @@ export function renderDocs(tasks: readonly DocTaskSpec[], project = '文档顺�
 			implementation:
 				task.implement ??
 				`DOC_EXEC_PHASE: implement\nDOC_EXEC_TASK: ${task.id}\n实现 ${task.id}`,
-			review: `DOC_EXEC_PHASE: review\nDOC_EXEC_TASK: ${task.id}\n审查 ${task.id}`,
+			review: task.review ?? `DOC_EXEC_PHASE: review\nDOC_EXEC_TASK: ${task.id}\n审查 ${task.id}`,
 		};
 	}
 	return `window.DOCS = ${JSON.stringify({
@@ -356,7 +381,7 @@ export function renderDocs(tasks: readonly DocTaskSpec[], project = '文档顺�
 				title: task.title ?? task.id,
 				module: 'M1',
 				deps: task.deps ?? [],
-				accept: `1) ${task.id} 验收`,
+				accept: task.accept ?? `1) ${task.id} 验收`,
 				est: 1,
 			})),
 		},
@@ -368,9 +393,12 @@ export function createRepo(prefix: string): { root: string; repo: string } {
 	const root = mkdtempSync(join(tmpdir(), prefix));
 	const repo = join(root, 'project');
 	mkdirSync(repo);
-	git(repo, ['init', '-b', 'main']);
+	git(repo, ['init']);
+	git(repo, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
 	git(repo, ['config', 'user.name', 'Doc Exec']);
 	git(repo, ['config', 'user.email', 'doc-exec@example.invalid']);
+	// Fixture bytes remain identical in the main checkout and every task worktree.
+	git(repo, ['config', 'core.autocrlf', 'false']);
 	return { root, repo };
 }
 
@@ -447,6 +475,11 @@ export interface ListedRun {
 	readonly pid?: number | null;
 	readonly assignmentSource?: string | null;
 	readonly batchId?: string | null;
+	readonly parentRunId?: string | null;
+	readonly snapshotId?: string;
+	readonly reviewVerdict?: string | null;
+	readonly exitCode?: number | null;
+	readonly effortTier?: string | null;
 }
 
 export async function listRuns(api: DocumentApi): Promise<ListedRun[]> {
@@ -542,6 +575,43 @@ export function readSnapshotInput(dataDir: string, runId: string): Record<string
 	}
 }
 
+export function readResources(dataDir: string, docId: string): Record<string, unknown> {
+	const Database = require('better-sqlite3');
+	const db = new Database(join(dataDir, 'app.db'), { readonly: true, fileMustExist: true });
+	try {
+		return {
+			executionCount: db.prepare('SELECT COUNT(*) AS count FROM document_executions WHERE doc_id=?').get(docId).count,
+			runs: db.prepare('SELECT r.id, r.attempt_no, r.snapshot_id FROM runs r JOIN tasks t ON t.id=r.task_id WHERE t.doc_id=? AND r.kind=\'implement\' ORDER BY r.id').all(docId),
+			snapshots: db.prepare('SELECT s.id FROM dispatch_snapshots s JOIN tasks t ON t.id=s.task_id WHERE t.doc_id=? ORDER BY s.id').all(docId),
+			lanes: db.prepare('SELECT id, lane_no FROM tasks WHERE doc_id=? ORDER BY id').all(docId),
+		};
+	} finally { db.close(); }
+}
+
+export function readRunSnapshot(dataDir: string, runId: string): Record<string, unknown> {
+	const Database = require('better-sqlite3');
+	const db = new Database(join(dataDir, 'app.db'), { readonly: true, fileMustExist: true });
+	try {
+		const row = db.prepare('SELECT s.* FROM dispatch_snapshots s JOIN runs r ON r.snapshot_id=s.id WHERE r.id=?').get(runId);
+		if (!row) throw new Error(`Run snapshot is missing: ${runId}`);
+		return { ...row, assignment: JSON.parse(row.assignment_json ?? 'null'), launch: JSON.parse(row.launch_spec_json ?? '{}') };
+	} finally { db.close(); }
+}
+
+/** Send a real TCP request, retain no response, and disconnect after independent state observation. */
+export async function requestWithoutResponse(daemon: RunningDaemon, api: DocumentApi, path: string, body: unknown): Promise<() => void> {
+	const payload = JSON.stringify(body);
+	const socket = net.createConnection({ host: '127.0.0.1', port: daemon.port });
+	socket.pause();
+	await new Promise<void>((resolveConnected, reject) => {
+		socket.once('error', reject);
+		socket.once('connect', () => {
+			socket.write(`POST ${path} HTTP/1.1\r\nHost: 127.0.0.1:${daemon.port}\r\nAuthorization: Bearer ${api.token}\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(payload)}\r\nConnection: close\r\n\r\n${payload}`, () => resolveConnected());
+		});
+	});
+	return () => socket.destroy();
+}
+
 export async function captureFailure(page: Page | null, daemon: RunningDaemon | null, name: string): Promise<void> {
 	mkdirSync(artifactsDir, { recursive: true });
 	const dir = join(artifactsDir, name);
@@ -551,14 +621,27 @@ export async function captureFailure(page: Page | null, daemon: RunningDaemon | 
 		const dom = await page.content().catch(() => '');
 		writeFileSync(join(dir, 'dom.html'), redact(dom), 'utf8');
 	}
+	writeFileSync(join(dir, 'daemon.stdout.log'), daemon?.getStdout() ?? '', 'utf8');
+	writeFileSync(join(dir, 'daemon.stderr.log'), daemon?.getStderr() ?? '', 'utf8');
 	if (daemon) {
-		writeFileSync(join(dir, 'daemon.stdout.log'), daemon.getStdout(), 'utf8');
-		writeFileSync(join(dir, 'daemon.stderr.log'), daemon.getStderr(), 'utf8');
 		if (existsSync(daemon.journalPath)) {
 			writeFileSync(join(dir, 'agent-journal.ndjson'), readFileSync(daemon.journalPath, 'utf8'), 'utf8');
 		}
 		copyNamed(daemon.dataDir, dir, 'events.ndjson');
+		copyNamed(daemon.dataDir, dir, 'raw.log');
 	}
+	const required = ['daemon.stdout.log', 'daemon.stderr.log', ...(page ? ['failure.png', 'dom.html'] : [])];
+	const files = required.map((file) => {
+		const path = join(dir, file);
+		if (!existsSync(path) || statSync(path).mtimeMs < evidenceStarted) {
+			throw new Error(`Current invocation is missing failure evidence: ${path}`);
+		}
+		return { file, sha256: createHash('sha256').update(readFileSync(path)).digest('hex') };
+	});
+	writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+		startedAt: new Date(evidenceStarted).toISOString(), capturedAt: new Date().toISOString(),
+		browserStarted: page !== null, files,
+	}, null, 2));
 }
 
 function copyNamed(source: string, dest: string, name: string): void {
@@ -567,7 +650,7 @@ function copyNamed(source: string, dest: string, name: string): void {
 		const path = join(source, entry);
 		const stat = statSync(path);
 		if (stat.isDirectory()) copyNamed(path, dest, name);
-		else if (entry === name) writeFileSync(join(dest, `${entry}-${stat.ino}.ndjson`), readFileSync(path));
+		else if (entry === name) writeFileSync(join(dest, `${entry}-${stat.ino}`), redact(readFileSync(path, 'utf8')));
 	}
 }
 

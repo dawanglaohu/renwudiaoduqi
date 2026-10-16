@@ -601,6 +601,22 @@ jobs:
             e2e/artifacts/**/daemon.stdout.log
             e2e/artifacts/**/daemon.stderr.log
             e2e/artifacts/**/dom.html
+            e2e/artifacts/**/invocation.json
+            e2e/artifacts/**/manifest.json
+            e2e/artifacts/**/raw.log-*
+            e2e/artifacts/**/events.ndjson-*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload document execution provenance and native smoke record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-execution-evidence-${{ matrix.name }}
+          path: |
+            e2e/artifacts/document-execution/**/invocation.json
+            e2e/artifacts/document-execution/**/document-execution*.json
+            e2e/artifacts/document-execution/**/real-agent-success.png
           if-no-files-found: error
           retention-days: 7
 

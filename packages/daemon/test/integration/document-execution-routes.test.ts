@@ -63,6 +63,7 @@ async function setup(
 		readonly ownedWrapup?: 'fresh' | 'reused' | 'cleanup_failure';
 		readonly agentConcurrencyLimit?: number;
 		readonly withImplementationProcess?: boolean;
+		readonly reviewDiff?: boolean;
 	} = {},
 ) {
 	const createdFolder = mkdtempSync(join(tmpdir(), 'agsched-document-plan-'));
@@ -216,13 +217,23 @@ async function setup(
 				}) as never)
 			: undefined,
 		gitRunner: {
-			run: async () => {
+			run: async (args: readonly string[]) => {
 				const held = gitPause;
 				if (held) {
 					gitPause = null;
 					held.entered();
 					await held.wait;
 				}
+				if (options.reviewDiff && args[0] === 'status')
+					return { exitCode: 0, stdout: ' M src/review.txt\0', stderr: '' };
+				if (options.reviewDiff && args[0] === 'diff')
+					return {
+						exitCode: 0,
+						stdout: args.includes('--numstat')
+							? '1\t0\tsrc/review.txt\0'
+							: 'diff --git a/src/review.txt b/src/review.txt\n+Works\n',
+						stderr: '',
+					};
 				return gitAvailable
 					? { exitCode: 0, stdout: `true\n${workspaceRepoPath}\n`, stderr: '' }
 					: { exitCode: 1, stdout: '', stderr: 'repository temporarily unavailable' };
@@ -2716,6 +2727,163 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(container.repos.batches.findById(batch.id)?.state).toBe('running');
 		await server.instance.close();
 	});
+
+	it.each([false, true])(
+		'M1-T12 R2: mechanical checks defer review after pause (already resumed=%s) without a gate, snapshot or attempt',
+		async (alreadyResumed) => {
+			const env = await setup({
+				canDispatch: () => true,
+				withImplementationProcess: true,
+				reviewDiff: true,
+			});
+			const { server, container, headers, docId, pauseNextGitRun } = env;
+			const url = `/api/v1/documents/${docId}/execution`;
+			const control = async (action: string) => {
+				const execution = container.services.documentExecution.get(docId).execution;
+				const response = await server.instance.inject({
+					method: 'POST',
+					url: `${url}/${action}`,
+					headers,
+					payload: {
+						expectedVersion: execution.version,
+						...(action !== 'pause'
+							? {
+									expectedFingerprint:
+										container.repos.documents.findById(docId)?.content_fingerprint,
+								}
+							: {}),
+						...(action === 'start'
+							? { defaultAssignment: { agentId: 'claude', modelName: null, effort: null } }
+							: {}),
+					},
+				});
+				expect(response.statusCode, response.body).toBe(200);
+			};
+			await control('start');
+			await container.services.dispatch.tick();
+			const implementation = container.repos.runs.listAll().find((run) => run.kind === 'implement');
+			expect(implementation).toBeDefined();
+			const runId = implementation?.id ?? '';
+			container.repos.runs.updateState({
+				id: runId,
+				toState: 'exited',
+				exitCode: 0,
+				worktreePath: root,
+			});
+			const snapshotsBefore = container.repos.dispatchSnapshots?.listByTaskId(
+				implementation?.task_id ?? '',
+			).length;
+			const held = pauseNextGitRun();
+			const tick = container.services.dispatch.tick();
+			await Promise.race([
+				held.entered,
+				tick.then((result) => {
+					throw new Error(
+						`Mechanical check did not enter: ${JSON.stringify({ result, runs: container.repos.runs.listAll(), execution: container.services.documentExecution.get(docId) })}`,
+					);
+				}),
+			]);
+			await control('pause');
+			if (alreadyResumed) await control('resume');
+			held.release();
+			await tick;
+			expect(container.repos.runs.listAll().filter((run) => run.kind === 'review')).toHaveLength(0);
+			expect(container.repos.runs.findById(runId)?.state).toBe('exited');
+			expect(container.repos.gates?.findPendingByRunId?.(runId)).toBeNull();
+			expect(
+				container.repos.dispatchSnapshots?.listByTaskId(implementation?.task_id ?? '').length,
+			).toBe(snapshotsBefore);
+			if (!alreadyResumed) await control('resume');
+			await container.services.dispatch.tick();
+			const reviews = container.repos.runs.listAll().filter((run) => run.kind === 'review');
+			expect(reviews).toHaveLength(1);
+			expect(reviews[0]?.parent_run_id).toBe(runId);
+			expect(reviews[0]?.state).toBe('running');
+			await container.services.dispatch.tick();
+			expect(container.repos.runs.listAll().filter((run) => run.kind === 'review')).toHaveLength(1);
+			expect(container.repos.runs.listAll().filter((run) => run.kind === 'implement')).toHaveLength(
+				1,
+			);
+			await server.instance.close();
+		},
+	);
+
+	it.each(['contract', 'membership'] as const)(
+		'M1-T12 R2: a paused exited implementation from replaced %s is never recovered for review',
+		async (change) => {
+			const env = await setup({
+				canDispatch: () => true,
+				withImplementationProcess: true,
+				reviewDiff: true,
+			});
+			const { server, container, headers, docId, docsPath } = env;
+			const url = `/api/v1/documents/${docId}/execution`;
+			const start = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'claude', modelName: null, effort: null },
+				},
+			});
+			expect(start.statusCode, start.body).toBe(200);
+			await container.services.dispatch.tick();
+			const old = container.repos.runs.listAll().find((run) => run.kind === 'implement');
+			expect(old).toBeDefined();
+			const paused = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/pause`,
+				headers,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				},
+			});
+			expect(paused.statusCode, paused.body).toBe(200);
+			container.repos.runs.updateState({
+				id: old?.id ?? '',
+				toState: 'exited',
+				exitCode: 0,
+				worktreePath: root,
+			});
+			writeTasksDocsData(
+				docsPath,
+				change === 'contract'
+					? [{ id: 'M1-T1', hash: 'replacement-contract' }]
+					: [
+							{ id: 'M1-T1', hash: 'contract-1' },
+							{ id: 'M1-T2', hash: 'contract-2' },
+						],
+			);
+			const refreshed = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/refresh`,
+				headers,
+				payload: {},
+			});
+			expect(refreshed.statusCode, refreshed.body).toBe(200);
+			const resumed = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/resume`,
+				headers,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				},
+			});
+			expect(resumed.statusCode, resumed.body).toBe(200);
+			await container.services.dispatch.tick();
+			expect(
+				container.repos.runs
+					.listAll()
+					.filter((run) => run.kind === 'review' && run.parent_run_id === old?.id),
+			).toHaveLength(0);
+			expect(container.repos.runs.findById(old?.id ?? '')?.state).toBe('exited');
+			expect(container.repos.gates?.findPendingByRunId?.(old?.id ?? '')).toBeNull();
+			await server.instance.close();
+		},
+	);
 
 	it('does not admit a run after pause wins an asynchronous tick preflight', async () => {
 		const { server, container, headers, docId, pauseNextGitRun } = await setup({
