@@ -407,7 +407,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 	});
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
 	// 覆盖只属于设置它的这一次批次调度。批次完成或成员重置后作废，下一次文档执行改读全局闸门。
-	deps.bus?.subscribeWithFilter(
+	deps.bus?.subscribeWithFilter?.(
 		(event) => event.kind === 'batch.advanced',
 		(event) => {
 			if (event.kind !== 'batch.advanced' || !('batchId' in event.payload)) return;
