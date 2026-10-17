@@ -5847,6 +5847,150 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(container.repos.runs.listWrapupsByBatchId?.(batch.id)).toHaveLength(1);
 		await server.instance.close();
 	});
+
+	it.each(['current', 'stale'] as const)(
+		'E-362: a %s-generation review does not use a null batch id as an old source',
+		async (generation) => {
+			const env = await setup({
+				canDispatch: () => true,
+				agentConcurrencyLimit: 2,
+				withImplementationProcess: true,
+			});
+			const { server, container, headers, docId, docsPath } = env;
+			writeTasksDocsData(docsPath, [
+				{ id: 'M1-T1', hash: 'contract-1', paths: ['src/a/'] },
+				{ id: 'M1-T2', hash: 'contract-2', paths: ['src/b/'] },
+			]);
+			const refreshed = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/refresh`,
+				headers,
+				payload: {},
+			});
+			expect(refreshed.statusCode, refreshed.body).toBe(200);
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			const tasks = container.repos.tasks.listByDocId(docId);
+			const reviewed = tasks.find((task) => task.task_key === 'M1-T1');
+			const sibling = tasks.find((task) => task.task_key === 'M1-T2');
+			const plan = JSON.parse(
+				container.repos.documentExecutions.findByDocId(docId)?.plan_json ?? '[]',
+			) as Array<{ generationId: number; batchId: string }>;
+			if (!reviewed?.batch_id || !sibling || !plan[0]) return;
+			const generationId =
+				generation === 'current' ? plan[0].generationId : plan[0].generationId - 1;
+			seedImplementationRun(env, {
+				id: 'review-parent',
+				taskId: reviewed.id,
+				batchId: reviewed.batch_id,
+				attemptNo: 1,
+				contractHash: reviewed.contract_hash,
+				createdAt: '2026-10-12T07:00:00.000Z',
+				generationId,
+			});
+			container.repos.dispatchSnapshots?.insert({
+				id: 'snapshot-live-review',
+				task_id: reviewed.id,
+				contract_hash: reviewed.contract_hash,
+				task_paths_json: JSON.stringify(['src/a/']),
+				launch_spec_json: '{}',
+				created_at: '2026-10-12T07:05:00.000Z',
+			});
+			container.repos.runs.insert({
+				id: 'live-review',
+				task_id: reviewed.id,
+				attempt_no: 2,
+				kind: 'review',
+				parent_run_id: 'review-parent',
+				state: 'running',
+				agent_id: 'codex',
+				permission_tier: 'readOnly',
+				snapshot_id: 'snapshot-live-review',
+				started_at: '2026-10-12T07:05:00.000Z',
+			});
+			const tick = await container.services.dispatch.tick();
+			if (generation === 'current') {
+				expect(tick.runsDispatched).toHaveLength(1);
+				expect(container.repos.runs.findById(tick.runsDispatched[0] ?? '')?.task_id).toBe(
+					sibling.id,
+				);
+				expect(tick.tasksBlocked.some((item) => item.reason === 'source_runs_pending')).toBe(false);
+			} else {
+				expect(tick.runsDispatched).toHaveLength(0);
+				expect(tick.tasksBlocked).toContainEqual({
+					taskId: sibling.id,
+					reason: 'source_runs_pending',
+				});
+			}
+			await server.instance.close();
+		},
+	);
+
+	it('E-369: a human wrapup record lists only live task keys', async () => {
+		const env = await setup();
+		const { server, container, headers, docId, docsPath } = env;
+		writeTasksDocsData(docsPath, [
+			{ id: 'M1-T2', hash: 'contract-2' },
+			{ id: 'M1-T1', hash: 'contract-1' },
+		]);
+		const refreshed = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(refreshed.statusCode, refreshed.body).toBe(200);
+		const batch = container.repos.batches.listByDocId(docId)[0];
+		const removed = container.repos.tasks
+			.listByDocId(docId)
+			.find((task) => task.task_key === 'M1-T2');
+		if (!batch || !removed) return;
+		container.repos.tasks.markRemovedFromDoc(docId, ['M1-T1']);
+		expect(container.repos.tasks.findById(removed.id)?.is_removed_from_doc).toBe(1);
+		container.services.batch?.transitionBatch(batch.id, 'running', 'test');
+		container.services.batch?.transitionBatch(batch.id, 'needs_attention', 'test');
+		seedWrapupRun(env, {
+			id: 'human-wrapup',
+			batchId: batch.id,
+			attemptNo: 1,
+			state: 'failed',
+			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		container.repos.runs.updateState({
+			id: 'human-wrapup',
+			toState: 'awaiting_human',
+			endedAt: '2026-10-12T07:00:00.000Z',
+		});
+		const gates = container.repos.gates;
+		const wrapups = container.repos.batchWrapups;
+		if (!gates || !wrapups) throw new Error('Gate repositories are not wired');
+		gates.create({
+			id: 'human-wrapup-gate',
+			task_id: null,
+			run_id: 'human-wrapup',
+			kind: 'review',
+			state: 'waiting',
+			created_at: '2026-10-12T07:01:00.000Z',
+		});
+		await container.services.gates.decideGate({
+			gateId: 'human-wrapup-gate',
+			decision: 'pass',
+			comment: '人工收口只记录仍在文档中的任务',
+			actorDeviceId: null,
+		});
+		const record = wrapups.listByBatchId(batch.id)[0];
+		expect(JSON.parse(record?.tasks_json ?? '[]')).toEqual(['M1-T1']);
+		await server.instance.close();
+	});
 });
 
 describe('Batch20 cross-batch wrapup human blockers', () => {

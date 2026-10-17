@@ -12,9 +12,14 @@ export function writeTaskDocsData(
 
 export function writeTasksDocsData(
 	path: string,
-	tasks: readonly { id: string; hash: string; implPrompt?: string; deps?: readonly string[] }[],
+	tasks: readonly {
+		id: string;
+		hash: string;
+		implPrompt?: string;
+		deps?: readonly string[];
+		paths?: readonly string[];
+	}[],
 ): string {
-	const paths = ['src/'];
 	const content = `window.DOCS = ${JSON.stringify({
 		schemaVersion: 1,
 		project: 'Dispatch integration fixture',
@@ -31,12 +36,12 @@ export function writeTasksDocsData(
 			version: '1.1.0',
 			schemaVersion: 1,
 			contracts: Object.fromEntries(
-				tasks.map(({ id, hash }) => [id, { hash, effectivePaths: paths }]),
+				tasks.map(({ id, hash, paths }) => [id, { hash, effectivePaths: paths ?? ['src/'] }]),
 			),
 			readiness: Object.fromEntries(
 				tasks.map(({ id, hash }) => [id, { ready: true, reasons: [], contractHash: hash }]),
 			),
-			effectivePaths: Object.fromEntries(tasks.map(({ id }) => [id, paths])),
+			effectivePaths: Object.fromEntries(tasks.map(({ id, paths }) => [id, paths ?? ['src/']])),
 		},
 		dispatch: Object.fromEntries(
 			tasks.map(({ id, hash, implPrompt }) => [

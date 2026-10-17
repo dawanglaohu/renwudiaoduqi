@@ -1680,20 +1680,23 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						: null;
 				const planBatch = activePlanBatch(documentExecution ?? null);
 				if (documentExecution?.state === 'running' && !planBatch) continue;
+				// 审查和返工不写 batch_id。用父运行或任务的批次，再比代次；
+				// 空 batch_id 不能把当前代审查当成旧来源，否则这一拍整批停止补位。
+				const isPendingOldSourceRun = (run: RunRow, current: DocumentPlanBatch): boolean => {
+					if (run.state !== 'starting' && run.state !== 'running') return false;
+					const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
+					const parent = run.parent_run_id ? runsRepo.findById(run.parent_run_id) : null;
+					const batchId = run.batch_id ?? parent?.batch_id ?? task?.batch_id ?? null;
+					const inDocument =
+						task?.doc_id === doc.id ||
+						(batchId !== null && deps.batchesRepo.findById(batchId)?.doc_id === doc.id);
+					if (!inDocument) return false;
+					if (batchId !== current.batchId) return true;
+					if (run.kind === 'wrapup') return !current.wrapupRunIds.includes(run.id);
+					return runGeneration(run) !== current.generationId;
+				};
 				const sourceRunsPending =
-					planBatch &&
-					runsRepo
-						.listAll()
-						.some(
-							(run) =>
-								((run.batch_id && deps.batchesRepo.findById(run.batch_id)?.doc_id === doc.id) ||
-									(run.task_id && deps.tasksRepo.findById(run.task_id)?.doc_id === doc.id)) &&
-								(run.state === 'starting' || run.state === 'running') &&
-								(run.batch_id !== planBatch.batchId ||
-									(run.kind === 'wrapup'
-										? !planBatch.wrapupRunIds.includes(run.id)
-										: runGeneration(run) !== planBatch.generationId)),
-						);
+					planBatch && runsRepo.listAll().some((run) => isPendingOldSourceRun(run, planBatch));
 				if (sourceRunsPending) {
 					for (const task of deps.tasksRepo.listByBatchId(planBatch.batchId))
 						tasksBlocked.push({ taskId: task.id, reason: 'source_runs_pending' });
