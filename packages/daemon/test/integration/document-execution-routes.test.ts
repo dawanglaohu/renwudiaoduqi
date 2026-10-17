@@ -3017,6 +3017,111 @@ describe('M8-T12 document execution through the real container', () => {
 		},
 	);
 
+	it.each([
+		{ stale: 'auto' as const, globalMode: 'manual' as const, expectsGate: true },
+		{ stale: 'manual' as const, globalMode: 'auto' as const, expectsGate: false },
+	])(
+		'M1-T12 review3: finished batch dispatch=$stale does not govern the next document execution (global=$globalMode)',
+		async ({ stale, globalMode, expectsGate }) => {
+			let allowDispatch = false;
+			const { container, server, headers, docId } = await setup({
+				canDispatch: () => allowDispatch,
+				withImplementationProcess: true,
+			});
+			await container.services.settings.updateGates(
+				{ dispatch: globalMode, review: 'auto', landing: 'auto' },
+				null,
+			);
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!task?.batch_id) throw new Error('Batch task missing');
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/batches/${task.batch_id}/start`,
+				headers,
+				payload: { gateOverrides: { dispatch: stale, review: 'auto', landing: 'auto' } },
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			expect(container.services.dispatch.getBatchGateOverrides(task.batch_id)?.dispatch).toBe(
+				stale,
+			);
+			await vi.waitFor(async () => {
+				expect((await container.services.dispatch.tick()).reason).not.toBe('concurrency_locked');
+			});
+			container.services.batch?.transitionBatch(task.batch_id, 'wrapping', 'review_fixture');
+			container.services.batch?.transitionBatch(task.batch_id, 'done', 'review_fixture');
+			expect(container.services.dispatch.getBatchGateOverrides(task.batch_id)).toBeUndefined();
+			allowDispatch = true;
+			const execution = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(execution.statusCode, execution.body).toBe(200);
+			const result = await container.services.dispatch.tick();
+			const pending = (container.repos.gates?.list({ pendingOnly: true }) ?? []).filter(
+				(gate) => gate.kind === 'dispatch' && gate.task_id === task.id,
+			);
+			const implementations = container.repos.runs
+				.listAll()
+				.filter((run) => run.kind === 'implement');
+			if (expectsGate) {
+				expect(pending).toHaveLength(1);
+				expect(result.runsDispatched).toHaveLength(0);
+				expect(implementations).toHaveLength(0);
+			} else {
+				expect(pending).toHaveLength(0);
+				expect(result.runsDispatched).toHaveLength(1);
+				expect(implementations).toHaveLength(1);
+			}
+			await server.instance.close();
+		},
+	);
+
+	it('M1-T12 review3: a batch dispatch override still governs the document execution that adopts that running batch', async () => {
+		let allowDispatch = false;
+		const { container, server, headers, docId } = await setup({
+			canDispatch: () => allowDispatch,
+			withImplementationProcess: true,
+		});
+		await container.services.settings.updateGates(
+			{ dispatch: 'manual', review: 'auto', landing: 'auto' },
+			null,
+		);
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		if (!task?.batch_id) throw new Error('Batch task missing');
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/batches/${task.batch_id}/start`,
+			headers,
+			payload: { gateOverrides: { dispatch: 'auto', review: 'auto', landing: 'auto' } },
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		await vi.waitFor(async () => {
+			expect((await container.services.dispatch.tick()).reason).not.toBe('concurrency_locked');
+		});
+		allowDispatch = true;
+		const execution = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(execution.statusCode, execution.body).toBe(200);
+		expect(container.services.dispatch.getBatchGateOverrides(task.batch_id)?.dispatch).toBe('auto');
+		expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(1);
+		expect(container.repos.gates?.list({ pendingOnly: true }) ?? []).toHaveLength(0);
+		await server.instance.close();
+	});
+
 	it.each([false, true])(
 		'M1-T12 R2: mechanical checks defer review after pause (already resumed=%s) without a gate, snapshot or attempt',
 		async (alreadyResumed) => {

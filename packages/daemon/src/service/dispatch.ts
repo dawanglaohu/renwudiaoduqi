@@ -406,6 +406,15 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
 	});
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
+	// 覆盖只属于设置它的这一次批次调度。批次完成或成员重置后作废，下一次文档执行改读全局闸门。
+	deps.bus?.subscribeWithFilter(
+		(event) => event.kind === 'batch.advanced',
+		(event) => {
+			if (event.kind !== 'batch.advanced' || !('batchId' in event.payload)) return;
+			if (event.payload.to === 'done' || event.payload.reason === 'membership_invalidated')
+				batchGateOverridesMap.delete(event.payload.batchId);
+		},
+	);
 	const consecutiveInHeadErrors = new Map<string, number>();
 	const inFlightLaunches = new Set<string>();
 	// 同一实施只做一次机械检查。检查还在读 diff 时再进一次，会在未跟踪文件
