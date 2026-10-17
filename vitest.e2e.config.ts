@@ -11,6 +11,7 @@ export default defineConfig({
 						'e2e/batch-13-smoke.test.ts',
 						'e2e/batch-14-composition.test.ts',
 						'e2e/pipeline-settings.test.ts',
+						'e2e/document-execution.test.ts',
 					],
 		environment: 'node',
 		fileParallelism: false,

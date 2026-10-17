@@ -230,7 +230,8 @@ export function spawnManaged(spec: LaunchSpec, options: SpawnManagedOptions): Ma
 		shell: false,
 		windowsHide: platform === 'win32',
 		windowsVerbatimArguments: platform === 'win32' ? windowsVerbatimArguments : undefined,
-		detached: platform !== 'win32',
+		// Native Agents survive daemon exit; detached ComSpec wrappers lose piped output.
+		detached: !isCmdBat,
 		stdio: [spec.stdinMode === 'closed' ? 'ignore' : 'pipe', 'pipe', 'pipe'],
 	};
 

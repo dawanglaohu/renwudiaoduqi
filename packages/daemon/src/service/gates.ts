@@ -11,6 +11,7 @@ import type {
 } from '@agent-scheduler/shared/api/gates';
 import type { GateSettings } from '@agent-scheduler/shared/api/settings';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
+import type { DocumentPlanBatch } from '../domain/document-execution.ts';
 import {
 	type GateKind,
 	type GateOverrides,
@@ -33,6 +34,7 @@ import { createNodeLogFileSystem } from '../logstore/node-log-file-system.ts';
 import { type LogstorePaths, createLogstorePaths } from '../logstore/paths.ts';
 import type { BatchWrapupsRepo } from '../repo/batch-wrapups.ts';
 import type { BatchesRepo } from '../repo/batches.ts';
+import type { DocumentExecutionsRepo } from '../repo/document-executions.ts';
 import type { DocumentsRepo } from '../repo/documents.ts';
 import type { GateRow, GatesRepo } from '../repo/gates.ts';
 import type { RunRow, RunsRepo } from '../repo/runs.ts';
@@ -53,6 +55,12 @@ export interface GateServiceDeps {
 	readonly batchWrapupsRepo?: BatchWrapupsRepo;
 	readonly batchService?: BatchService;
 	readonly documentsRepo?: DocumentsRepo;
+	readonly documentExecutionsRepo?: DocumentExecutionsRepo;
+	readonly notifyDocumentExecution?: (
+		docId: string,
+		previousVersion: number,
+		actorDeviceId: string | null,
+	) => void;
 	readonly reworkService?: ReworkService;
 	readonly nudgeTick?: () => void;
 	readonly clock: { readonly now: () => string };
@@ -212,6 +220,8 @@ export function createGateService(deps: GateServiceDeps): GateService {
 		 * - Updates gate state to 'decided' within transaction.
 		 * - If kind is 'landing' and decision is 'pass': marks task landed, emits task.landed with by='human' and gateId (AC 2b).
 		 * - Emits task.gate_passed or records human rejection without auto-rescheduling (E-05).
+		 * - Rejecting an unstarted document dispatch retains the denial and one fresh confirmation,
+		 *   without creating implementation resources or entering rework.
 		 */
 		async decideGate(input: {
 			readonly gateId: string;
@@ -353,6 +363,79 @@ export function createGateService(deps: GateServiceDeps): GateService {
 				deps.unitOfWork.run(() => {
 					deps.gatesRepo.updateDecision(input.gateId, 'reject', comment, input.actorDeviceId, now);
 				});
+				return Object.freeze({ applied: true as const });
+			}
+
+			if (input.decision === 'reject' && gate.kind === 'dispatch' && !gate.run_id) {
+				const waitingEvents: EventEnvelope[] = [];
+				let changedExecution: { docId: string; previousVersion: number } | null = null;
+				deps.unitOfWork.run(() => {
+					deps.gatesRepo.updateDecision(gate.id, 'reject', comment, input.actorDeviceId, now);
+					const task = gate.task_id ? deps.tasksRepo?.findById(gate.task_id) : null;
+					const executions = deps.documentExecutionsRepo;
+					const execution = task ? executions?.findByDocId(task.doc_id) : null;
+					if (!task || task.is_removed_from_doc !== 0 || !execution || !executions) return;
+					let plan: readonly DocumentPlanBatch[];
+					try {
+						plan = JSON.parse(execution.plan_json) as readonly DocumentPlanBatch[];
+					} catch (cause) {
+						throw new AppError('E_INTERNAL', 'Invalid document execution plan.', { cause });
+					}
+					const current = plan.find(
+						(entry) =>
+							entry.batchId === execution.current_batch_id &&
+							entry.batchId === task.batch_id &&
+							entry.dispatchGateIds?.[task.id] === gate.id &&
+							entry.members.some(
+								(member) => member.taskId === task.id && member.contractHash === task.contract_hash,
+							),
+					);
+					if (!current) return;
+					const nextGateId = deps.ids.newId();
+					deps.gatesRepo.create({
+						id: nextGateId,
+						task_id: task.id,
+						run_id: null,
+						kind: 'dispatch',
+						state: 'waiting',
+						comment: 'document_dispatch_confirmation',
+						created_at: now,
+					});
+					executions.save({
+						...execution,
+						version: execution.version + 1,
+						updated_at: now,
+						plan_json: JSON.stringify(
+							plan.map((entry) =>
+								entry.batchId === current.batchId
+									? {
+											...entry,
+											dispatchGateIds: { ...entry.dispatchGateIds, [task.id]: nextGateId },
+										}
+									: entry,
+							),
+						),
+					});
+					changedExecution = { docId: task.doc_id, previousVersion: execution.version };
+					waitingEvents.push(
+						deps.envelopeFactory.createEnvelope({
+							kind: 'task.gate_waiting',
+							taskId: task.id,
+							actorDeviceId: input.actorDeviceId,
+							payload: { gate: 'dispatch' },
+						}),
+					);
+				});
+				publishPendingEvents(waitingEvents, deps);
+				if (changedExecution) {
+					const changed: { docId: string; previousVersion: number } = changedExecution;
+					deps.notifyDocumentExecution?.(
+						changed.docId,
+						changed.previousVersion,
+						input.actorDeviceId,
+					);
+				}
+				deps.nudgeTick?.();
 				return Object.freeze({ applied: true as const });
 			}
 
@@ -1158,6 +1241,12 @@ export function createGateService(deps: GateServiceDeps): GateService {
 							continue;
 					}
 					if (kind === 'dispatch') {
+						const task = gate.task_id ? deps.tasksRepo?.findById(gate.task_id) : null;
+						const overrides = task?.batch_id
+							? (deps.getBatchGateOverrides?.(task.batch_id) ??
+								batchGateOverridesMap.get(task.batch_id))
+							: undefined;
+						if (overrides?.dispatch === 'manual') continue;
 						deps.gatesRepo.updateDecision(
 							gate.id,
 							'pass',

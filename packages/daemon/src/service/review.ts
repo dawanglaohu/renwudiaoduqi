@@ -2,6 +2,7 @@ import { promises as nodeFs } from 'node:fs';
 import { resolve as nodeResolve } from 'node:path';
 import { AGENT_MESSAGE_CHUNK_EVENT_KIND } from '@agent-scheduler/shared/api/events';
 import type { ErrorCode } from '@agent-scheduler/shared/errors/codes';
+import { mapCodexProcessEvents } from '../adapters/codex/map-events.ts';
 import { mapDshEvents } from '../adapters/dsh/map-events.ts';
 import type { AgentRegistry } from '../config/registry.ts';
 import type { UnitOfWork } from '../db/unit-of-work.ts';
@@ -444,6 +445,8 @@ export interface ReviewServiceDeps extends MechanicalCheckDeps {
 
 export interface EvaluateMechanicalCheckInput {
 	readonly runId: string;
+	/** Rechecked in the review insert transaction after asynchronous checks/admission waits. */
+	readonly admitReview?: () => boolean;
 	readonly taskId?: string;
 	readonly worktreePath?: string;
 	readonly mainRepoPath?: string;
@@ -1574,9 +1577,7 @@ export async function runMechanicalCheck(
 	});
 }
 
-/**
- * Creates the ReviewService instance (composition root DI compatible, M7-T1).
- */
+/** Creates the review service with mechanical checks and transactional stage admission. */
 export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService {
 	const clock = deps.clock ?? { now: () => new Date().toISOString() };
 	const ids = deps.ids ?? {
@@ -1639,6 +1640,19 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 		}
 
 		let currentState: RunState = previousState;
+		const admissionDeferred = new AppError(
+			'E_VALIDATION',
+			'Document execution changed before review admission.',
+		);
+		const deferredResult = (): EvaluateMechanicalCheckResult =>
+			Object.freeze({
+				result: checkResult,
+				previousState,
+				currentState:
+					(deps.runsRepo?.findById(input.runId)?.state as RunState | undefined) ?? previousState,
+				gateCreated: false,
+			});
+		if (input.admitReview && !input.admitReview()) return deferredResult();
 		let gateCreated = false;
 		const taskId = input.taskId ?? run?.task_id ?? run?.taskId ?? '';
 		const canSpawnReview = Boolean(deps.spawnManagedFn || deps.spawnManaged);
@@ -1827,6 +1841,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 
 		// 2. 两次迁移收进同一个 unitOfWork.run，且每次迁移显式传 clock.now()（R3）
 		const applyTransitions = () => {
+			if (input.admitReview && !input.admitReview()) throw admissionDeferred;
 			const now = clock.now();
 
 			if (previousState === 'exited') {
@@ -1925,7 +1940,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 			}
 		};
 
-		if (deps.runsRepo) {
+		const transitionsWithInsert =
+			!shouldAwaitHuman && canSpawnReview && input.admitReview !== undefined;
+		if (deps.runsRepo && !transitionsWithInsert) {
 			if (deps.unitOfWork) {
 				deps.unitOfWork.run(() => {
 					applyTransitions();
@@ -2046,7 +2063,11 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					diffText,
 					diffStat,
 					autoSpawn: true,
-					beforeRunInsert: pendingSubSnapshotInsert ?? undefined,
+					beforeRunInsert: () => {
+						// Parent state, execution version and frozen membership are admitted atomically.
+						if (transitionsWithInsert) applyTransitions();
+						pendingSubSnapshotInsert?.();
+					},
 					onRunInserted: (insertedId) => {
 						reviewRunId = insertedId;
 					},
@@ -2084,7 +2105,9 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 									eventMapper: (line) =>
 										mapDshEvents(line, { runId: dispatchResult.run.id, taskId }),
 								}
-							: undefined,
+							: assignment.agentId === 'codex'
+								? { eventMapper: mapCodexProcessEvents }
+								: undefined,
 					);
 					await deps.runService.transitionState({
 						runId: dispatchResult.run.id,
@@ -2096,6 +2119,7 @@ export function createReviewService(deps: ReviewServiceDeps = {}): ReviewService
 					});
 				}
 			} catch (dispatchErr) {
+				if (dispatchErr === admissionDeferred) return deferredResult();
 				// R3: 审查派发失败不能空吞；两条运行与闸门须在 service 事务内一致落到可恢复状态，并留错误证据。
 				const now = clock.now();
 				const errMessage = dispatchErr instanceof Error ? dispatchErr.message : String(dispatchErr);

@@ -1440,9 +1440,10 @@ describe('第 14 批任务指派、阶段运行与收口报告真实全链端到
 
 		const assignmentRow = page.locator('[data-task-editing-row="B14-T1"]');
 		await assignmentRow.getByTestId('model-picker').getByRole('combobox').click();
-		await page.getByRole('option', { name: 'codex-standard', exact: true }).click();
+		// Keyboard selection also reaches options below the wizard viewport.
+		await page.getByRole('option', { name: 'codex-standard', exact: true }).press('Enter');
 		await assignmentRow.getByTestId('effort-picker').getByRole('combobox').click();
-		await page.getByRole('option', { name: '高档 (high)', exact: true }).click();
+		await page.getByRole('option', { name: '高档 (high)', exact: true }).press('Enter');
 
 		const savedAssign = page.waitForResponse(
 			(res) =>

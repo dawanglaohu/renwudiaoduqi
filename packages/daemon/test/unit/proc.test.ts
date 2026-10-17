@@ -657,6 +657,7 @@ describe('M1-T7 spawnManaged Core (AC 1, AC 2, AC 5, E-42, E-119, E-130, E-140)'
 		expect(capturedArgs[3]).toContain('C:\\Users\\example\\AppData\\Roaming\\npm\\grok.cmd');
 		expect(capturedOptions.shell).toBe(false);
 		expect(capturedOptions.windowsHide).toBe(true);
+		expect(capturedOptions.detached).toBe(false); // ComSpec must retain native command output.
 		expect(capturedOptions.windowsVerbatimArguments).toBe(true); // AC 2
 	});
 

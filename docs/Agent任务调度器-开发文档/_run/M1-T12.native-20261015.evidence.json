@@ -1,0 +1,69 @@
+{
+  "scope": "native-agent-smoke",
+  "task": "M1-T12",
+  "fixtureTask": "DE-REAL",
+  "status": "passed",
+  "platform": "linux",
+  "observedAt": "2026-10-16T05:43:58.871Z",
+  "source": {
+    "head": "68b9dbced53768f352d4693c59679dd2969684e3",
+    "sourceDigest": "a4c7812d34203b393cb8ddc375dd421cbd701e50d0ef586efbf4bb5d673a1e8e",
+    "kind": "working-tree"
+  },
+  "version": "codex-cli 0.157.1",
+  "modelName": "gpt-6.1-sol",
+  "effort": {
+    "tier": "low"
+  },
+  "steps": [
+    "production bootstrap",
+    "normal browser pairing",
+    "import idle document",
+    "choose Codex, explicit model and low effort",
+    "one start button",
+    "one implementation exits 0",
+    "one read-only review exits 0 with pass",
+    "implementation landed"
+  ],
+  "runs": [
+    {
+      "kind": "review",
+      "id": "req_5995a39b0321",
+      "parentRunId": "req_f23e97789dcd",
+      "attemptNo": 2,
+      "state": "exited",
+      "exitCode": 0,
+      "verdict": "pass",
+      "effort": {
+        "tier": "low"
+      },
+      "modelName": "gpt-6.1-sol",
+      "reportedModel": null,
+      "agentId": "codex"
+    },
+    {
+      "kind": "implement",
+      "id": "req_f23e97789dcd",
+      "parentRunId": null,
+      "attemptNo": 1,
+      "state": "landed",
+      "exitCode": 0,
+      "verdict": null,
+      "effort": {
+        "tier": "low"
+      },
+      "modelName": "gpt-6.1-sol",
+      "reportedModel": null,
+      "agentId": "codex"
+    }
+  ],
+  "reviewText": "我将只读核对文件字节、行号及工作区改动范围。\n\nVERDICT: pass\n\n**审查裁定：PASS**\n\n- 验收标准 1：`hello.txt:1` 存在，内容为 `hello`，其后恰好一个换行符。\n- 精确字节核对：文件全部字节为 `68 65 6c 6c 6f 0a`，无额外空格、空行或其他内容。\n- 改动范围：`git status --short` 仅显示 `?? hello.txt`，与允许路径及所提供的未跟踪文件改动一致。\n- 权限边界：本次仅执行只读检查，未修改任何文件，未执行提交、推送、合并或文档生成操作。\n\n无阻断项。",
+  "snapshots": null,
+  "assertions": [
+    "one implementation attempt; exit 0 and landed",
+    "one read-only review; exit 0 and VERDICT pass",
+    "frozen model and effort match each stage",
+    "hello.txt equals six bytes 68 65 6c 6c 6f 0a",
+    "controllable Agent journal is empty"
+  ]
+}

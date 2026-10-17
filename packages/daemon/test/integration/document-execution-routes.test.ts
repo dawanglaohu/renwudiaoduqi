@@ -24,7 +24,12 @@ import { AppError } from '../../src/errors/app-error.ts';
 import { createHttpServer } from '../../src/http/server.ts';
 import type { NativeLockAdapter } from '../../src/platform/lock-contract.ts';
 import { isExecutionStillCurrent } from '../../src/service/dispatch.ts';
-import { type CleanupWorktreeInput, createWorktreeManager } from '../../src/workspace/worktree.ts';
+import {
+	type CleanupWorktreeInput,
+	type GitRunner,
+	createDefaultGitRunner,
+	createWorktreeManager,
+} from '../../src/workspace/worktree.ts';
 import { writeTasksDocsData } from '../fixtures/task-docs-data.ts';
 
 const root = resolve(__dirname, '../../../..');
@@ -63,6 +68,9 @@ async function setup(
 		readonly ownedWrapup?: 'fresh' | 'reused' | 'cleanup_failure';
 		readonly agentConcurrencyLimit?: number;
 		readonly withImplementationProcess?: boolean;
+		readonly reviewDiff?: boolean;
+		readonly containerFactory?: typeof createContainer;
+		readonly gitRunner?: GitRunner;
 	} = {},
 ) {
 	const createdFolder = mkdtempSync(join(tmpdir(), 'agsched-document-plan-'));
@@ -149,7 +157,8 @@ async function setup(
 	let gitAvailable = true;
 	let gitPause: { entered: () => void; wait: Promise<void> } | null = null;
 	const spawnedRuns: string[] = [];
-	const container = createContainer({
+	const gitCommands: string[][] = [];
+	const container = (options.containerFactory ?? createContainer)({
 		config: { port: 0, bind: '127.0.0.1', dataDir: folder, logLevel: 'error', dev: false },
 		database,
 		hostInputs: { platform: process.platform, homedir: folder } as never,
@@ -215,14 +224,25 @@ async function setup(
 					} as never;
 				}) as never)
 			: undefined,
-		gitRunner: {
-			run: async () => {
+		gitRunner: options.gitRunner ?? {
+			run: async (args: readonly string[]) => {
+				gitCommands.push([...args]);
 				const held = gitPause;
 				if (held) {
 					gitPause = null;
 					held.entered();
 					await held.wait;
 				}
+				if (options.reviewDiff && args[0] === 'status')
+					return { exitCode: 0, stdout: ' M src/review.txt\0', stderr: '' };
+				if (options.reviewDiff && args[0] === 'diff')
+					return {
+						exitCode: 0,
+						stdout: args.includes('--numstat')
+							? '1\t0\tsrc/review.txt\0'
+							: 'diff --git a/src/review.txt b/src/review.txt\n+Works\n',
+						stderr: '',
+					};
 				return gitAvailable
 					? { exitCode: 0, stdout: `true\n${workspaceRepoPath}\n`, stderr: '' }
 					: { exitCode: 1, stdout: '', stderr: 'repository temporarily unavailable' };
@@ -301,6 +321,7 @@ async function setup(
 			return { entered: enteredPromise, release };
 		},
 		getSpawnedRuns: () => [...spawnedRuns],
+		getGitCommands: () => [...gitCommands],
 		workspaceRepoPath,
 		allocationReady,
 		releaseAllocation,
@@ -391,6 +412,7 @@ function seedImplementationRun(
 		contractHash: string;
 		createdAt: string;
 		generationId?: number;
+		isInHead?: 0 | 1;
 		agentId?: string;
 		branchName?: string;
 		worktreePath?: string;
@@ -421,7 +443,7 @@ function seedImplementationRun(
 		worktree_path: input.worktreePath ?? null,
 		started_at: input.createdAt,
 		ended_at: input.createdAt,
-		is_in_head: 1,
+		is_in_head: input.isInHead ?? 1,
 		in_head_checked_at: input.createdAt,
 	});
 }
@@ -748,7 +770,7 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
-	it('E-369: refresh publishes a pause after source becomes unreadable', async () => {
+	it('E-369: refresh publishes unreadable pause and same-version source recovery', async () => {
 		const { server, container, headers, docId, docsPath } = await setup();
 		const url = `/api/v1/documents/${docId}/execution`;
 		const fingerprint = container.repos.documents.findById(docId)?.content_fingerprint;
@@ -764,6 +786,7 @@ describe('M8-T12 document execution through the real container', () => {
 		});
 		expect(start.statusCode).toBe(200);
 		const before = container.events.ringBuffer.latest()?.id ?? 0;
+		const source = readFileSync(docsPath, 'utf8');
 		rmSync(docsPath);
 		const refresh = await server.instance.inject({
 			method: 'POST',
@@ -782,6 +805,35 @@ describe('M8-T12 document execution through the real container', () => {
 				.filter((event) => event.id > before)
 				.map((event) => event.kind),
 		).toContain('document.execution_changed');
+		const pausedVersion = container.repos.documentExecutions.findByDocId(docId)?.version;
+		const beforeRestore = container.events.ringBuffer.latest()?.id ?? 0;
+		writeFileSync(docsPath, source);
+		const restored = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(restored.statusCode, restored.body).toBe(200);
+		const recoveryEvents = container.events.ringBuffer
+			.getAll()
+			.filter((event) => event.id > beforeRestore && event.kind === 'document.execution_changed');
+		expect(recoveryEvents).toHaveLength(1);
+		expect(recoveryEvents[0]?.payload).toMatchObject({
+			execution: { state: 'paused', version: pausedVersion, canResume: true },
+		});
+		const beforeRepeat = container.events.ringBuffer.latest()?.id ?? 0;
+		await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/refresh`,
+			headers,
+			payload: {},
+		});
+		expect(
+			container.events.ringBuffer
+				.getAll()
+				.filter((event) => event.id > beforeRepeat && event.kind === 'document.execution_changed'),
+		).toHaveLength(0);
 		await server.instance.close();
 	});
 
@@ -2515,6 +2567,7 @@ describe('M8-T12 document execution through the real container', () => {
 				batchId: batch.id,
 				taskIds: [],
 			});
+			expect(container.repos.batches.findById(batch.id)?.state).toBe('idle');
 			expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(0);
 			const cleanReport = readFileSync(
 				join(root, 'packages/daemon/test/fixtures/wrapup/clean-report.md'),
@@ -2527,7 +2580,7 @@ describe('M8-T12 document execution through the real container', () => {
 				rawText: cleanReport,
 			});
 			expect(container.repos.runs.findById(oldRunId)?.state).toBe(terminal ?? 'landed');
-			expect(container.repos.batches.findById(batch.id)?.state).toBe('running');
+			expect(container.repos.batches.findById(batch.id)?.state).toBe('idle');
 			expect(container.repos.batchWrapups?.listByBatchId(batch.id).at(-1)?.run_id).toBe(oldRunId);
 			const callbackEvents = container.events.ringBuffer
 				.getAll()
@@ -2716,6 +2769,664 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(container.repos.batches.findById(batch.id)?.state).toBe('running');
 		await server.instance.close();
 	});
+
+	it('M1-T12 review2 R2: an explicitly created current-batch run retains its generation and review', async () => {
+		const { container, server, headers, docId } = await setup({
+			canDispatch: () => true,
+			withImplementationProcess: true,
+			reviewDiff: true,
+		});
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'claude', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		if (!task) throw new Error('Current task missing');
+		const created = await server.instance.inject({
+			method: 'POST',
+			url: '/api/v1/runs',
+			headers,
+			payload: { taskId: task.id, agentId: 'claude', idempotencyKey: 'manual-current-generation' },
+		});
+		expect(created.statusCode, created.body).toBe(200);
+		const runId = created.json().run.id as string;
+		await vi.waitFor(() => expect(container.repos.runs.findById(runId)?.state).toBe('running'));
+		const run = container.repos.runs.findById(runId);
+		const snapshot = container.repos.dispatchSnapshots?.findById(run?.snapshot_id ?? '');
+		const plan = JSON.parse(
+			container.repos.documentExecutions.findByDocId(docId)?.plan_json ?? '[]',
+		);
+		expect(JSON.parse(snapshot?.launch_spec_json ?? '{}').documentGenerationId).toBe(
+			plan[0].generationId,
+		);
+		container.repos.runs.updateState({
+			id: runId,
+			toState: 'exited',
+			exitCode: 0,
+			worktreePath: root,
+		});
+		await container.services.dispatch.tick();
+		await vi.waitFor(() =>
+			expect(
+				container.repos.runs
+					.listAll()
+					.filter((item) => item.kind === 'review' && item.parent_run_id === runId),
+			).toHaveLength(1),
+		);
+		expect(container.repos.runs.findById(runId)?.state).toBe('reviewing');
+		await server.instance.close();
+	});
+
+	it('M1-T12 review2 R2: a held resumed mechanical check does not block another document tick', async () => {
+		const { container, server, headers, docId, folder, pauseNextGitRun } = await setup({
+			canDispatch: () => true,
+			withImplementationProcess: true,
+			reviewDiff: true,
+		});
+		const start = async (id: string) => {
+			const response = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${id}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(id)?.content_fingerprint,
+					defaultAssignment: {
+						agentId: id === docId ? 'claude' : 'codex',
+						modelName: null,
+						effort: null,
+					},
+				},
+			});
+			expect(response.statusCode, response.body).toBe(200);
+		};
+		await start(docId);
+		await container.services.dispatch.tick();
+		const first = container.repos.runs.listAll().find((run) => run.kind === 'implement');
+		if (!first) throw new Error('First implementation missing');
+		await vi.waitFor(() => expect(container.repos.runs.findById(first.id)?.state).toBe('running'));
+		container.repos.runs.updateState({
+			id: first.id,
+			toState: 'exited',
+			exitCode: 0,
+			worktreePath: root,
+		});
+		const held = pauseNextGitRun();
+		const pendingTick = container.services.dispatch.tick();
+		await held.entered;
+		try {
+			const path = join(folder, 'second-docs-data.js');
+			writeTasksDocsData(path, [{ id: 'M1-T2', hash: 'second-contract' }]);
+			const source = JSON.parse(
+				readFileSync(path, 'utf8')
+					.replace(/^window\.DOCS\s*=\s*/, '')
+					.replace(/;\s*$/, ''),
+			);
+			source.handoff.contracts['M1-T2'].effectivePaths = ['second/task.ts'];
+			source.handoff.effectivePaths['M1-T2'] = ['second/task.ts'];
+			writeFileSync(path, `window.DOCS = ${JSON.stringify(source)};`);
+			const imported = await server.instance.inject({
+				method: 'POST',
+				url: '/api/v1/documents',
+				headers,
+				payload: { docsPath: path, repoPath: root },
+			});
+			expect(imported.statusCode, imported.body).toBe(200);
+			const secondId = imported.json().document.id as string;
+			await start(secondId);
+			const secondTick = await container.services.dispatch.tick();
+			expect(secondTick.executed).toBe(true);
+			const secondTask = container.repos.tasks.listByDocId(secondId)[0];
+			await vi.waitFor(() =>
+				expect(
+					container.repos.runs
+						.listAll()
+						.some((run) => run.kind === 'implement' && run.task_id === secondTask?.id),
+					JSON.stringify(secondTick),
+				).toBe(true),
+			);
+		} finally {
+			held.release();
+			await pendingTick;
+			await vi.waitFor(() =>
+				expect(
+					container.repos.runs
+						.listAll()
+						.filter((run) => run.kind === 'review' && run.parent_run_id === first.id),
+				).toHaveLength(1),
+			);
+			await server.instance.close();
+		}
+	});
+
+	it('M1-T12 review2 R2: scheduler shutdown drains a held review without admitting another stage', async () => {
+		const { container, server, headers, docId, pauseNextGitRun, getGitCommands } = await setup({
+			canDispatch: () => true,
+			withImplementationProcess: true,
+			reviewDiff: true,
+		});
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'claude', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		await container.services.dispatch.tick();
+		const run = container.repos.runs.listAll().find((item) => item.kind === 'implement');
+		if (!run) throw new Error('Implementation missing');
+		await vi.waitFor(() => expect(container.repos.runs.findById(run.id)?.state).toBe('running'));
+		container.repos.runs.updateState({
+			id: run.id,
+			toState: 'exited',
+			exitCode: 0,
+			worktreePath: root,
+		});
+		const commandsBefore = getGitCommands().length;
+		const held = pauseNextGitRun();
+		await container.services.dispatch.tick();
+		await held.entered;
+		const job = container.jobs.find((item) => item.name === 'scheduler-tick');
+		if (!job) throw new Error('Scheduler job missing');
+		let stopped = false;
+		const stopping = job.stop().then(() => {
+			stopped = true;
+		});
+		try {
+			await new Promise<void>((done) => setImmediate(done));
+			expect(stopped).toBe(false);
+		} finally {
+			held.release();
+			await stopping;
+			await vi.waitFor(() =>
+				expect(
+					getGitCommands()
+						.slice(commandsBefore)
+						.some((args) => args[0] === 'diff' && !args.includes('--numstat')),
+				).toBe(true),
+			);
+			await new Promise<void>((done) => setImmediate(done));
+			await server.instance.close();
+		}
+		expect(container.repos.runs.listAll().filter((item) => item.kind === 'review')).toHaveLength(0);
+		expect(container.repos.runs.findById(run.id)?.state).toBe('exited');
+	});
+
+	it.each([false, true])(
+		'M1-T12 review2 R3: global auto respects batch manual override=%s',
+		async (override) => {
+			const { container, server, headers, docId } = await setup({
+				canDispatch: () => true,
+				withImplementationProcess: true,
+			});
+			await container.services.settings.updateGates(
+				{ dispatch: 'manual', review: 'auto', landing: 'auto' },
+				null,
+			);
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!task?.batch_id) throw new Error('Batch task missing');
+			if (override)
+				container.services.dispatch.setBatchGateOverrides(task.batch_id, { dispatch: 'manual' });
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			await container.services.dispatch.tick();
+			const gate = container.repos.gates?.list({ pendingOnly: true })[0];
+			if (!gate) throw new Error('Dispatch confirmation missing');
+			const changed = await server.instance.inject({
+				method: 'PATCH',
+				url: '/api/v1/settings/gates',
+				headers,
+				payload: { dispatch: 'auto', review: 'auto', landing: 'auto' },
+			});
+			expect(changed.statusCode, changed.body).toBe(200);
+			expect(container.repos.gates?.findById(gate.id)?.state).toBe(
+				override ? 'waiting' : 'decided',
+			);
+			if (override) {
+				expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(0);
+				const approved = await server.instance.inject({
+					method: 'POST',
+					url: `/api/v1/gates/${gate.id}/decide`,
+					headers,
+					payload: { decision: 'pass' },
+				});
+				expect(approved.statusCode, approved.body).toBe(200);
+			}
+			expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(1);
+			await server.instance.close();
+		},
+	);
+
+	it.each([
+		{ stale: 'auto' as const, globalMode: 'manual' as const, expectsGate: true },
+		{ stale: 'manual' as const, globalMode: 'auto' as const, expectsGate: false },
+	])(
+		'M1-T12 review3: finished batch dispatch=$stale does not govern the next document execution (global=$globalMode)',
+		async ({ stale, globalMode, expectsGate }) => {
+			let allowDispatch = false;
+			const { container, server, headers, docId } = await setup({
+				canDispatch: () => allowDispatch,
+				withImplementationProcess: true,
+			});
+			await container.services.settings.updateGates(
+				{ dispatch: globalMode, review: 'auto', landing: 'auto' },
+				null,
+			);
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!task?.batch_id) throw new Error('Batch task missing');
+			const started = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/batches/${task.batch_id}/start`,
+				headers,
+				payload: { gateOverrides: { dispatch: stale, review: 'auto', landing: 'auto' } },
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			expect(container.services.dispatch.getBatchGateOverrides(task.batch_id)?.dispatch).toBe(
+				stale,
+			);
+			await vi.waitFor(async () => {
+				expect((await container.services.dispatch.tick()).reason).not.toBe('concurrency_locked');
+			});
+			container.services.batch?.transitionBatch(task.batch_id, 'wrapping', 'review_fixture');
+			container.services.batch?.transitionBatch(task.batch_id, 'done', 'review_fixture');
+			expect(container.services.dispatch.getBatchGateOverrides(task.batch_id)).toBeUndefined();
+			allowDispatch = true;
+			const execution = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/execution/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(execution.statusCode, execution.body).toBe(200);
+			const result = await container.services.dispatch.tick();
+			const pending = (container.repos.gates?.list({ pendingOnly: true }) ?? []).filter(
+				(gate) => gate.kind === 'dispatch' && gate.task_id === task.id,
+			);
+			const implementations = container.repos.runs
+				.listAll()
+				.filter((run) => run.kind === 'implement');
+			if (expectsGate) {
+				expect(pending).toHaveLength(1);
+				expect(result.runsDispatched).toHaveLength(0);
+				expect(implementations).toHaveLength(0);
+			} else {
+				expect(pending).toHaveLength(0);
+				expect(result.runsDispatched).toHaveLength(1);
+				expect(implementations).toHaveLength(1);
+			}
+			await server.instance.close();
+		},
+	);
+
+	it('M1-T12 review3: a batch dispatch override still governs the document execution that adopts that running batch', async () => {
+		let allowDispatch = false;
+		const { container, server, headers, docId } = await setup({
+			canDispatch: () => allowDispatch,
+			withImplementationProcess: true,
+		});
+		await container.services.settings.updateGates(
+			{ dispatch: 'manual', review: 'auto', landing: 'auto' },
+			null,
+		);
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		if (!task?.batch_id) throw new Error('Batch task missing');
+		const started = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/batches/${task.batch_id}/start`,
+			headers,
+			payload: { gateOverrides: { dispatch: 'auto', review: 'auto', landing: 'auto' } },
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		await vi.waitFor(async () => {
+			expect((await container.services.dispatch.tick()).reason).not.toBe('concurrency_locked');
+		});
+		allowDispatch = true;
+		const execution = await server.instance.inject({
+			method: 'POST',
+			url: `/api/v1/documents/${docId}/execution/start`,
+			headers,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(execution.statusCode, execution.body).toBe(200);
+		expect(container.services.dispatch.getBatchGateOverrides(task.batch_id)?.dispatch).toBe('auto');
+		expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(1);
+		expect(container.repos.gates?.list({ pendingOnly: true }) ?? []).toHaveLength(0);
+		await server.instance.close();
+	});
+
+	it.each([false, true])(
+		'M1-T12 R2: mechanical checks defer review after pause (already resumed=%s) without a gate, snapshot or attempt',
+		async (alreadyResumed) => {
+			const env = await setup({
+				canDispatch: () => true,
+				withImplementationProcess: true,
+				reviewDiff: true,
+			});
+			const { server, container, headers, docId, pauseNextGitRun, getGitCommands } = env;
+			const url = `/api/v1/documents/${docId}/execution`;
+			const control = async (action: string) => {
+				const execution = container.services.documentExecution.get(docId).execution;
+				const response = await server.instance.inject({
+					method: 'POST',
+					url: `${url}/${action}`,
+					headers,
+					payload: {
+						expectedVersion: execution.version,
+						...(action !== 'pause'
+							? {
+									expectedFingerprint:
+										container.repos.documents.findById(docId)?.content_fingerprint,
+								}
+							: {}),
+						...(action === 'start'
+							? { defaultAssignment: { agentId: 'claude', modelName: null, effort: null } }
+							: {}),
+					},
+				});
+				expect(response.statusCode, response.body).toBe(200);
+			};
+			await control('start');
+			await container.services.dispatch.tick();
+			const implementation = container.repos.runs.listAll().find((run) => run.kind === 'implement');
+			expect(implementation).toBeDefined();
+			const runId = implementation?.id ?? '';
+			container.repos.runs.updateState({
+				id: runId,
+				toState: 'exited',
+				exitCode: 0,
+				worktreePath: root,
+			});
+			const snapshotsBefore = container.repos.dispatchSnapshots?.listByTaskId(
+				implementation?.task_id ?? '',
+			).length;
+			const held = pauseNextGitRun();
+			const commandsBefore = getGitCommands().length;
+			const tick = container.services.dispatch.tick();
+			await held.entered;
+			await control('pause');
+			if (alreadyResumed) await control('resume');
+			held.release();
+			await tick;
+			await vi.waitFor(() =>
+				expect(
+					getGitCommands()
+						.slice(commandsBefore)
+						.some((args) => args[0] === 'diff' && !args.includes('--numstat')),
+				).toBe(true),
+			);
+			// After this injected patch read, only resolved Git promises remain before admission.
+			await new Promise<void>((done) => setImmediate(done));
+			expect(container.repos.runs.listAll().filter((run) => run.kind === 'review')).toHaveLength(0);
+			expect(container.repos.runs.findById(runId)?.state).toBe('exited');
+			expect(container.repos.gates?.findPendingByRunId?.(runId)).toBeNull();
+			expect(
+				container.repos.dispatchSnapshots?.listByTaskId(implementation?.task_id ?? '').length,
+			).toBe(snapshotsBefore);
+			if (!alreadyResumed) await control('resume');
+			await container.services.dispatch.tick();
+			await vi.waitFor(() =>
+				expect(
+					container.repos.runs
+						.listAll()
+						.filter((run) => run.kind === 'review' && run.state === 'running'),
+				).toHaveLength(1),
+			);
+			const reviews = container.repos.runs.listAll().filter((run) => run.kind === 'review');
+			expect(reviews).toHaveLength(1);
+			expect(reviews[0]?.parent_run_id).toBe(runId);
+			expect(reviews[0]?.state).toBe('running');
+			await container.services.dispatch.tick();
+			expect(container.repos.runs.listAll().filter((run) => run.kind === 'review')).toHaveLength(1);
+			expect(container.repos.runs.listAll().filter((run) => run.kind === 'implement')).toHaveLength(
+				1,
+			);
+			await server.instance.close();
+		},
+	);
+
+	it.each(['contract', 'membership'] as const)(
+		'M1-T12 R2: a paused exited implementation from replaced %s is never recovered for review',
+		async (change) => {
+			const env = await setup({
+				canDispatch: () => true,
+				withImplementationProcess: true,
+				reviewDiff: true,
+			});
+			const { server, container, headers, docId, docsPath } = env;
+			const url = `/api/v1/documents/${docId}/execution`;
+			const start = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/start`,
+				headers,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'claude', modelName: null, effort: null },
+				},
+			});
+			expect(start.statusCode, start.body).toBe(200);
+			await container.services.dispatch.tick();
+			const old = container.repos.runs.listAll().find((run) => run.kind === 'implement');
+			expect(old).toBeDefined();
+			const paused = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/pause`,
+				headers,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+				},
+			});
+			expect(paused.statusCode, paused.body).toBe(200);
+			container.repos.runs.updateState({
+				id: old?.id ?? '',
+				toState: 'exited',
+				exitCode: 0,
+				worktreePath: root,
+			});
+			writeTasksDocsData(
+				docsPath,
+				change === 'contract'
+					? [{ id: 'M1-T1', hash: 'replacement-contract' }]
+					: [
+							{ id: 'M1-T1', hash: 'contract-1' },
+							{ id: 'M1-T2', hash: 'contract-2' },
+						],
+			);
+			if (change === 'membership') {
+				const source = JSON.parse(
+					readFileSync(docsPath, 'utf8')
+						.replace(/^window\.DOCS\s*=\s*/, '')
+						.replace(/;\s*$/, ''),
+				) as {
+					handoff: {
+						contracts: Record<string, { effectivePaths: string[] }>;
+						effectivePaths: Record<string, string[]>;
+					};
+				};
+				// Isolate generation recovery from the independent shared-path queue policy.
+				const added = source.handoff.contracts['M1-T2'];
+				if (!added) throw new Error('New member contract missing');
+				added.effectivePaths = ['other/new.ts'];
+				source.handoff.effectivePaths['M1-T2'] = ['other/new.ts'];
+				writeFileSync(docsPath, `window.DOCS = ${JSON.stringify(source)};`);
+			}
+			const refreshed = await server.instance.inject({
+				method: 'POST',
+				url: `/api/v1/documents/${docId}/refresh`,
+				headers,
+				payload: {},
+			});
+			expect(refreshed.statusCode, refreshed.body).toBe(200);
+			const resumed = await server.instance.inject({
+				method: 'POST',
+				url: `${url}/resume`,
+				headers,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				},
+			});
+			expect(resumed.statusCode, resumed.body).toBe(200);
+			const recoveryTick = await container.services.dispatch.tick();
+			expect(recoveryTick.executed).toBe(true);
+			expect(
+				container.repos.runs
+					.listAll()
+					.filter((run) => run.kind === 'review' && run.parent_run_id === old?.id),
+			).toHaveLength(0);
+			const replacements = container.repos.runs
+				.listAll()
+				.filter(
+					(run) => run.kind === 'implement' && run.task_id === old?.task_id && run.id !== old.id,
+				);
+			expect(replacements).toHaveLength(1);
+			expect(
+				container.repos.dispatchSnapshots?.findById(replacements[0]?.snapshot_id ?? '')
+					?.contract_hash,
+			).toBe(change === 'contract' ? 'replacement-contract' : 'contract-1');
+			expect(container.repos.runs.findById(old?.id ?? '')).toMatchObject({
+				state: 'failed',
+				queued_reason: 'source_changed',
+				exit_code: 0,
+			});
+			expect(container.repos.gates?.findPendingByRunId?.(old?.id ?? '')).toBeNull();
+			await server.instance.close();
+		},
+	);
+
+	it.skipIf(process.platform !== 'win32')(
+		'M1-T12 R1: HEAD refresh reuses boot Git PATH outside fixed Agent install roots',
+		async () => {
+			const isolatedHome = mkdtempSync(join(tmpdir(), 'agsched-no-fixed-git-'));
+			folders.push(isolatedHome);
+			vi.resetModules();
+			vi.doMock('node:os', async (loadOriginal) => ({
+				...(await loadOriginal<typeof import('node:os')>()),
+				homedir: () => isolatedHome,
+			}));
+			try {
+				const factory = (await import('../../src/boot/container.ts')).createContainer;
+				const check = (await import('../../src/workspace/in-head.ts')).isBranchInHead;
+				const runner = createDefaultGitRunner({
+					platform: 'win32',
+					hostInputs: {
+						platform: 'win32',
+						homedir: isolatedHome,
+						pathEnv: process.env.Path ?? process.env.PATH,
+					},
+					ids: { newId: randomUUID },
+				});
+				const env = await setup({
+					containerFactory: factory,
+					gitRunner: runner,
+					ownedWrapup: 'fresh',
+				});
+				const repo = env.workspaceRepoPath;
+				const worktree = join(env.folder, 'landed-task');
+				const runGit = (args: string[], cwd = repo) =>
+					execFileSync('git', ['-C', cwd, ...args], { stdio: 'ignore' });
+				runGit(['config', 'core.autocrlf', 'false']);
+				runGit(['worktree', 'add', '-b', 'task/r1-path', worktree, 'HEAD']);
+				writeFileSync(join(worktree, 'landed.txt'), 'Accepted implementation\n');
+				runGit(['add', 'landed.txt'], worktree);
+				runGit(
+					[
+						'-c',
+						'user.name=Git Context',
+						'-c',
+						'user.email=git@example.invalid',
+						'commit',
+						'-m',
+						'implementation',
+					],
+					worktree,
+				);
+				runGit([
+					'-c',
+					'user.name=Git Context',
+					'-c',
+					'user.email=git@example.invalid',
+					'merge',
+					'--no-ff',
+					'--no-edit',
+					'task/r1-path',
+				]);
+				const task = env.container.repos.tasks.listByDocId(env.docId)[0];
+				if (!task) throw new Error('Task missing');
+				env.container.repos.dispatchSnapshots?.insert({
+					id: 'r1-path-snapshot',
+					task_id: task.id,
+					contract_hash: task.contract_hash,
+					task_paths_json: '[]',
+					launch_spec_json: '{}',
+					created_at: '2026-10-12T07:00:00.000Z',
+				});
+				env.container.repos.runs.insert({
+					id: 'r1-path-run',
+					task_id: task.id,
+					batch_id: task.batch_id,
+					attempt_no: 1,
+					kind: 'implement',
+					state: 'landed',
+					agent_id: 'codex',
+					permission_tier: 'workspaceWrite',
+					snapshot_id: 'r1-path-snapshot',
+					branch_name: 'task/r1-path',
+					worktree_path: worktree,
+					is_in_head: 0,
+					started_at: '2026-10-12T07:00:00.000Z',
+				});
+				// With the isolated home, only the boot PATH can locate the genuine Git executable.
+				expect(
+					(await check({ repoPath: repo, branchName: 'task/r1-path', worktreePath: worktree }))
+						.method,
+				).toBe('error');
+				expect(
+					(
+						await check(
+							{ repoPath: repo, branchName: 'task/r1-path', worktreePath: worktree },
+							runner,
+						)
+					).inHead,
+				).toBe(true);
+				await env.container.services.dispatch.tick();
+				expect(env.container.repos.runs.findById('r1-path-run')?.is_in_head).toBe(1);
+				await env.server.instance.close();
+			} finally {
+				vi.doUnmock('node:os');
+				vi.resetModules();
+			}
+		},
+		30000,
+	);
 
 	it('does not admit a run after pause wins an asynchronous tick preflight', async () => {
 		const { server, container, headers, docId, pauseNextGitRun } = await setup({
@@ -3209,6 +3920,293 @@ describe('M8-T12 document execution through the real container', () => {
 		await server.instance.close();
 	});
 
+	it.each(['unchanged', 'waiting-change', 'approved-change'] as const)(
+		'M1-T12 R3: dispatch confirmation binds the current generation without attempts or slots (%s)',
+		async (change) => {
+			const env = await setup({ canDispatch: () => true, withImplementationProcess: true });
+			const { container, server, headers, docId, docsPath, database } = env;
+			await container.services.settings.updateGates(
+				{ dispatch: 'manual', review: 'auto', landing: 'auto' },
+				null,
+			);
+			const url = `/api/v1/documents/${docId}/execution`;
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!task) throw new Error('Dispatch gate task missing');
+			const started = await server.instance.inject({
+				method: 'POST',
+				headers,
+				url: `${url}/start`,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			let observedVersion: number = started.json().execution.version;
+			const publicationTransactions: boolean[] = [];
+			container.events.bus.subscribe((event) => {
+				if (event.kind === 'document.execution_changed') {
+					const payload = event.payload as { execution?: { docId: string; version: number } };
+					if (payload.execution?.docId === docId) {
+						observedVersion = payload.execution.version;
+						publicationTransactions.push(database.inTransaction);
+					}
+				}
+			});
+			expect((await container.services.dispatch.tick()).runsDispatched).toEqual([]);
+			expect(observedVersion).toBe(
+				container.services.documentExecution.get(docId).execution.version,
+			);
+			expect(publicationTransactions.length).toBeGreaterThan(0);
+			expect(publicationTransactions.every((inTransaction) => !inTransaction)).toBe(true);
+			const gates = container.repos.gates?.list({ pendingOnly: true }) ?? [];
+			expect(gates).toHaveLength(1);
+			const oldGate = gates[0];
+			if (!oldGate) throw new Error('Dispatch gate missing');
+			expect(oldGate).toMatchObject({ kind: 'dispatch', task_id: task.id, run_id: null });
+			const plan = JSON.parse(
+				container.repos.documentExecutions.findByDocId(docId)?.plan_json ?? '[]',
+			);
+			expect(plan[0].dispatchGateIds[task.id]).toBe(oldGate.id);
+			expect(container.services.documentExecution.get(docId).execution.blockers).toContainEqual(
+				expect.objectContaining({ code: 'gate_waiting', taskIds: [task.id] }),
+			);
+			await container.services.dispatch.tick();
+			expect(container.repos.gates?.list()).toHaveLength(1);
+			expect(container.repos.runs.listAll()).toHaveLength(0);
+			expect(database.prepare('SELECT COUNT(*) AS n FROM dispatch_snapshots').get()).toEqual({
+				n: 0,
+			});
+			expect(container.repos.tasks.findById(task.id)?.lane_no).toBeNull();
+			const pause = await server.instance.inject({
+				method: 'POST',
+				headers,
+				url: `${url}/pause`,
+				payload: {
+					expectedVersion: observedVersion,
+				},
+			});
+			expect(pause.statusCode, pause.body).toBe(200);
+			if (change === 'approved-change') {
+				expect(
+					(
+						await server.instance.inject({
+							method: 'POST',
+							headers,
+							url: `/api/v1/gates/${oldGate.id}/decide`,
+							payload: { decision: 'pass' },
+						})
+					).statusCode,
+				).toBe(200);
+			}
+			if (change !== 'unchanged') {
+				writeTasksDocsData(docsPath, [{ id: 'M1-T1', hash: 'contract-2' }]);
+				expect(
+					(
+						await server.instance.inject({
+							method: 'POST',
+							headers,
+							url: `/api/v1/documents/${docId}/refresh`,
+							payload: {},
+						})
+					).statusCode,
+				).toBe(200);
+			}
+			const resumed = await server.instance.inject({
+				method: 'POST',
+				headers,
+				url: `${url}/resume`,
+				payload: {
+					expectedVersion: container.services.documentExecution.get(docId).execution.version,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				},
+			});
+			expect(resumed.statusCode, resumed.body).toBe(200);
+			expect((await container.services.dispatch.tick()).runsDispatched).toEqual([]);
+			const currentGates = container.repos.gates?.list({ pendingOnly: true }) ?? [];
+			expect(currentGates).toHaveLength(1);
+			const currentGate = currentGates[0];
+			if (!currentGate) throw new Error('Current dispatch gate missing');
+			if (change === 'unchanged') expect(currentGate.id).toBe(oldGate.id);
+			else {
+				expect(currentGate.id).not.toBe(oldGate.id);
+				expect(
+					(
+						await server.instance.inject({
+							method: 'POST',
+							headers,
+							url: `/api/v1/gates/${oldGate.id}/decide`,
+							payload: { decision: 'pass' },
+						})
+					).statusCode,
+				).toBe(409);
+			}
+			expect(container.repos.runs.listAll()).toHaveLength(0);
+			expect(
+				(
+					await server.instance.inject({
+						method: 'POST',
+						headers,
+						url: `/api/v1/gates/${currentGate.id}/decide`,
+						payload: { decision: 'pass' },
+					})
+				).statusCode,
+			).toBe(200);
+			const accepted = await container.services.dispatch.tick();
+			expect(accepted.runsDispatched).toHaveLength(1);
+			expect(container.repos.runs.listAll()).toHaveLength(1);
+			const run = container.repos.runs.findById(accepted.runsDispatched[0] ?? '');
+			expect(
+				container.repos.dispatchSnapshots?.findById(run?.snapshot_id ?? '')?.contract_hash,
+			).toBe(change === 'unchanged' ? 'contract-1' : 'contract-2');
+			await server.instance.close();
+		},
+	);
+
+	it('M1-T12 review2 R3: rejecting dispatch preserves one actionable confirmation without a phantom lane', async () => {
+		const { container, server, headers, docId, database } = await setup({
+			canDispatch: () => true,
+			withImplementationProcess: true,
+		});
+		await container.services.settings.updateGates(
+			{ dispatch: 'manual', review: 'auto', landing: 'auto' },
+			null,
+		);
+		const started = await server.instance.inject({
+			method: 'POST',
+			headers,
+			url: `/api/v1/documents/${docId}/execution/start`,
+			payload: {
+				expectedVersion: 0,
+				expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+				defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+			},
+		});
+		expect(started.statusCode, started.body).toBe(200);
+		await container.services.dispatch.tick();
+		const task = container.repos.tasks.listByDocId(docId)[0];
+		const old = container.repos.gates?.list({ pendingOnly: true })[0];
+		if (!task || !old) throw new Error('Current confirmation missing');
+		const publishedVersions: number[] = [];
+		container.events.bus.subscribe((event) => {
+			if (event.kind !== 'document.execution_changed') return;
+			const payload = event.payload as { execution?: { docId: string; version: number } };
+			if (payload.execution?.docId === docId) publishedVersions.push(payload.execution.version);
+		});
+		const rejected = await server.instance.inject({
+			method: 'POST',
+			headers,
+			url: `/api/v1/gates/${old.id}/decide`,
+			payload: { decision: 'reject', comment: 'Defer this task' },
+		});
+		expect(rejected.statusCode, rejected.body).toBe(200);
+		expect(publishedVersions).toContain(
+			container.services.documentExecution.get(docId).execution.version,
+		);
+		expect(container.repos.tasks.findById(task.id)?.lane_no).toBeNull();
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		expect(database.prepare('SELECT COUNT(*) AS n FROM dispatch_snapshots').get()).toEqual({
+			n: 0,
+		});
+		expect(container.repos.gates?.findById(old.id)).toMatchObject({
+			state: 'decided',
+			decision: 'reject',
+			comment: 'Defer this task',
+		});
+		const waiting = container.repos.gates?.list({ pendingOnly: true }) ?? [];
+		expect(waiting).toHaveLength(1);
+		const next = waiting[0];
+		if (!next) throw new Error('Replacement confirmation missing');
+		expect(next.id).not.toBe(old.id);
+		expect(next).toMatchObject({ kind: 'dispatch', task_id: task.id, run_id: null });
+		const plan = JSON.parse(
+			container.repos.documentExecutions.findByDocId(docId)?.plan_json ?? '[]',
+		);
+		expect(plan[0].dispatchGateIds[task.id]).toBe(next.id);
+		expect(container.services.documentExecution.get(docId).execution.state).toBe('running');
+		await container.services.dispatch.tick();
+		await container.services.dispatch.tick();
+		expect(container.repos.gates?.list()).toHaveLength(2);
+		expect(container.repos.runs.listAll()).toHaveLength(0);
+		const stale = await server.instance.inject({
+			method: 'POST',
+			headers,
+			url: `/api/v1/gates/${old.id}/decide`,
+			payload: { decision: 'pass' },
+		});
+		expect(stale.statusCode).toBe(409);
+		const approved = await server.instance.inject({
+			method: 'POST',
+			headers,
+			url: `/api/v1/gates/${next.id}/decide`,
+			payload: { decision: 'pass' },
+		});
+		expect(approved.statusCode, approved.body).toBe(200);
+		expect((await container.services.dispatch.tick()).runsDispatched).toHaveLength(1);
+		await server.instance.close();
+	});
+
+	it.each(['running', 'awaiting_landing'] as const)(
+		'M1-T12 R3: publishes a manual wrapup blocker after HEAD changes without a control version change (%s)',
+		async (batchState) => {
+			const env = await setup({ canDispatch: () => true, withWrapupWorkspace: true });
+			const { container, server, headers, docId } = env;
+			container.services.settings.updatePipeline(
+				{ ...container.services.settings.getPipeline(), wrapupMode: 'manual' },
+				null,
+			);
+			const batch = container.repos.batches.listByDocId(docId)[0];
+			const task = container.repos.tasks.listByDocId(docId)[0];
+			if (!batch || !task) throw new Error('Manual wrapup fixture missing');
+			seedImplementationRun(env, {
+				id: 'manual-head',
+				taskId: task.id,
+				batchId: batch.id,
+				attemptNo: 1,
+				contractHash: task.contract_hash,
+				createdAt: '2026-10-12T07:00:00.000Z',
+				isInHead: 0,
+			});
+			const started = await server.instance.inject({
+				method: 'POST',
+				headers,
+				url: `/api/v1/documents/${docId}/execution/start`,
+				payload: {
+					expectedVersion: 0,
+					expectedFingerprint: container.repos.documents.findById(docId)?.content_fingerprint,
+					defaultAssignment: { agentId: 'codex', modelName: null, effort: null },
+				},
+			});
+			expect(started.statusCode, started.body).toBe(200);
+			if (batchState === 'awaiting_landing')
+				await container.services.batch?.transitionBatch(batch.id, batchState, 'tasks_landed');
+			const observed = container.services.documentExecution.get(docId).execution;
+			expect(observed.blockers.some((item) => item.code === 'wrapup_manual')).toBe(false);
+			const updates: unknown[] = [];
+			const unsubscribe = container.events.bus.subscribe((event) => {
+				if (event.kind === 'document.execution_changed') updates.push(event.payload);
+			});
+			container.repos.runs.updateInHead?.({
+				id: 'manual-head',
+				isInHead: 1,
+				checkedAt: '2026-10-12T08:00:00.000Z',
+			});
+			container.services.documentExecution.advanceRunning(docId);
+			expect(updates).toHaveLength(1);
+			expect(updates[0]).toMatchObject({
+				execution: {
+					version: observed.version,
+					blockers: expect.arrayContaining([expect.objectContaining({ code: 'wrapup_manual' })]),
+				},
+			});
+			container.services.documentExecution.advanceRunning(docId);
+			expect(updates).toHaveLength(1);
+			unsubscribe();
+			await server.instance.close();
+		},
+	);
+
 	it('R1: revalidates a changed landed contract before current-generation wrapup', async () => {
 		const env = await setup({
 			canDispatch: () => true,
@@ -3216,6 +4214,10 @@ describe('M8-T12 document execution through the real container', () => {
 			withImplementationProcess: true,
 		});
 		const { server, container, headers, docId, docsPath } = env;
+		await container.services.settings.updateGates(
+			{ dispatch: 'auto', review: 'auto', landing: 'auto' },
+			null,
+		);
 		const batch = container.repos.batches.listByDocId(docId)[0];
 		const task = container.repos.tasks.listByDocId(docId)[0];
 		if (!batch || !task) return;
@@ -3226,6 +4228,20 @@ describe('M8-T12 document execution through the real container', () => {
 			attemptNo: 1,
 			contractHash: task.contract_hash,
 			createdAt: '2026-10-12T07:00:00.000Z',
+		});
+		container.repos.runs.insert({
+			id: 'r4-old-contract-review',
+			task_id: task.id,
+			parent_run_id: 'r1-old-landed',
+			attempt_no: 2,
+			kind: 'review',
+			state: 'exited',
+			agent_id: 'codex',
+			permission_tier: 'readOnly',
+			snapshot_id: 'snapshot-r1-old-landed',
+			exit_code: 0,
+			review_verdict: 'pass',
+			session_archived_at: '2026-10-12T07:30:00.000Z',
 		});
 		container.repos.tasks.updateManualState(task.id, 'landed');
 		const url = `/api/v1/documents/${docId}/execution`;
@@ -3258,17 +4274,8 @@ describe('M8-T12 document execution through the real container', () => {
 			},
 		});
 		expect(resume.statusCode, resume.body).toBe(200);
-		const pending = await container.services.dispatch.tick();
-		expect(pending.tasksBlocked).toContainEqual({
-			taskId: task.id,
-			reason: 'doc_changed_pending_confirmation',
-		});
-		container.repos.dispatchSnapshots?.updateTaskChangedFlags(task.id, {
-			hasAcceptChanged: false,
-			hasPromptChanged: false,
-		});
 		const dispatched = await container.services.dispatch.tick();
-		expect(dispatched.runsDispatched).toHaveLength(1);
+		expect(dispatched.runsDispatched, JSON.stringify(dispatched)).toHaveLength(1);
 		const newRunId = dispatched.runsDispatched[0] ?? '';
 		const newRun = container.repos.runs.findById(newRunId);
 		expect(newRun?.kind).toBe('implement');
@@ -3276,11 +4283,22 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(
 			container.repos.dispatchSnapshots?.findById(newRun?.snapshot_id ?? '')?.contract_hash,
 		).toBe('contract-2');
-		container.repos.runs.updateState({
-			id: newRunId,
-			toState: 'landed',
-			endedAt: '2026-10-12T09:00:00.000Z',
+		const currentTasks = await server.instance.inject({
+			method: 'GET',
+			headers,
+			url: `/api/v1/documents/${docId}/tasks`,
 		});
+		expect(currentTasks.statusCode).toBe(200);
+		expect(
+			currentTasks.json().tasks.find((row: { id: string }) => row.id === task.id),
+		).toMatchObject({ state: expect.stringMatching(/^(queued|starting|running)$/) });
+		container.repos.runs.updateState({ id: newRunId, toState: 'reviewing' });
+		await container.services.gates.resolveAfterReviewAndApply({
+			taskId: task.id,
+			runId: newRunId,
+			reviewVerdict: 'pass',
+		});
+		expect(container.repos.runs.findById(newRunId)?.state).toBe('landed');
 		container.repos.runs.updateInHead?.({
 			id: newRunId,
 			isInHead: 1,
@@ -4048,19 +5066,13 @@ describe('M8-T12 document execution through the real container', () => {
 		expect(container.services.documentExecution.get(docId).execution.currentBatchId).toBe(
 			second?.id,
 		);
-		const blocked = await container.services.dispatch.tick();
-		expect(blocked.tasksBlocked).toContainEqual({
-			taskId: movedTask.id,
-			reason: 'doc_changed_pending_confirmation',
+		await container.services.dispatch.tick();
+		const retried = container.repos.runs.listByTaskId(movedTask.id);
+		expect(retried).toHaveLength(2);
+		expect(retried.find((run) => run.id !== 'moved-prior-failed')).toMatchObject({
+			kind: 'implement',
+			batch_id: second?.id,
 		});
-		container.repos.dispatchSnapshots?.updateTaskChangedFlags(movedTask.id, {
-			hasAcceptChanged: false,
-			hasPromptChanged: false,
-		});
-		const next = await container.services.dispatch.tick();
-		expect(
-			next.runsDispatched.some((id) => container.repos.runs.findById(id)?.task_id === movedTask.id),
-		).toBe(true);
 		expect(container.repos.runs.listByTaskId(landedTask.id)).toHaveLength(1);
 		expect(container.repos.runs.findById('moved-prior-landed')?.state).toBe('landed');
 		expect(container.repos.runs.findById('moved-prior-failed')?.state).toBe('failed');

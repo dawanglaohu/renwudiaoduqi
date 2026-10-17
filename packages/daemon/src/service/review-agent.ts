@@ -290,7 +290,7 @@ function splitDiffIntoChunks(diffText: string): readonly ParsedDiffChunk[] {
  * Prunes diff text when exceeding model context limits (AC 3, E-65).
  * - Full diff stat table is always preserved.
  * - Files matching acceptance criteria preserve full diff text.
- * - Other files are collapsed/folded with placeholder summary.
+ * - Other files are collapsed/folded and represented by a summary.
  * - Flags conclusion requirement for 「基于部分 diff」.
  */
 export function pruneDiff(input: {

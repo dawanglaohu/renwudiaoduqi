@@ -1,0 +1,19 @@
+{
+  "scope": "task-contract",
+  "tasks": {
+    "M1-T12": {
+      "contractHash": "b34bea5b660b0b0456b3e841252a8de6b17e55580fe348fe788c21e949cdca35",
+      "verdict": "pass",
+      "evidence": [
+        "仅补齐既有 GateCard.tsx 的真实资源身份 DOM 标识支持路径；不增加控制 API、运行注入或测试绕过。八项验收、全部边界、前置能力与接口形状均未降低。",
+        "Gate ID 来自现有 GateDto，浏览器等待服务端新确认呈现后才正常点击批准；所有动作仍经过原页面、配对、HTTP、SSE 与生产 spawn。真实 WSL 拒绝、再确认、实施/审查落地及后批零运行用例已通过。",
+        "拒绝当前无运行的派发确认时，GateService 在同一 service 事务保留拒绝历史、创建一个新的 waiting gate 并更新当前 plan 映射/version；事件在事务外由现有 documentExecution.publishIfVersionChanged 发布。没有假运行、快照、占槽或新状态枚举。",
+        "Jev jev-1.13.0 复核拒绝处理的三个完整候选 A 新待确认/B 暂停整份文档/C 新增重试API和UI，采纳 A(high 0.98)，spec_change=no、outside_stack=no；动作已落到代码，judgments.jsonl:206。",
+        "拒绝前回归证明错误占用 lane 1；修后唯一新确认、零新增运行/快照/窗口、旧 gate 409、显式批准才派发和版本通知通过。GateCard、gate unit 与 auto-release 相邻 36 项通过，类型、格式通过。",
+        "补丁仅影响 M1-T12 的有效支持范围；自身待复验由 verify/--landed 清除，不手改标记。最终合并仍以原 PR 同一 head 的全部门禁及实际 Agent 证据为准。",
+        "首次派发确认的事务提交后通过 composition root 调用既有 publishIfVersionChanged，立即发布新执行版本；回滚不发布，遵守已保留事件 ID 的先后顺序。三条相同断言修前 observedVersion=1、数据库 version=2，修后四条闸门回归通过；65 条容器/派发相邻回归、类型和格式通过。真实 WSL 浏览器验证首次确认后立即暂停、继续、拒绝再批准以及成功实施/审查和后批阻断，122.597 秒通过。最终合并仍须同一最终 head 全部门禁及实际 Agent 证据。",
+        "CI 38927857312 的 macOS 完整 workspace 检查通过，随后原生进程树独立测试复现 PID 先公布、SIGTERM 处理尚未安装的启动竞态；只收到 sigterm，未走预期 sigkill。测试改为父进程先装处理器，子进程装处理器后通过 IPC ready 握手，父进程才公布真实子 PID。两阶段终止和父子实际退出断言不变。修后本机 Windows 平台 18 项、WSL POSIX 平台 16 项（2 个 Windows 条件跳过）通过；类型、格式通过。最终 macOS 验证仍由最终提交的完整 CI 门禁确认。"
+      ]
+    }
+  }
+}

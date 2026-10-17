@@ -1,0 +1,13 @@
+{
+	"schemaVersion": 1,
+	"overrides": {
+		"codex": {
+			"execPath": "./document-execution-agent.mjs",
+			"maxConcurrency": 3
+		},
+		"claude": {
+			"execPath": "./document-execution-agent.mjs",
+			"maxConcurrency": 2
+		}
+	}
+}

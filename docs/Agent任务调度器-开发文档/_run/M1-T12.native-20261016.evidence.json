@@ -1,0 +1,99 @@
+{
+  "scope": "native-agent-smoke",
+  "task": "M1-T12",
+  "status": "passed",
+  "platform": "local WSL Ubuntu",
+  "observedAt": "2026-10-16T12:42:39.960Z",
+  "source": {
+    "head": "9fb530bac02390767bd0740caf30de289be557b3",
+    "tree": "88ddc3da25351c9e21fc136250fae5082c3dfbc0",
+    "sourceDigest": "37956fda3d51d6decdb9bd8b112c41929892e5144cb708d219681e13b7e2430b",
+    "trackedWorktreeClean": true
+  },
+  "version": "codex-cli 0.157.1",
+  "modelName": "gpt-6.1-sol",
+  "modelEvidence": "explicit UI assignment and both frozen snapshots; reportedModel is not supplied by this CLI",
+  "effort": {
+    "tier": "low"
+  },
+  "steps": [
+    "production bootstrap",
+    "normal browser pairing",
+    "import idle document",
+    "choose Codex, explicit model and low effort",
+    "one start button",
+    "one implementation exits 0",
+    "one read-only review exits 0 with pass",
+    "implementation landed"
+  ],
+  "runs": [
+    {
+      "kind": "review",
+      "id": "req_1e34e3acd734",
+      "parentRunId": "req_d734fed2923a",
+      "attemptNo": 2,
+      "state": "exited",
+      "exitCode": 0,
+      "verdict": "pass",
+      "effort": {
+        "tier": "low"
+      },
+      "modelName": "gpt-6.1-sol",
+      "reportedModel": null,
+      "agentId": "codex"
+    },
+    {
+      "kind": "implement",
+      "id": "req_d734fed2923a",
+      "parentRunId": null,
+      "attemptNo": 1,
+      "state": "landed",
+      "exitCode": 0,
+      "verdict": null,
+      "effort": {
+        "tier": "low"
+      },
+      "modelName": "gpt-6.1-sol",
+      "reportedModel": null,
+      "agentId": "codex"
+    }
+  ],
+  "snapshots": [
+    {
+      "runId": "req_d734fed2923a",
+      "contractHash": "hash-real",
+      "assignment": {
+        "agentId": "codex",
+        "modelName": "gpt-6.1-sol",
+        "effortTier": "low",
+        "effortVendor": null,
+        "source": "task",
+        "followedTaskId": null,
+        "capturedAt": "2026-10-16T12:44:50.162Z"
+      }
+    },
+    {
+      "runId": "req_1e34e3acd734",
+      "contractHash": "hash-real",
+      "assignment": {
+        "agentId": "codex",
+        "modelName": "gpt-6.1-sol",
+        "effortTier": "low",
+        "effortVendor": null,
+        "source": "task",
+        "followedTaskId": null,
+        "capturedAt": "2026-10-16T12:44:50.162Z"
+      }
+    }
+  ],
+  "reviewText": "我将只读核对文件内容、精确字节及改动范围。\n\nVERDICT: pass\n\n- **最终裁定：PASS**\n- **验收标准 1：通过。** `hello.txt:1` 存在，内容精确为 `hello` 后接一个换行符；实测字节为 `68 65 6c 6c 6f 0a`，`cmp` 精确比对通过，无额外空格或换行。\n- **路径边界：通过。** `git status --short` 仅显示未跟踪文件 `hello.txt`，与提供的改动范围一致。\n- **只读边界：遵守。** 本次仅执行读取及比对，未修改文件，未执行版本控制写入或文档生成脚本。\n- **阻断项：无。**",
+  "browserEvidence": {
+    "frames": "/mnt/d/xiangmu/agent-scheduler-m1-t12/.playwright-mcp/gif-frames-m1-t12-native-1792154689088",
+    "origin": "http://127.0.0.1:42965",
+    "browser": "repository Playwright, headless Chromium, fresh isolated context",
+    "mode": "AGSCHED_DEV=1; production bootstrap and native Codex CLI; no fixture Agent, transport or event injection"
+  },
+  "rawArtifact": "D:\\xiangmu\\agent-scheduler-m1-t12\\e2e\\artifacts\\document-execution\\ca0be388-399b-4383-9167-bd2c4384088b\\runs_a_logged-in_local_Codex_through_the_start_button_E-370_\\document-execution-real-agent.json",
+  "rawArtifactSha256": "14a1345200a3e6ec38cc047eb57cd0900a83aad05786317ffb9e2a4ac702f8ce",
+  "fontEnvironment": "Fontconfig reads existing Windows fonts; no system locale or ACL changes"
+}

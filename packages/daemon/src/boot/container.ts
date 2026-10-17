@@ -123,6 +123,7 @@ import { type SystemService, createSystemService } from '../service/system.ts';
 import { type WrapupService, createWrapupService } from '../service/wrapup.ts';
 import { type BaseSelector, createBaseSelector } from '../workspace/base-select.ts';
 import { getDiffStat } from '../workspace/diff.ts';
+import { isBranchInHead } from '../workspace/in-head.ts';
 import {
 	type GitRunner,
 	type WorktreeManager,
@@ -939,11 +940,18 @@ export function createContainer(input: {
 		}
 	}
 
+	let stopReviewChecks = async (): Promise<void> => {};
 	const dispatchService =
 		input.dispatchService ??
 		createDispatchService({
+			registerReviewCleanup: (stop) => {
+				stopReviewChecks = stop;
+			},
+			isBranchInHead: (candidate) => isBranchInHead(candidate, gitRunner),
 			documentExecutionsRepo: documentExecutions,
 			advanceDocumentExecution: (docId) => documentExecutionHolder.current?.advanceRunning(docId),
+			publishDocumentExecutionChange: (docId, previousVersion) =>
+				documentExecutionHolder.current?.publishIfVersionChanged(docId, previousVersion),
 			listDocumentExecutions: () => documentExecutionHolder.current?.list() ?? [],
 			validateWorkspace: (docId, taskIds) => docsService.validateWorkspace(docId, taskIds),
 			validateSourceAtCommit: (docId, taskIds) =>
@@ -1062,6 +1070,7 @@ export function createContainer(input: {
 		createDocumentExecutionService({
 			executions: documentExecutions,
 			settings,
+			gates,
 			documents,
 			batches,
 			tasks,
@@ -1084,7 +1093,7 @@ export function createContainer(input: {
 		});
 	documentExecutionHolder.current = documentExecutionService;
 
-	const schedulerTickJob =
+	const schedulerTickJobBase =
 		input.schedulerTickJob ??
 		createSchedulerTickJob({
 			dispatchService,
@@ -1092,6 +1101,16 @@ export function createContainer(input: {
 				input.logViolation?.(error instanceof Error ? error.message : String(error));
 			},
 		});
+	const schedulerTickJob = Object.freeze({
+		...schedulerTickJobBase,
+		async stop(): Promise<void> {
+			try {
+				await schedulerTickJobBase.stop();
+			} finally {
+				await stopReviewChecks();
+			}
+		},
+	});
 
 	schedulerTickJobHolder.current = schedulerTickJob;
 
@@ -1126,6 +1145,9 @@ export function createContainer(input: {
 		input.gateService ??
 		createGateService({
 			gatesRepo: gates,
+			documentExecutionsRepo: documentExecutions,
+			notifyDocumentExecution: (docId, previousVersion, actorDeviceId) =>
+				documentExecutionService.publishIfVersionChanged(docId, previousVersion, actorDeviceId),
 			tasksRepo: tasks,
 			runsRepo: runs,
 			batchesRepo: batches,

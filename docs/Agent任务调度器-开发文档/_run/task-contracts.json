@@ -1903,7 +1903,23 @@
         "e2e/smoke.test.ts",
         "e2e/batch-13-smoke.test.ts",
         "e2e/fixtures/agents.json",
-        "e2e/fixtures/fake-agent.mjs"
+        "e2e/fixtures/fake-agent.mjs",
+        "packages/daemon/src/service/dispatch.ts",
+        "packages/daemon/src/service/review.ts",
+        "packages/daemon/src/service/review-agent.ts",
+        "packages/daemon/test/integration/document-execution-routes.test.ts",
+        "packages/daemon/test/integration/dispatch-spawn.test.ts",
+        "packages/daemon/test/unit/review.test.ts",
+        "packages/daemon/test/unit/review-agent.test.ts",
+        "e2e/batch-14-composition.test.ts",
+        "packages/daemon/src/boot/container.ts",
+        "packages/daemon/src/service/document-execution.ts",
+        "packages/daemon/src/domain/document-execution.ts",
+        "packages/daemon/src/proc/spawn.ts",
+        "packages/daemon/test/unit/proc.test.ts",
+        "packages/daemon/test/platform/kill-tree-native.test.ts",
+        "packages/daemon/src/service/gates.ts",
+        "packages/web/src/components/gate-card.tsx"
       ]
     }
   }

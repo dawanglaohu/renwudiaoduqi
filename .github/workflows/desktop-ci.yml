@@ -533,13 +533,104 @@ jobs:
           retention-days: 7
 
   # ============================================================================
+  # Document-order execution regression (M1-T12, E-370).
+  # The same production bootstrap, browser and scheduler path runs on Windows, macOS
+  # and Ubuntu. A failure uploads the screenshot, daemon stdout/stderr and DOM together;
+  # a run that drops any of those files is not evidence that this extension is closed.
+  # ============================================================================
+  document-execution-e2e:
+    name: Document execution / ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            shell: bash
+          - os: macos-latest
+            name: macOS
+            shell: bash
+          - os: ubuntu-latest
+            name: Ubuntu
+            shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium
+
+      - name: Install Playwright system libraries
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm exec playwright install-deps chromium
+
+      - name: Run document execution acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @agent-scheduler/web build
+          pnpm_bin="$(command -v pnpm)"
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts --reporter=verbose
+          else
+            sudo -E env "PATH=$PATH" "HOME=$HOME" "$pnpm_bin" exec vitest run --config vitest.e2e.config.ts e2e/document-execution.test.ts --reporter=verbose
+          fi
+
+      - name: Upload screenshot, daemon logs and DOM
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-execution-${{ matrix.name }}
+          path: |
+            e2e/artifacts/**/failure.png
+            e2e/artifacts/**/daemon.stdout.log
+            e2e/artifacts/**/daemon.stderr.log
+            e2e/artifacts/**/dom.html
+            e2e/artifacts/**/invocation.json
+            e2e/artifacts/**/manifest.json
+            e2e/artifacts/**/daemon-state.json
+            e2e/artifacts/**/agent-journal.ndjson
+            e2e/artifacts/**/raw.log-*
+            e2e/artifacts/**/events.ndjson-*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload document execution provenance and native smoke record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-execution-evidence-${{ matrix.name }}
+          path: |
+            e2e/artifacts/document-execution/**/invocation.json
+            e2e/artifacts/document-execution/**/document-execution*.json
+            e2e/artifacts/document-execution/**/restart-states.json
+            e2e/artifacts/document-execution/**/real-agent-success.png
+          if-no-files-found: error
+          retention-days: 7
+
+  # ============================================================================
   # Release Gate: reads every platform job and its steps back from the API and feeds
   # the real conclusions to assertReleaseVerification, so a failing platform is named
   # together with the step that failed (AC 1, AC 6, E-265, E-267).
   # ============================================================================
   release-verification:
     name: Release Gate Evaluation
-    needs: [desktop-matrix, macos-signing-gate, pairing-smoke, e2e-smoke, e2e-pipeline-settings, real-provider]
+    needs: [desktop-matrix, macos-signing-gate, pairing-smoke, e2e-smoke, e2e-pipeline-settings, document-execution-e2e, real-provider]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -561,6 +652,12 @@ jobs:
         if: ${{ needs.e2e-smoke.result != 'success' }}
         run: |
           echo "::error::E2E smoke on Ubuntu failed (result: ${{ needs.e2e-smoke.result }})."
+          exit 1
+
+      - name: Enforce Document Execution E2E Gate (M1-T12, E-370)
+        if: ${{ needs.document-execution-e2e.result != 'success' }}
+        run: |
+          echo "::error::Document execution acceptance failed on a platform (result: ${{ needs.document-execution-e2e.result }})."
           exit 1
 
       - name: Enforce Pipeline Settings E2E Gate (R16-T85823419, E-265)

@@ -1,0 +1,61 @@
+{
+  "task": "M1-T12",
+  "scope": "R3 Windows accepted-process lifetime",
+  "state": {
+    "requirement": "M1-T12 rework R3/E-368 requires a real restart, one undispatched backfill, and exact failed/interrupted/orphaned/aborted terminal states through normal product paths. Windows/macOS/Ubuntu document CI must pass on the same head. Preserve real PID ownership, hidden windows, explicit process-tree termination and no fake DB/session state.",
+    "task": {
+      "title": "M1-T12 real cross-platform restart acceptance",
+      "accept": "An already accepted process that remains alive after daemon exit is reconciled as orphaned, while a missing owned PID is interrupted. Resume never silently reruns either. Test four exact terminal classes on the real platform."
+    },
+    "conflict": "Production spawnManaged sets detached=platform!==win32 and windowsHide=true. Real Windows native probe with the same nodeSpawn flags shows tracked executable alive before parent exit, dead afterwards, while its real child stays alive. Changing C# pipe exception handling did not help and was reverted. With only detached=true (windowsHide still true), the same original executable and its child remain alive after parent exit. libuv primary source src/win/process.c lines1077-1079 explicitly puts non-detached Windows processes in a job that kills them when their Node parent dies. Thus the current Windows policy makes the required real orphan restart path impossible. Repository docs require POSIX independent process groups and do not state that Windows runs must be killed with their daemon. Windows native kill-tree tests already use detached processes.",
+    "options": {
+      "A": "Fix the required production lifetime seam in this PR: spawn managed Agent processes detached on Windows too, preserve windowsHide=true, normal piped I/O and existing explicit windowsKillTree ownership. Add only proc/spawn.ts and unit/proc.test.ts support paths, red-green Windows spawn-policy assertion plus real native survival evidence, rerun native process-tree kill tests and complete four-state restart E2E. Do not change process state machine or fake PIDs.",
+      "B": "Keep production Windows detached=false and narrow the Windows restart acceptance to interrupted processes, skipping orphaned on Windows while preserving full four-state assertions on POSIX.",
+      "C": "Keep production behavior and modify the test OS job/handles or recorded PID to force a Windows orphan despite the launch policy, while leaving the task definition unchanged."
+    }
+  },
+  "ruling": {
+    "status": "ok",
+    "template": "adjudicate",
+    "model": "jev-1.13.0",
+    "verdicts": {
+      "pick": {
+        "choice": "A",
+        "confidence": 0.95,
+        "band": "high",
+        "probabilities": {
+          "A": 0.97,
+          "B": 0.03,
+          "C": 0.0
+        }
+      },
+      "spec_change": {
+        "p": 0.19,
+        "verdict": "no"
+      },
+      "outside_stack": {
+        "p": 0.12,
+        "verdict": "no"
+      },
+      "needs_owner": {
+        "p": 0.13,
+        "verdict": "no"
+      },
+      "reversible": {
+        "p": 0.79,
+        "verdict": "yes"
+      },
+      "adopt": {
+        "action": "take",
+        "option": "A",
+        "confidence": "high",
+        "why": "Jev 选 A（high）"
+      }
+    },
+    "line": "adjudicate: pick=A(high 0.95) spec_change=no(0.19) outside_stack=no(0.12) needs_owner=no(0.13) reversible=yes(0.79) adopt=take(A)",
+    "usage": {
+      "input_tokens": 1260,
+      "output_tokens": 108
+    }
+  }
+}

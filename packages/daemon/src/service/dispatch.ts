@@ -33,6 +33,7 @@ import {
 import { computeDispatchCandidates } from '../domain/dispatch-candidates.ts';
 import type { DocumentPlanBatch } from '../domain/document-execution.ts';
 import { assertVendorEffortInDomain } from '../domain/effort-value.ts';
+import { DEFAULT_GATE_SETTINGS, isValidGateSettings } from '../domain/gates.ts';
 import { freeLaneNumbers } from '../domain/lane-slots.ts';
 import { deriveLanes } from '../domain/lanes.ts';
 import {
@@ -284,6 +285,7 @@ export interface DispatchServiceDeps {
 	readonly agentRegistry?: AgentRegistry;
 	readonly documentExecutionsRepo?: DocumentExecutionsRepo;
 	readonly advanceDocumentExecution?: (docId: string) => void;
+	readonly publishDocumentExecutionChange?: (docId: string, previousVersion: number) => void;
 	readonly listDocumentExecutions?: () => readonly DocumentExecutionDto[];
 	readonly listVendorEffortDomain?: (agentId: string) => Promise<readonly string[]>;
 	readonly modelEffortOptions?: (
@@ -308,8 +310,12 @@ export interface DispatchServiceDeps {
 	readonly codexSessions?: CodexSessionRegistry;
 	readonly runService?: RunService;
 	readonly reviewService?: {
-		readonly evaluateMechanicalCheck: (input: { readonly runId: string }) => Promise<unknown>;
+		readonly evaluateMechanicalCheck: (input: {
+			readonly runId: string;
+			readonly admitReview?: () => boolean;
+		}) => Promise<unknown>;
 	};
+	readonly registerReviewCleanup?: (cleanup: () => Promise<void>) => void;
 	readonly bughuntService?: {
 		readonly finalizeBughuntRun: (input: {
 			readonly bughuntRunId: string;
@@ -400,9 +406,52 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 		dispatchSnapshotsRepo: deps.dispatchSnapshotsRepo,
 	});
 	const batchGateOverridesMap = new Map<string, BatchGateOverrides>();
+	// 覆盖只属于设置它的这一次批次调度。批次完成或成员重置后作废，下一次文档执行改读全局闸门。
+	deps.bus?.subscribeWithFilter?.(
+		(event) => event.kind === 'batch.advanced',
+		(event) => {
+			if (event.kind !== 'batch.advanced' || !('batchId' in event.payload)) return;
+			if (event.payload.to === 'done' || event.payload.reason === 'membership_invalidated')
+				batchGateOverridesMap.delete(event.payload.batchId);
+		},
+	);
 	const consecutiveInHeadErrors = new Map<string, number>();
 	const inFlightLaunches = new Set<string>();
+	// 同一实施只做一次机械检查。检查还在读 diff 时再进一次，会在未跟踪文件
+	// 已删除后把 landed 写成 awaiting_human：updateState 不比较 fromState。
+	// 暂停恢复与退出回调共用这把占位。
+	const reviewKickoffs = new Set<string>();
+	const reviewChecks = new Set<Promise<void>>();
+	let reviewAdmissionClosed = false;
 	let isTicking = false;
+	deps.registerReviewCleanup?.(async () => {
+		reviewAdmissionClosed = true;
+		await Promise.allSettled(reviewChecks);
+	});
+
+	const claimReviewKickoff = (runId: string): boolean => {
+		if (reviewKickoffs.has(runId)) return false;
+		const runs = runsRepo.listAll();
+		if (runs.some((child) => child.kind === 'review' && child.parent_run_id === runId)) {
+			return false;
+		}
+		reviewKickoffs.add(runId);
+		return true;
+	};
+	function startReviewCheck(runId: string, admitReview: () => boolean): Promise<void> {
+		const check: Promise<void> = Promise.resolve()
+			.then(async () => {
+				if (admitReview())
+					await deps.reviewService?.evaluateMechanicalCheck({ runId, admitReview });
+			})
+			.catch(logFailure)
+			.finally(() => {
+				reviewKickoffs.delete(runId);
+				reviewChecks.delete(check);
+			});
+		reviewChecks.add(check);
+		return check;
+	}
 
 	const effectiveBatchService =
 		deps.batchService ??
@@ -558,6 +607,62 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 	function runGeneration(run: RunRow): number {
 		return readDocumentRunGeneration(run, runsRepo, deps.dispatchSnapshotsRepo);
+	}
+	function manualDispatchRequired(batchId: string): boolean {
+		const override = batchGateOverridesMap.get(batchId)?.dispatch;
+		if (override) return override === 'manual';
+		try {
+			const value = JSON.parse(deps.settingsRepo?.get('gates')?.value_json ?? 'null');
+			return (isValidGateSettings(value) ? value : DEFAULT_GATE_SETTINGS).dispatch === 'manual';
+		} catch {
+			return DEFAULT_GATE_SETTINGS.dispatch === 'manual';
+		}
+	}
+	function documentDispatchAllowed(taskId: string, entry: DocumentPlanBatch): boolean {
+		if (!manualDispatchRequired(entry.batchId)) return true;
+		const id = entry.dispatchGateIds?.[taskId];
+		const gate = id ? deps.gatesRepo?.findById(id) : null;
+		return gate?.state === 'decided' && gate.decision === 'pass';
+	}
+
+	function reviewAdmission(run: RunRow): () => boolean {
+		if (reviewAdmissionClosed) return () => false;
+		const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
+		const observed = task ? (deps.documentExecutionsRepo?.findByDocId(task.doc_id) ?? null) : null;
+		return () => {
+			if (reviewAdmissionClosed) return false;
+			if (!task) return false;
+			if (!executionStillCurrent(task.doc_id, observed)) return false;
+			if (!observed || observed.state === 'idle') return true;
+			if (observed.state !== 'running') return false;
+			const current = deps.tasksRepo.findById(task.id);
+			const batch = activePlanBatch(observed);
+			if (
+				!batch ||
+				!current ||
+				current.is_removed_from_doc !== 0 ||
+				current.is_contract_ready !== 1 ||
+				run.batch_id !== batch.batchId ||
+				runGeneration(run) !== batch.generationId ||
+				deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash !==
+					current.contract_hash
+			)
+				return false;
+			if (run.origin === 'wrapup-fix' && run.spawned_by_run_id) {
+				const owner = runsRepo.findById(run.spawned_by_run_id);
+				return (
+					owner?.kind === 'wrapup' &&
+					owner.batch_id === batch.batchId &&
+					batch.wrapupRunIds.includes(owner.id)
+				);
+			}
+			const member = batch?.members.find((item) => item.taskId === task.id);
+			return Boolean(
+				member &&
+					current.batch_id === batch.batchId &&
+					member.contractHash === current.contract_hash,
+			);
+		};
 	}
 
 	function frozenRunTaskPaths(run: RunRow): readonly string[] {
@@ -848,7 +953,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			modelEffortOptions: deps.modelEffortOptions,
 		});
 
-		const launchSpecJson = JSON.stringify({
+		const launchConfigurationSnapshot = {
 			agentId,
 			...launchConfiguration(agentId),
 			model: resolvedAssignment.modelName ?? null,
@@ -856,7 +961,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			permissionTier: input.permissionTier ?? 'workspaceWrite',
 			baseRef: input.baseRef ?? { kind: 'head' },
 			worktreeMode: input.worktreeMode ?? 'fresh',
-		});
+		};
 
 		const existingRuns = runsRepo.listByTaskId(taskId);
 		const attemptNo = existingRuns.length + 1;
@@ -897,7 +1002,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			}
 			const snapshot = deps.dispatchSnapshotsRepo.takeSnapshotForTask({
 				taskId,
-				launchSpecJson,
+				launchSpecJson: JSON.stringify({
+					...launchConfigurationSnapshot,
+					...(currentExecution?.state === 'running'
+						? { documentGenerationId: activePlanBatch(currentExecution)?.generationId }
+						: {}),
+				}),
 				createdAt: now,
 				assignmentJson,
 			});
@@ -1438,6 +1548,7 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 			// 以及待发事件与待启动列表都必须一起回滚，否则数据库、事件与返回值三者不一致。
 			const pendingAssignmentTx: Array<() => void> = [];
 			const pendingAssignmentEnvelopes: EventEnvelope[] = [];
+			const pendingExecutionVersions = new Map<string, number>();
 			const pendingRunsToLaunch: string[] = [];
 			const pendingReworksToDispatch: Array<{
 				readonly targetRunId: string;
@@ -1481,6 +1592,8 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 
 				if (assignmentCommitted) {
 					publishPendingEvents(pendingAssignmentEnvelopes, deps);
+					for (const [docId, previousVersion] of pendingExecutionVersions)
+						deps.publishDocumentExecutionChange?.(docId, previousVersion);
 					for (const runId of pendingRunsToLaunch) {
 						// launchRun records the failure before rejecting.
 						void launchRun(runId).catch(() => undefined);
@@ -1525,6 +1638,26 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 				}
 
 				pendingAssignmentTx.length = 0;
+				pendingExecutionVersions.clear();
+			};
+
+			const resumePausedReviews = (docId: string): void => {
+				if (!deps.reviewService) return;
+				const runs = runsRepo.listAll();
+				const pending = runs.filter((run) => {
+					if (run.kind !== 'implement' || run.state !== 'exited' || run.exit_code !== 0)
+						return false;
+					const task = run.task_id ? deps.tasksRepo.findById(run.task_id) : null;
+					if (task?.doc_id !== docId) return false;
+					return !runs.some((child) => child.kind === 'review' && child.parent_run_id === run.id);
+				});
+				for (const run of pending) {
+					const admitReview = reviewAdmission(run);
+					if (!admitReview()) continue;
+					if (!claimReviewKickoff(run.id)) continue;
+					// The per-run claim spans the check; other documents must not wait for its I/O.
+					void startReviewCheck(run.id, admitReview);
+				}
 			};
 
 			for (const previousDoc of documents) {
@@ -1537,8 +1670,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					(documentExecution.state === 'paused' || documentExecution.state === 'completed')
 				)
 					continue;
-				if (documentExecution?.state === 'running')
+				if (documentExecution?.state === 'running') {
 					await deps.wrapupService?.resumeDeferredFixes(doc.id);
+					resumePausedReviews(doc.id);
+				}
 				const documentAssignment: DocumentDefaultAssignment | null =
 					documentExecution?.state === 'running' && documentExecution.default_assignment_json
 						? (JSON.parse(documentExecution.default_assignment_json) as DocumentDefaultAssignment)
@@ -1577,12 +1712,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							!run.task_id ||
 							(run.state !== 'queued' &&
 								run.state !== 'reworking' &&
+								run.state !== 'exited' &&
 								run.state !== 'awaiting_human')
 						)
 							return false;
 						const task = deps.tasksRepo.findById(run.task_id);
 						if (task?.doc_id !== doc.id) return false;
-						if (run.state === 'reworking') {
+						if (run.state === 'reworking' || run.state === 'exited') {
 							const member = planBatch.members.find((item) => item.taskId === run.task_id);
 							return (
 								run.kind === 'implement' &&
@@ -2342,14 +2478,29 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 							deps.dispatchSnapshotsRepo,
 						)
 					: null;
-				const currentTasksById = new Map(currentEvidence?.tasks.map((task) => [task.id, task]));
+				// The running plan confirms this frozen source. Taking the new snapshot consumes old badges in the insert transaction.
+				const currentTasksById = new Map(
+					currentEvidence?.tasks.map((task) => [
+						task.id,
+						{
+							...task,
+							has_accept_changed: 0,
+							has_prompt_changed: 0,
+						},
+					]),
+				);
 				const currentRunIds = new Set(currentEvidence?.runs.map((run) => run.id));
 				const candidateRuns = planBatch
 					? allRuns.filter((run) => {
 							if (!run.task_id || !currentMemberIds.has(run.task_id)) return true;
 							return run.kind === 'implement'
 								? currentRunIds.has(run.id)
-								: !isTerminalRunState(run.state as RunState);
+								: !run.session_archived_at &&
+										!isTerminalRunState(run.state as RunState) &&
+										runGeneration(run) === planBatch.generationId &&
+										deps.dispatchSnapshotsRepo.findById(run.snapshot_id)?.contract_hash ===
+											planBatch.members.find((member) => member.taskId === run.task_id)
+												?.contractHash;
 						})
 					: allRuns;
 				const dispatchCandidates = computeDispatchCandidates({
@@ -2374,6 +2525,67 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						pendingTaskIds.size > 0
 							? candidateTasks.filter((task) => !pendingTaskIds.has(task.id))
 							: [];
+				}
+				if (planBatch && manualDispatchRequired(planBatch.batchId)) {
+					candidateTasks = candidateTasks.filter((task) => {
+						if (documentDispatchAllowed(task.id, planBatch)) return true;
+						tasksBlocked.push({ taskId: task.id, reason: 'gate_waiting' });
+						if (planBatch.dispatchGateIds?.[task.id]) return false;
+						pendingAssignmentTx.push(() => {
+							if (
+								!executionStillCurrent(doc.id, documentExecution ?? null) ||
+								deps.tasksRepo.findById(task.id)?.is_contract_ready !== 1
+							)
+								return;
+							try {
+								deps.validateSourceAtCommit?.(doc.id, [task.id]);
+							} catch (error) {
+								logFailure(error);
+								return;
+							}
+							const row = deps.documentExecutionsRepo?.findByDocId(doc.id);
+							if (!row || !deps.gatesRepo || !deps.documentExecutionsRepo) return;
+							const entries = JSON.parse(row.plan_json) as readonly DocumentPlanBatch[];
+							const current = entries.find((entry) => entry.batchId === planBatch.batchId);
+							if (!current || current.dispatchGateIds?.[task.id]) return;
+							const gateId = deps.ids.newId();
+							deps.gatesRepo.create({
+								id: gateId,
+								task_id: task.id,
+								run_id: null,
+								kind: 'dispatch',
+								state: 'waiting',
+								comment: 'document_dispatch_confirmation',
+								created_at: deps.clock.now(),
+							});
+							deps.documentExecutionsRepo.save({
+								...row,
+								version: row.version + 1,
+								plan_json: JSON.stringify(
+									entries.map((entry) =>
+										entry.batchId === current.batchId
+											? {
+													...entry,
+													dispatchGateIds: { ...entry.dispatchGateIds, [task.id]: gateId },
+												}
+											: entry,
+									),
+								),
+							});
+							if (!pendingExecutionVersions.has(doc.id))
+								pendingExecutionVersions.set(doc.id, row.version);
+							if (deps.envelopeFactory)
+								pendingAssignmentEnvelopes.push(
+									deps.envelopeFactory.createEnvelope({
+										kind: 'task.gate_waiting',
+										taskId: task.id,
+										actorDeviceId: null,
+										payload: { gate: 'dispatch' },
+									}),
+								);
+						});
+						return false;
+					});
 				}
 
 				if (candidateTasks.length === 0 && reworkTasks.length === 0) {
@@ -2553,6 +2765,12 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 						}
 						if (!candidate.isRework && (!newWorkAllowed || pendingTaskIds.has(candidate.task.id)))
 							continue;
+						if (
+							!candidate.isRework &&
+							planBatch &&
+							!documentDispatchAllowed(candidate.task.id, planBatch)
+						)
+							continue;
 
 						if (candidate.isRework && candidate.reworkRun) {
 							const reworkRun = candidate.reworkRun;
@@ -2658,6 +2876,13 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 								createdAt: deps.clock.now(),
 								assignmentJson: tickAssignmentJson,
 							});
+							// A fresh current-contract attempt consumes the obsolete acceptance badge with its snapshot.
+							if (
+								planBatch &&
+								currentTask.manual_state === 'landed' &&
+								task.manual_state === 'landed'
+							)
+								deps.tasksRepo.updateManualState(task.id, null);
 
 							const runInsert: RunInsertRow = {
 								id: runId,
@@ -3236,11 +3461,10 @@ export function createDispatchService(deps: DispatchServiceDeps): DispatchServic
 					const isImplementLike =
 						run.kind === 'implement' || run.origin === 'rework' || run.origin === 'wrapup-fix';
 					if (isImplementLike && result.exitCode === 0 && deps.reviewService) {
-						try {
-							await deps.reviewService.evaluateMechanicalCheck({ runId });
-						} catch (err) {
-							logFailure(err);
-						}
+						const admitReview = reviewAdmission(run);
+						if (!admitReview()) return;
+						if (!claimReviewKickoff(runId)) return;
+						await startReviewCheck(runId, admitReview);
 					}
 				},
 			});
