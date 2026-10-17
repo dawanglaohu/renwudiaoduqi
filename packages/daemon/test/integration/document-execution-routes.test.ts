@@ -5970,7 +5970,10 @@ describe('M8-T12 document execution through the real container', () => {
 			toState: 'awaiting_human',
 			endedAt: '2026-10-12T07:00:00.000Z',
 		});
-		container.repos.gates.create({
+		const gates = container.repos.gates;
+		const wrapups = container.repos.batchWrapups;
+		if (!gates || !wrapups) throw new Error('Gate repositories are not wired');
+		gates.create({
 			id: 'human-wrapup-gate',
 			task_id: null,
 			run_id: 'human-wrapup',
@@ -5984,7 +5987,7 @@ describe('M8-T12 document execution through the real container', () => {
 			comment: '人工收口只记录仍在文档中的任务',
 			actorDeviceId: null,
 		});
-		const record = container.repos.batchWrapups.listByBatchId(batch.id)[0];
+		const record = wrapups.listByBatchId(batch.id)[0];
 		expect(JSON.parse(record?.tasks_json ?? '[]')).toEqual(['M1-T1']);
 		await server.instance.close();
 	});
