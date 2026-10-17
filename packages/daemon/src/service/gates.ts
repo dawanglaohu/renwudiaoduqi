@@ -281,7 +281,10 @@ export function createGateService(deps: GateServiceDeps): GateService {
 								// Write human verdict wrapup record
 								if (deps.batchWrapupsRepo) {
 									const tasks = deps.tasksRepo?.listByBatchId(batch.id) ?? [];
-									const taskKeys = tasks.map((t) => t.task_key);
+									const taskKeys = tasks
+										.filter((task) => task.is_removed_from_doc === 0)
+										.map((task) => task.task_key)
+										.sort();
 									deps.batchWrapupsRepo.insert({
 										id: humanWrapupId,
 										batch_id: batch.id,
